@@ -92,7 +92,7 @@ endif ()
 ## Documentation
 
 Online documentation can be found on [Read The Docs](http://ygm.readthedocs.io/). Alternatively, a PDF version of the
-documentation hosted on Read The Docs can be found in the repo at [[docs/ygm.pdf]].
+documentation hosted on Read The Docs can be found in the repo at [`docs/ygm.pdf`](docs/ygm.pdf).
 
 If you prefer to build the HTML that you can view in a browser, run
 ```
