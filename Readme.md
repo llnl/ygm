@@ -89,6 +89,20 @@ else ()
 endif ()
 ```
 
+## Documentation
+
+Online documentation can be found on [Read The Docs](http://ygm.readthedocs.io/). Alternatively, a PDF version of the
+documentation hosted on Read The Docs can be found in the repo at [[docs/ygm.pdf]].
+
+To build the documentation, run
+```
+mkdir build && cd build
+cmake .. -DYGM_DOCS_ONLY=On
+make sphinx
+```
+This will generate a local copy of the docs that can be accessed by opening `build/docs/sphinx/index.html`.
+
+
 # License
 YGM is distributed under the MIT license.
 
