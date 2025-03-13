@@ -18,7 +18,6 @@ jobs:
       run: |
         sudo apt-get install doxygen sphinx
         pip install -r docs/sphinx/requirements.txt
-        sudo apt-get install texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra latexmk
     - name: make
       run: |
         mkdir build
