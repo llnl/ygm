@@ -94,13 +94,18 @@ endif ()
 Online documentation can be found on [Read The Docs](http://ygm.readthedocs.io/). Alternatively, a PDF version of the
 documentation hosted on Read The Docs can be found in the repo at [[docs/ygm.pdf]].
 
-To build the documentation, run
+If you prefer to build the HTML that you can view in a browser, run
 ```
 mkdir build && cd build
 cmake .. -DYGM_DOCS_ONLY=On
 make sphinx
 ```
-This will generate a local copy of the docs that can be accessed by opening `build/docs/sphinx/index.html`.
+This will generate a local copy of the docs that can be accessed by opening `build/docs/sphinx/index.html`. Note that
+this process requires:
+* Doxygen
+* Sphinx
+* `breathe` (installable through `pip`)
+* `sphinx-rtd-theme` (installable through `pip`)
 
 
 # License
