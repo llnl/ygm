@@ -5,6 +5,16 @@
 
 cmake_minimum_required(VERSION 3.14)
 
+# ---------------------------------------------------------------------------- #
+# CMake policy
+# ---------------------------------------------------------------------------- #
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
+    cmake_policy(SET CMP0167 NEW)
+endif ()
+
+# ---------------------------------------------------------------------------- #
+# YGM configuration
+# ---------------------------------------------------------------------------- #
 project(
     ygm
     VERSION 0.8
@@ -75,8 +85,6 @@ endif ()
 # Boost
 #
 if (NOT boost_POPULATED)
-    cmake_policy(VERSION 3.30)
-    cmake_policy(SET CMP0167 NEW)
     find_package(Boost 1.78)
     if (Boost_FOUND)
         message(STATUS ${PROJECT_NAME} " found boost include dirs: "
