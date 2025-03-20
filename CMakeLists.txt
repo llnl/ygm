@@ -20,7 +20,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(YGM_BUILD_TESTS "Build tests" OFF)
 option(YGM_BUILD_TOOLS "Build tools" OFF)
 option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
-option(YGM_RTD_ONLY "Run Cmake for only generating documentation for Read the Docs" OFF)
+option(YGM_RTD_ONLY
+       "Run Cmake for only generating documentation for Read the Docs" OFF
+)
 option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
 option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
 
@@ -55,7 +57,7 @@ include(FetchContent)
 #
 # Cereal
 #
-if(NOT cereal_POPULATED)
+if (NOT cereal_POPULATED)
     find_package(cereal CONFIG QUIET)
     if (NOT cereal_FOUND)
         set(JUST_INSTALL_CEREAL TRUE)
@@ -65,31 +67,30 @@ if(NOT cereal_POPULATED)
             GIT_TAG v1.3.2
         )
         FetchContent_MakeAvailable(cereal)
-    endif()
-endif()
+    endif ()
+endif ()
 
 #
 # Boost
 #
-if(NOT boost_POPULATED)
+if (NOT boost_POPULATED)
     find_package(Boost 1.78)
     if (Boost_FOUND)
         message(STATUS ${PROJECT_NAME} " found boost include dirs: "
-                    ${Boost_INCLUDE_DIRS}
+                       ${Boost_INCLUDE_DIRS}
         )
     else ()
         FetchContent_Declare(
-                Boost
-                URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
+            Boost
+            URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
         )
         set(BOOST_INCLUDE_LIBRARIES json)
         FetchContent_MakeAvailable(Boost)
     endif ()
-endif()
+endif ()
 
 #
 # Arrow
-#
 #
 include(FindArrowParquet)
 find_or_install_arrow_parquet()
@@ -105,9 +106,10 @@ target_include_directories(
                   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
-    ygm PUBLIC INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt cereal
+    ygm
+    PUBLIC
+    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt cereal
 )
-
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 include(GNUInstallDirs)
@@ -115,7 +117,7 @@ include(CMakePackageConfigHelpers)
 
 install(
     TARGETS ${PROJECT_NAME} cereal
-    EXPORT ${PROJECT_NAME}Targets 
+    EXPORT ${PROJECT_NAME}Targets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
