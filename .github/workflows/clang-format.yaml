@@ -7,11 +7,10 @@ on:
 jobs:
   format_code:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
     - uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.ref }}
     - uses: DoozyX/clang-format-lint-action@v0.18.1
       with:
         source: 'include examples test tools'
@@ -19,9 +18,16 @@ jobs:
         clangFormatVersion: 14
         inplace: True
         style: file
-    - uses: EndBug/add-and-commit@v9
+    - name: Check for changes from formatting
+      run: |
+        UNFORMATTED_FILES=$(git diff --name-only HEAD)
+        if [ "${UNFORMATTED_FILES}" != '' ]; then
+          PASS=0
+        else
+          PASS=1
+        fi
+    - uses: marocchino/sticky-pull-request-comment@v2
       with:
-        #author_name: YGM clang-format bot
-        message: 'Committing clang-format changes'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        message: |
+          This PR has unformatted changes in the following files: ${UNFORMATTED_FILES}.
+            Please run `clang-format`.
