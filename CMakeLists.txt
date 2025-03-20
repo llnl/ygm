@@ -110,8 +110,15 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt cereal
+    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal
 )
+if (UNIX AND NOT APPLE)
+    target_link_libraries(
+        ygm
+        PUBLIC
+        INTERFACE rt
+    )
+endif ()
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 include(GNUInstallDirs)
