@@ -18,6 +18,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # Configuration options for YGM
 #
 option(YGM_BUILD_TESTS "Build tests" OFF)
+option(YGM_BUILD_EXAMPLES "Build examples" OFF)
 option(YGM_BUILD_TOOLS "Build tools" OFF)
 option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
 option(YGM_RTD_ONLY
@@ -166,6 +167,9 @@ if (YGM_BUILD_TESTS)
     option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
     enable_testing()
     add_subdirectory(test)
+endif ()
+if (YGM_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif ()
 if (YGM_BUILD_TOOLS)
     add_subdirectory(tools)
