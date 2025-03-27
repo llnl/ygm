@@ -1115,6 +1115,10 @@ inline void comm::set_log_location(const std::filesystem::path &p) {
     cout0("Cannot set log location: ", p, " exists and is not a directory");
   }
   std::filesystem::create_directories(p);
+
+  std::filesystem::path rank_log_path =
+      p + std::filesystem::path("ygm_logs" + std::to_string(rank()));
+  m_logger.set_path(rank_log_path);
 }
 
 };  // namespace ygm
