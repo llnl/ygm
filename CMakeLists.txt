@@ -101,6 +101,19 @@ if (NOT boost_POPULATED)
 endif ()
 
 #
+# spdlog
+#
+if (NOT spdlog_POPULATED)
+    set(SPDLOG_INSTALL On)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog
+        GIT_TAG v1.15.1
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif ()
+
+#
 # Arrow
 #
 include(FindArrowParquet)
@@ -119,7 +132,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal
+    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal spdlog_header_only
 )
 if (UNIX AND NOT APPLE)
     target_link_libraries(
