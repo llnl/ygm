@@ -1107,7 +1107,7 @@ inline void comm::set_log_location(const StringType &s) {
   set_log_location(std::filesystem::path(s));
 }
 
-inline void comm::set_log_location(const std::filesystem::path &p) {
+inline void comm::set_log_location(const std::filesystem::path p) {
   // p will be treated as a desired directory location to store all logs. The
   // full name of the individual loggers on each rank will be determined by the
   // ygm::detail::logger objects.
@@ -1116,9 +1116,8 @@ inline void comm::set_log_location(const std::filesystem::path &p) {
   }
   std::filesystem::create_directories(p);
 
-  std::filesystem::path rank_log_path =
-      p + std::filesystem::path("ygm_logs" + std::to_string(rank()));
-  m_logger.set_path(rank_log_path);
+  p /= ("ygm_logs" + std::to_string(rank()));
+  m_logger.set_path(p);
 }
 
 };  // namespace ygm
