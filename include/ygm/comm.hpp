@@ -194,8 +194,11 @@ class comm {
   void enable_comm_logging() { m_comm_logging_enabled = true; }
   void disable_comm_logging() { m_comm_logging_enabled = false; }
 
+  template <typename StringType>
+  void set_log_location(const StringType &s);
+
+  template <>
   void set_log_location(const std::filesystem::path &p);
-  void set_log_location(const std::string &s);
 
   // Private member functions
  private:
