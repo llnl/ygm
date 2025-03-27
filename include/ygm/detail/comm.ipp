@@ -1107,8 +1107,7 @@ inline void comm::set_log_location(const StringType &s) {
   set_log_location(std::filesystem::path(s));
 }
 
-template <>
-inline void comm::set_log_location<>(const std::filesystem::path &p) {
+inline void comm::set_log_location(const std::filesystem::path &p) {
   // p will be treated as a desired directory location to store all logs. The
   // full name of the individual loggers on each rank will be determined by the
   // ygm::detail::logger objects.
