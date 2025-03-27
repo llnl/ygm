@@ -197,7 +197,7 @@ class comm {
   template <typename StringType>
   void set_log_location(const StringType &s);
 
-  void set_log_location(const std::filesystem::path &p);
+  void set_log_location(std::filesystem::path p);
 
   // Private member functions
  private:
