@@ -38,7 +38,6 @@ class comm {
   class mpi_irecv_request;
   class mpi_isend_request;
   class header_t;
-  class trace_header_t;
   friend class detail::interrupt_mask;
   friend class detail::comm_stats;
 
@@ -188,15 +187,12 @@ class comm {
   void comm_setup(MPI_Comm comm);
 
   size_t pack_header(ygm::detail::byte_vector &packed, const int dest,
-                             size_t size);
-
-  size_t pack_tracing_header(ygm::detail::byte_vector &packed, const int trace_id,
-                             size_t size);
+                     size_t size);
 
   std::pair<uint64_t, uint64_t> barrier_reduce_counts();
 
   void flush_next_send(std::deque<int> &dest_queue);
-  
+
   void flush_send_buffer(int dest);
 
   void handle_completed_send(mpi_isend_request &req_buffer);
@@ -222,11 +218,11 @@ class comm {
   size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda l,
                              RemoteLogicLambda rll, const PackArgs &...args);
 
-  void queue_message_bytes(const ygm::detail::byte_vector             &packed,
-                           const int                     dest);
+  void queue_message_bytes(const ygm::detail::byte_vector &packed,
+                           const int                       dest);
 
   void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                           const size_t                 buffer_size);
+                           const size_t buffer_size);
 
   bool process_receive_queue();
 
@@ -250,13 +246,13 @@ class comm {
 
   std::vector<ygm::detail::byte_vector> m_vec_send_buffers;
 
-  size_t                              m_send_local_buffer_bytes = 0;
-  std::deque<int>                     m_send_local_dest_queue;
-  size_t                              m_send_remote_buffer_bytes = 0;
-  std::deque<int>                     m_send_remote_dest_queue;
+  size_t          m_send_local_buffer_bytes = 0;
+  std::deque<int> m_send_local_dest_queue;
+  size_t          m_send_remote_buffer_bytes = 0;
+  std::deque<int> m_send_remote_dest_queue;
 
-  std::deque<mpi_irecv_request>                        m_recv_queue;
-  std::deque<mpi_isend_request>                        m_send_queue;
+  std::deque<mpi_irecv_request>                          m_recv_queue;
+  std::deque<mpi_isend_request>                          m_send_queue;
   std::vector<std::shared_ptr<ygm::detail::byte_vector>> m_free_send_buffers;
 
   size_t m_pending_isend_bytes = 0;
@@ -265,8 +261,8 @@ class comm {
 
   bool m_enable_interrupts = true;
 
-  uint64_t m_recv_count      = 0;
-  uint64_t m_send_count      = 0;
+  uint64_t m_recv_count = 0;
+  uint64_t m_send_count = 0;
 
   bool m_in_process_receive_queue = false;
 
