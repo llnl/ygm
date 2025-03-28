@@ -19,6 +19,7 @@ class interrupt_mask {
 
   ~interrupt_mask() {
     m_comm.m_enable_interrupts = true;
+    m_comm.check_if_production_halt_required();
     // m_comm.process_receive_queue();  //causes recursion into
     // process_receive_queue
   }
