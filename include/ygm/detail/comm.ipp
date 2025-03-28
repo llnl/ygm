@@ -211,15 +211,14 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (config.routing != detail::routing_type::NONE) {
     auto iter = m_vec_send_buffers[next_dest].end();
     iter -= (header_bytes + bytes);
-
-    std::memcpy(&*iter, &bytes,
-                sizeof(header_t::message_size));                                  
+    std::memcpy(&*iter, &bytes, sizeof(header_t::message_size));                                  
   }
 
   if (config.trace_ygm) {
     m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes);
   }
 
+  // Check if send buffer capacity has been exceeded
   flush_to_capacity();
 }
 

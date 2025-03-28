@@ -3,9 +3,25 @@
 #
 # SPDX-License-Identifier: MIT
 
+#
+# This function adds a tool
+#
+function (add_ygm_tool tool_name)
+    set(tool_source "${tool_name}.cpp")
+    set(tool_exe "${tool_name}")
+    add_executable(${tool_exe} ${tool_source})
+    target_link_libraries(${tool_exe} PUBLIC ygm::ygm)
+endfunction ()
+
+if (Boost_FOUND)
+add_ygm_tool(read_trace)
+target_include_directories(read_trace PUBLIC ${Boost_INCLUDE_DIRS})
+endif ()
+
+
 if (Arrow_FOUND AND Parquet_FOUND)
     if (Boost_FOUND)
-        add_ygm_example(parquet_tools)
+        add_ygm_tool(parquet_tools)
         target_include_directories(parquet_tools PUBLIC ${Boost_INCLUDE_DIRS})
         link_arrow_parquet(parquet_tools)
     endif ()
