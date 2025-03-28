@@ -181,18 +181,14 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
-  template <typename... Args>
-  void log(Args &&...args) const {
-    if (m_logging_enabled) {
-      m_logger.log(args...);
-    }
+  void set_log_level(const ygm::log_level level) {
+    m_logger.set_log_level(level);
   }
 
-  void enable_logging() { m_logging_enabled = true; }
-  void disable_logging() { m_logging_enabled = false; }
-
-  void enable_comm_logging() { m_comm_logging_enabled = true; }
-  void disable_comm_logging() { m_comm_logging_enabled = false; }
+  template <typename... Args>
+  void log(const ygm::log_level level, Args &&...args) const {
+    m_logger.log(level, args...);
+  }
 
   template <typename StringType>
   void set_log_location(const StringType &s);
@@ -249,13 +245,6 @@ class comm {
   template <typename... Args>
   std::string outstr0(Args &&...args) const;
 
-  template <typename... Args>
-  void comm_log(Args &&...args) const {
-    if (m_comm_logging_enabled) {
-      m_logger.log(args...);
-    }
-  }
-
   comm() = delete;
 
   comm(const comm &c) = delete;
@@ -295,8 +284,6 @@ class comm {
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
 
-  bool           m_logging_enabled      = true;
-  bool           m_comm_logging_enabled = false;
   detail::logger m_logger;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>

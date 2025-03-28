@@ -33,6 +33,7 @@ endfunction ()
 
 add_ygm_seq_test(test_cereal_archive)
 add_ygm_seq_test(test_byte_vector)
+add_ygm_seq_test(test_logger)
 
 add_ygm_test(test_comm)
 add_ygm_test(test_comm_2)

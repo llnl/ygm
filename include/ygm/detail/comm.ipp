@@ -254,7 +254,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-  comm_log("Entering YGM barrier");
+  log(log_level::debug, "Entering YGM barrier");
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -271,7 +271,7 @@ inline void comm::barrier() {
   YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
 
   cf_barrier();
-  comm_log("Exiting YGM barrier");
+  log(log_level::debug, "Exiting YGM barrier");
 }
 
 /**
@@ -280,9 +280,9 @@ inline void comm::barrier() {
  * called it. See:  MPI_Barrier()
  */
 inline void comm::cf_barrier() const {
-  comm_log("Entering YGM cf_barrier");
+  log(log_level::debug, "Entering YGM cf_barrier");
   YGM_ASSERT_MPI(MPI_Barrier(m_comm_barrier));
-  comm_log("Exiting YGM cf_barrier");
+  log(log_level::debug, "Exiting YGM cf_barrier");
 }
 
 template <typename T>
@@ -558,14 +558,16 @@ inline void comm::flush_send_buffer(int dest) {
     }
     request.buffer->swap(m_vec_send_buffers[dest]);
     if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
-      comm_log("MPI_Issend " + std::to_string(request.buffer->size()) +
-               " bytes to rank " + std::to_string(dest));
+      log(log_level::debug, "MPI_Issend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
                                 MPI_BYTE, dest, 0, m_comm_async,
                                 &(request.request)));
     } else {
-      comm_log("MPI_Isend " + std::to_string(request.buffer->size()) +
-               " bytes to rank " + std::to_string(dest));
+      log(log_level::debug, "MPI_Isend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
                                MPI_BYTE, dest, 0, m_comm_async,
                                &(request.request)));
@@ -600,8 +602,9 @@ inline void comm::flush_next_send(std::deque<int> &dest_queue) {
  */
 inline void comm::handle_completed_send(mpi_isend_request &req_buffer) {
   m_pending_isend_bytes -= req_buffer.buffer->size();
-  comm_log("Completed send of " + std::to_string(req_buffer.buffer->size()) +
-           " bytes");
+  log(log_level::debug, "Completed send of " +
+                            std::to_string(req_buffer.buffer->size()) +
+                            " bytes");
   if (m_free_send_buffers.size() < config.send_buffer_free_list_len) {
     req_buffer.buffer->clear();
     m_free_send_buffers.push_back(req_buffer.buffer);
@@ -965,8 +968,8 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector &packed,
 inline void comm::handle_next_receive(
     std::shared_ptr<ygm::detail::byte_vector> &buffer, const size_t buffer_size,
     const uint32_t from_rank) {
-  comm_log("Received " + std::to_string(buffer_size) + " bytes from rank " +
-           std::to_string(from_rank));
+  log(log_level::debug, "Received " + std::to_string(buffer_size) +
+                            " bytes from rank " + std::to_string(from_rank));
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
