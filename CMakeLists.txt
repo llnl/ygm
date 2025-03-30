@@ -34,8 +34,8 @@ option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
 option(YGM_RTD_ONLY
        "Run Cmake for only generating documentation for Read the Docs" OFF
 )
-option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
-option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
+option(YGM_REQUIRE_PARQUET "Throws a fatal error if Arrow Parquet is not available" OFF)
+option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found" OFF)
 
 #
 # Doxygen and Read the Docs (RTD) Documentation

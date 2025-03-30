@@ -11,6 +11,7 @@
 #include <iostream>
 #include <regex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <ygm/comm.hpp>
@@ -29,22 +30,42 @@
 namespace stdfs = std::filesystem;
 
 namespace ygm::io {
-
 namespace detail {
+
+// List of supported Parquet::Type types
+// parquet::Type::FIXED_LEN_BYTE_ARRAY is not supported
+constexpr std::array<parquet::Type::type, 6> supported_parquet_types = {
+    parquet::Type::BOOLEAN, parquet::Type::INT32,  parquet::Type::INT64,
+    parquet::Type::FLOAT,   parquet::Type::DOUBLE, parquet::Type::BYTE_ARRAY,
+};
+
+/// Check if the data type is supported by this parser.
+inline constexpr bool is_supported_parquet_type(
+    const parquet::Type::type type) {
+  for (const auto &supported_type : supported_parquet_types) {
+    if (type == supported_type) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Holds parquet data type information.
+/// Just a utility wrapper around parquet::Type::type.
 struct parquet_data_type {
   parquet::Type::type type{parquet::Type::type::UNDEFINED};
-
-  // If true, the data type is not supported by this parser.
-  bool unsupported{false};
 
   bool equal(const parquet::Type::type other_type) const {
     return other_type == type;
   }
 
-  friend std::ostream& operator<<(std::ostream&, const parquet_data_type&);
+  /// Check if the data type is supported by this parser.
+  bool valid() const { return is_supported_parquet_type(type); }
+
+  friend std::ostream &operator<<(std::ostream &, const parquet_data_type &);
 };
 
-std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
+std::ostream &operator<<(std::ostream &os, const parquet_data_type &t) {
   os << parquet::TypeToString(t.type);
   return os;
 }
@@ -54,60 +75,79 @@ std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
 // Only supports the plain encoding.
 // Do not support nested or hierarchical columns.
 class parquet_parser {
- public:
+ private:
   using self_type = parquet_parser;
-  // 0: a column type, 1: column name
-  using file_schema_container =
-      std::vector<std::tuple<detail::parquet_data_type, std::string>>;
-  using parquet_stream_reader = parquet::StreamReader;
 
-  parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
+ public:
+  // List of C++ types supported by this parser
+  // Note: there is no uint types in Parquet
+  using parquet_type_variant =
+      std::variant<std::monostate, bool, int32_t, int64_t, float, double,
+                   std::string>;
+
+  struct column_metadata_type {
+    detail::parquet_data_type type;
+    std::string               name;
+    // If true, this parser can not handle this column data.
+    // If 'type' is not supported, this will be true.
+    // However, this value could be false even if 'type' is supported.
+    bool unsupported{false};
+  };
+
+  parquet_parser(ygm::comm &_comm) : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
   }
 
-  parquet_parser(ygm::comm& _comm, const std::vector<std::string>& stringpaths,
+  parquet_parser(ygm::comm &_comm, const std::vector<std::string> &stringpaths,
                  bool recursive = false)
       : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
     check_paths(stringpaths, recursive);
     read_file_schema();
+    count_all_rows();
     m_comm.barrier();
   }
 
   ~parquet_parser() { m_comm.barrier(); }
 
-  // Returns a list of column schema information
-  const file_schema_container& schema() { return m_schema; }
+  // Returns a list of column metadata.
+  // The order of the metadata is the same as the order of Parquet column
+  // indices (ascending order).
+  const std::vector<column_metadata_type> &get_metadata() {
+    return m_col_metadata;
+  }
 
-  const std::string& schema_to_string() { return m_schema_string; }
+  // Return Parquet file schema as a string
+  // This function assumes that all files have the same schema.
+  const std::string &schema_to_string() { return m_schema_string; }
 
+  /// Read all columns and call the function for each row.
+  /// fn is called with a std::vector<parquet_type_variant>.
+  /// The values of unsupported columns are set to std::monostate.
   template <typename Function>
+    requires std::invocable<Function, const std::vector<parquet_type_variant> &>
   void for_all(Function fn) {
-    read_files(fn);
+    read_parquet_files(fn);
+  }
+
+  /// Read the specified columns and call the function for each row.
+  /// fn is called with a std::vector<parquet_type_variant>.
+  /// The values of unsupported or missing columns are set to std::monostate.
+  template <typename Function>
+    requires std::invocable<Function, const std::vector<parquet_type_variant> &>
+  void for_all(const std::vector<std::string> &columns, Function fn) {
+    read_parquet_files(fn, columns);
   }
 
   // Returns the number of total files
-  size_t file_count() { return m_paths.size(); }
+  size_t num_files() { return m_paths.size(); }
 
   // Returns the number of rows in all files
-  size_t row_count() { return count_all_rows(); }
+  size_t num_rows() { return m_num_total_rows; }
 
  private:
-  /// @brief Holds the information about the range of file data to be read by a
-  /// rank.
-  struct read_range {
-    size_t begin_file_no{0};
-    size_t begin_row_offset{0};
-    size_t num_rows{0};
-
-    template <typename Archive>
-    void serialize(Archive& ar) {
-      ar(begin_file_no, begin_row_offset, num_rows);
-    }
-  };
-
-  /// @brief Count the number of lines in a file.
-  static size_t count_rows(const stdfs::path& input_filename) {
+  /// Count the number of lines in a file.
+  static size_t get_num_rows(const stdfs::path &input_filename) {
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     PARQUET_ASSIGN_OR_THROW(input_file,
                             arrow::io::ReadableFile::Open(input_filename));
@@ -121,8 +161,19 @@ class parquet_parser {
     return num_rows;
   }
 
+  void count_all_rows() {
+    size_t total_rows = 0;
+    for (size_t i = 0; i < m_paths.size(); ++i) {
+      if (is_owner(i)) {
+        total_rows += get_num_rows(m_paths[i]);
+      }
+    }
+    m_num_total_rows = m_comm.all_reduce_sum(total_rows);
+  }
+
+  /// Open a Parquet file and return a ParquetFileReader object.
   static std::unique_ptr<parquet::ParquetFileReader> open_file(
-      const stdfs::path& input_filename) {
+      const stdfs::path &input_filename) {
     // Open the Parquet file
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     try {
@@ -141,12 +192,12 @@ class parquet_parser {
    * @param stringpaths
    * @param recursive
    */
-  void check_paths(const std::vector<std::string>& stringpaths,
+  void check_paths(const std::vector<std::string> &stringpaths,
                    bool                            recursive) {
     if (m_comm.rank0()) {
       std::vector<std::string> good_stringpaths;
 
-      for (const std::string& strp : stringpaths) {
+      for (const std::string &strp : stringpaths) {
         stdfs::path p(strp);
         if (stdfs::exists(p)) {
           if (stdfs::is_regular_file(p)) {
@@ -192,8 +243,8 @@ class parquet_parser {
 
       // Broadcast paths to all ranks
       m_comm.async_bcast(
-          [](auto parquet_reader_ptr, const auto& stringpaths_vec) {
-            for (const auto& stringpath : stringpaths_vec) {
+          [](auto parquet_reader_ptr, const auto &stringpaths_vec) {
+            for (const auto &stringpath : stringpaths_vec) {
               parquet_reader_ptr->m_paths.push_back(stdfs::path(stringpath));
             }
           },
@@ -210,7 +261,7 @@ class parquet_parser {
    * @return true
    * @return false
    */
-  bool is_file_good(const stdfs::path& p) {
+  bool is_file_good(const stdfs::path &p) {
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     try {
       PARQUET_ASSIGN_OR_THROW(input_file, arrow::io::ReadableFile::Open(p));
@@ -218,42 +269,6 @@ class parquet_parser {
       return false;
     }
     return true;
-  }
-
-  size_t count_all_rows() {
-    size_t total_rows = 0;
-    if (m_comm.rank0()) {
-      for (size_t i = 0; i < m_paths.size(); ++i) {
-        total_rows += count_rows(m_paths[i]);
-      }
-    }
-    return m_comm.all_reduce_sum(total_rows);
-  }
-
-  template <typename Function>
-  void read_files(Function fn) {
-    m_comm.barrier();
-    if (ARROW_VERSION_MAJOR < 14) {
-      // Due to a bug in parquet::StreamReader::SkipRows() in < v14,
-      // we can not read a single file using multiple ranks.
-      for (size_t i = 0; i < m_paths.size(); ++i) {
-        if (is_owner(i)) {
-          read_parquet_stream(m_paths[i], fn);
-        }
-      }
-    } else {
-      assign_read_range();
-      // If n is 0, fno and offset could contain invalid values
-      ssize_t n      = ssize_t(m_read_range.num_rows);
-      size_t  fno    = m_read_range.begin_file_no;
-      size_t  offset = m_read_range.begin_row_offset;
-      while (n > 0) {
-        n -= read_parquet_stream(m_paths[fno], fn, offset, n);
-        assert(n >= 0);
-        offset = 0;
-        ++fno;
-      }
-    }
   }
 
   void read_file_schema() {
@@ -264,127 +279,239 @@ class parquet_parser {
     }
 
     // Get the file schema
-    parquet::SchemaDescriptor const* const file_schema =
+    parquet::SchemaDescriptor const *const file_schema =
         reader->metadata()->schema();
 
-    const size_t field_count = file_schema->num_columns();
-    for (size_t i = 0; i < field_count; ++i) {
-      parquet::ColumnDescriptor const* const column = file_schema->Column(i);
+    const size_t num_cols = file_schema->num_columns();
+    m_col_metadata.resize(num_cols);
+    for (size_t i = 0; i < num_cols; ++i) {
+      // Assumes that Parquet column index space is contiguous, i.e., [0,
+      // num_cols).
+      parquet::ColumnDescriptor const *const column = file_schema->Column(i);
       auto ptype = detail::parquet_data_type{column->physical_type()};
+      // Check if the type is supported
+      bool unsupported = !detail::is_supported_parquet_type(ptype.type);
+      // Check if the column is flat
       if (column->max_definition_level() != 1 ||
           column->max_repetition_level() != 0) {
         // The column is not flat, which is not supported by this parser.
-        ptype.unsupported = true;
+        unsupported = true;
         // Memo: for definition and repetition levels, see
         // https://blog.x.com/engineering/en_us/a/2013/dremel-made-simple-with-parquet
       }
-      m_schema.emplace_back(std::forward_as_tuple(ptype, column->name()));
+      m_col_metadata[i] = {
+          .type = ptype, .name = column->name(), .unsupported = unsupported};
     }
     m_schema_string = file_schema->ToString();
   }
 
-  /// @brief Reads a parquet file and calls a function for each row.
-  /// @param input_filename Path to a parquet file.
-  /// @param fn A function that takes a parquet_stream_reader and the #of
-  /// @param offset #of rows to skip. This option works with >= Arrow v14.
-  /// @param num_rows_to_read #of rows to read. If negative, read all rows.
+  /// Read multiple parquet files in parallel (MPI)
+  /// This function does not read a single file using multiple MPI ranks.
   template <typename Function>
-  size_t read_parquet_stream(const stdfs::path& input_filename, Function fn,
-                             const size_t  offset           = 0,
-                             const ssize_t num_rows_to_read = -1) {
-    auto reader = open_file(input_filename);
-    if (reader == nullptr) {
-      throw std::runtime_error("Failed to open the file: " +
-                               input_filename.string());
+    requires std::invocable<Function, const std::vector<parquet_type_variant> &>
+  void read_parquet_files(
+      Function                                fn,
+      std::optional<std::vector<std::string>> columns = std::nullopt) {
+    for (size_t i = 0; i < m_paths.size(); ++i) {
+      if (is_owner(i)) {
+        read_parquet_file(m_paths[i], fn, columns);
+      }
     }
-    parquet_stream_reader stream{std::move(reader)};
-    if (offset > 0) {
-      // SkipRows() has a bug in < v14
-      assert(ARROW_VERSION_MAJOR >= 14);
-      stream.SkipRows(ssize_t(offset));
-    }
-
-    size_t cnt_read_rows = 0;
-    while (!stream.eof()) {
-      if (cnt_read_rows >= size_t(num_rows_to_read)) break;
-      fn(stream, m_schema.size());
-      ++cnt_read_rows;
-    }
-
-    return cnt_read_rows;
   }
 
-  /// @brief Assigns the range each rank reads.
-  /// This function tries to assign the equal number of rows to every rank.
-  /// Some files may be assigned to more than one rank.
-  void assign_read_range() {
-    // Count the number of lines in each file
-    // Can do in parallel, but use a single rank for now for simplicity.
-    if (m_comm.rank0()) {
-      std::vector<size_t> num_rows(m_paths.size());
-      for (size_t i = 0; i < m_paths.size(); ++i) {
-        num_rows[i] = count_rows(m_paths[i]);
-      }
+  /// Read a parquet file and call a function for each row.
+  /// If 'columns' is not empty, only the specified columns are read.
+  template <typename Function>
+    requires std::invocable<Function, const std::vector<parquet_type_variant> &>
+  void read_parquet_file(
+      const stdfs::path &file_path, Function fn,
+      std::optional<std::vector<std::string>> columns_to_read = std::nullopt) {
+    try {
+      // Create a ParquetReader instance
+      auto parquet_reader = parquet::ParquetFileReader::OpenFile(file_path);
 
-      const size_t total_num_rows =
-          std::accumulate(num_rows.begin(), num_rows.end(), size_t(0));
-      // std::cerr << total_num_rows << std::endl; //DB
+      // Get the File MetaData
+      std::shared_ptr<parquet::FileMetaData> file_metadata =
+          parquet_reader->metadata();
 
-      size_t file_no           = 0;
-      size_t row_no_offset     = 0;
-      size_t num_assigned_rows = 0;  // For sanity check
-      for (int rank_no = 0; rank_no < m_comm.size(); ++rank_no) {
-        size_t per_rank_num_rows = total_num_rows / m_comm.size();
-        if (rank_no < (total_num_rows % m_comm.size())) {
-          per_rank_num_rows += 1;
-        }
+      // Get the number of Columns
+      const size_t num_columns = file_metadata->num_columns();
 
-        read_range range;
-        range.begin_file_no    = file_no;
-        range.begin_row_offset = row_no_offset;
-        range.num_rows         = 0;
-
-        for (; file_no < m_paths.size(); ++file_no) {
-          // #of rows to read from this file
-          const size_t n = std::min(per_rank_num_rows - range.num_rows,
-                                    num_rows[file_no] - row_no_offset);
-          range.num_rows += n;
-          if (range.num_rows < per_rank_num_rows) {
-            // Can read more rows from the next file
-            row_no_offset = 0;
+      // Find the column indices to read
+      // Also, remove unsupported columns from the read list
+      std::vector<size_t>     column_indices;
+      static constexpr size_t k_invalid_col_index =
+          std::numeric_limits<size_t>::max();
+      if (columns_to_read) {
+        for (const auto &col_name : *columns_to_read) {
+          auto it = std::find_if(m_col_metadata.begin(), m_col_metadata.end(),
+                                 [&col_name](const column_metadata_type &col) {
+                                   return col.name == col_name;
+                                 });
+          if (it != m_col_metadata.end()) {
+            column_indices.push_back(std::distance(m_col_metadata.begin(), it));
           } else {
-            // Found the enough rows to read
-            row_no_offset += n;
-            break;
+            column_indices.push_back(k_invalid_col_index);
+            // TODO: verbose mode
+            // std::cerr << "Column " << col_name << " not found in the schema."
+            //           << std::endl;
           }
         }
-        num_assigned_rows += range.num_rows;
-
-        // Send the read range to the rank
-        m_comm.async(
-            rank_no,
-            [](auto parquet_reader_ptr, const auto& range) {
-              parquet_reader_ptr->m_read_range = range;
-            },
-            pthis, range);
+      } else {
+        column_indices.resize(num_columns);
+        // Fill the column indices with the range [0, num_columns)
+        std::iota(column_indices.begin(), column_indices.end(), 0);
       }
 
-      // Sanity check
-      assert(num_assigned_rows == total_num_rows);
+      // TODO: verbose mode
+      // Show warning if unsupported columns are found
+      // for (const auto &col_index : column_indices) {
+      //   if (m_col_metadata[col_index].unsupported) {
+      //     std::cerr << "Column " << m_col_metadata[col_index].name
+      //               << " is unsupported." << std::endl;
+      //   }
+      // }
+
+      // Get the number of RowGroups
+      const size_t num_row_groups = file_metadata->num_row_groups();
+
+      // Iterate over all the RowGroups in the file
+      for (int r = 0; r < num_row_groups; ++r) {
+        std::shared_ptr<parquet::RowGroupReader> row_group_reader =
+            parquet_reader->RowGroup(r);
+
+        const auto num_rows = row_group_reader->metadata()->num_rows();
+
+        // Vector of vectors to hold the read values
+        // An inner vector holds the values of the same column
+        std::vector<std::vector<parquet_type_variant>> read_buf(
+            column_indices.size());
+
+        // Read the columns in the RowGroup
+        for (int ci = 0; ci < column_indices.size(); ++ci) {
+          // Assign std::monostate if A) there is no column associated with the
+          // name (invalid index), or B) the column is unsupported,
+          //  pass std::monostate to the user function
+          if (column_indices[ci] == k_invalid_col_index ||
+              m_col_metadata[column_indices[ci]].unsupported) {
+            read_buf[ci].resize(num_rows, std::monostate{});
+            continue;
+          }
+
+          std::shared_ptr<parquet::ColumnReader> column_reader =
+              row_group_reader->Column(column_indices[ci]);
+          auto &col_metadata = m_col_metadata.at(column_indices[ci]);
+          assert(!col_metadata.unsupported);
+
+          if (col_metadata.type.equal(parquet::Type::BOOLEAN)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::BOOLEAN>(*column_reader);
+          } else if (col_metadata.type.equal(parquet::Type::INT32)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::INT32>(*column_reader);
+          } else if (col_metadata.type.equal(parquet::Type::INT64)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::INT64>(*column_reader);
+          } else if (col_metadata.type.equal(parquet::Type::FLOAT)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::FLOAT>(*column_reader);
+          } else if (col_metadata.type.equal(parquet::Type::DOUBLE)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::DOUBLE>(*column_reader);
+          } else if (col_metadata.type.equal(parquet::Type::BYTE_ARRAY)) {
+            read_buf[ci] =
+                typed_batch_read<parquet::Type::BYTE_ARRAY>(*column_reader);
+          } else {
+            std::cerr << "Unsupported column type: " << col_metadata.type
+                      << std::endl;
+            throw std::runtime_error("Unsupported Parquet column type");
+          }
+
+          // As this parser supports only flat columns,
+          // the number of rows read should be equal to the number of rows in
+          // the RowGroup.
+          if (read_buf[ci].size() != num_rows) {
+            std::cerr << "Error reading column " << column_indices[ci] << ": "
+                      << read_buf[ci].size() << " rows read, expected "
+                      << num_rows << " rows." << std::endl;
+            throw std::runtime_error("Error reading Parquet file");
+          }
+        }
+
+        // Finally, call the user function for each row
+        for (size_t i = 0; i < num_rows; ++i) {
+          std::vector<parquet_type_variant> row;
+          for (size_t j = 0; j < column_indices.size(); ++j) {
+            row.push_back(std::move(read_buf[j][i]));
+          }
+          fn(row);
+        }
+      }
+    } catch (const std::exception &e) {
+      // rethrow the exception
+      std::cerr << "Error reading Parquet file: " << file_path << " "
+                << e.what() << std::endl;
+      throw;
     }
-    m_comm.barrier();
   }
 
-  bool is_owner(const size_t& item_ID) {
+  // Read a batch of values from a column reader
+  // Returns a vector of parquet_type_variant
+  template <parquet::Type::type T>
+  std::vector<parquet_type_variant> typed_batch_read(
+      parquet::ColumnReader &column_reader) {
+    using physical_type_t = parquet::PhysicalType<T>;
+    using typed_reader_t  = parquet::TypedColumnReader<physical_type_t>;
+    using value_type      = physical_type_t::c_type;
+
+    auto *typed_reader = static_cast<typed_reader_t *>(&column_reader);
+    std::vector<parquet_type_variant> read_values;
+    // Read all the rows in the column
+    while (typed_reader->HasNext()) {
+      value_type value;
+      // Read one value at a time. The number of rows read is returned.
+      // values_read contains the number of non-null rows
+      int64_t    values_read = 0;
+      // Memo: Somehow it is needed to get this value from ReadBatch() when reading ByteArray? data
+      // If not, the reader fails.
+      int16_t definition_level = 0;
+      const auto rows_read =
+          typed_reader->ReadBatch(1, &definition_level, nullptr, &value, &values_read);
+
+      // Ensure only one value is read
+      if (rows_read != 1) {
+        std::cerr << "Error read " << rows_read
+                  << " rows at once (expected to read only one row)." << std::endl;
+        std::abort();
+      }
+
+      if (values_read == 0) {
+        // NULL value
+        read_values.emplace_back(std::monostate{});
+      } else {
+        if constexpr (std::is_same_v<value_type, parquet::ByteArray>) {
+        // std::cout << "Read " << static_cast<std::string_view>(value) << " values." << std::endl;// DB
+          // ByteArray has a conversion operator to std::string_view
+          read_values.emplace_back(
+              std::string(static_cast<std::string_view>(value)));
+        } else {
+          read_values.push_back(value);
+        }
+      }
+    }
+
+    return read_values;
+  }
+
+  bool is_owner(const size_t &item_ID) {
     return m_comm.rank() == item_ID % m_comm.size() ? true : false;
   }
 
-  ygm::comm&                       m_comm;
-  typename ygm::ygm_ptr<self_type> pthis;
-  std::vector<stdfs::path>         m_paths;
-  file_schema_container            m_schema;
-  std::string                      m_schema_string;
-  read_range                       m_read_range;
+  ygm::comm                        &m_comm;
+  typename ygm::ygm_ptr<self_type>  pthis;
+  std::vector<stdfs::path>          m_paths;
+  std::vector<column_metadata_type> m_col_metadata;
+  std::string                       m_schema_string;
+  size_t                            m_num_total_rows{0};
 };
-
 }  // namespace ygm::io
