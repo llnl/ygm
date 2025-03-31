@@ -878,10 +878,7 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
       std::forward<const PackArgs>(args)...);
 
   auto remote_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
-    RemoteLogicLambda *rll = nullptr;
-    Lambda            *pl  = nullptr;
-
-    (*rll)(c, bia, *pl);
+    RemoteLogicLambda{}.operator()(c, bia, Lambda{});
   };
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);

@@ -26,10 +26,10 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
+    auto vlambda = [](auto                                             pcont,
+                      const std::tuple_element<0, for_all_args>::type& key,
+                      const VisitorArgs&... args) mutable {
+      Visitor visitor{};
       pcont->local_visit(key, visitor, args...);
     };
 
@@ -50,10 +50,10 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
+    auto vlambda = [](auto                                             pcont,
+                      const std::tuple_element<0, for_all_args>::type& key,
+                      const VisitorArgs&... args) mutable {
+      Visitor visitor{};
       pcont->local_visit_if_contains(key, visitor, args...);
     };
 
@@ -74,10 +74,10 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       const auto                                       pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
+    auto vlambda = [](const auto                                       pcont,
+                      const std::tuple_element<0, for_all_args>::type& key,
+                      const VisitorArgs&... args) mutable {
+      Visitor visitor{};
       pcont->local_visit_if_contains(key, visitor, args...);
     };
 
