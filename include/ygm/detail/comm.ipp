@@ -11,16 +11,6 @@
 
 namespace ygm {
 
-struct comm::mpi_irecv_request {
-  std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
-};
-
-struct comm::mpi_isend_request {
-  std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
-};
-
 struct comm::header_t {
   uint32_t message_size;
   int32_t  dest;
@@ -464,7 +454,7 @@ inline std::string comm::outstr0(Args &&...args) const {
 template <typename... Args>
 inline std::string comm::outstr(Args &&...args) const {
   std::stringstream ss;
-  (ss << rank() << ": " << ... << args);
+  ((ss << rank() << ": ") << ... << args);
   return ss.str();
 }
 
@@ -566,7 +556,7 @@ inline void comm::flush_send_buffer(int dest) {
     } else {
       m_send_remote_buffer_bytes -= request.buffer->size();
     }
-    
+
     m_send_queue.push_back(request);
     if (!m_in_process_receive_queue) {
       process_receive_queue();
@@ -711,7 +701,7 @@ inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
   YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
                        MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
-                       &(recv_req.request)));
+                           &(recv_req.request)));
   m_recv_queue.push_back(recv_req);
 }
 
