@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <ygm/detail/layout.hpp>
+#include <ygm/detail/logger.hpp>
 
 namespace ygm {
 
@@ -119,6 +120,28 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_SEND_BUFFER_FREE_LIST_LEN")) {
       send_buffer_free_list_len = convert<size_t>(cc);
     }
+    if (const char* cc = std::getenv("YGM_DEFAULT_LOG_PATH")) {
+      default_log_path = std::string(cc);
+    }
+    if (const char* cc = std::getenv("YGM_DEFAULT_LOG_LEVEL")) {
+      std::string level_str(cc);
+      if (level_str == "off") {
+        default_log_level = log_level::off;
+      } else if (level_str == "critical") {
+        default_log_level = log_level::critical;
+      } else if (level_str == "error") {
+        default_log_level = log_level::error;
+      } else if (level_str == "warn") {
+        default_log_level = log_level::warn;
+      } else if (level_str == "info") {
+        default_log_level = log_level::info;
+      } else if (level_str == "debug") {
+        default_log_level = log_level::debug;
+      } else {
+        throw(std::runtime_error(
+            "comm_environment -- unknown default logging level: " + level_str));
+      }
+    }
   }
 
   void print(std::ostream& os = std::cout) const {
@@ -143,6 +166,28 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
+    os << "YGM_DEFAULT_LOG_PATH             = " << default_log_path << "\n"
+       << "YGM_DEFAULT_LOG_LEVEL            = ";
+    switch (default_log_level) {
+      case log_level::off:
+        os << "off\n";
+        break;
+      case log_level::critical:
+        os << "critical\n";
+        break;
+      case log_level::error:
+        os << "error\n";
+        break;
+      case log_level::warn:
+        os << "warn\n";
+        break;
+      case log_level::info:
+        os << "info\n";
+        break;
+      case log_level::debug:
+        os << "debug\n";
+        break;
+    }
     os << "======================================\n";
   }
 
@@ -160,6 +205,9 @@ class comm_environment {
   size_t send_buffer_free_list_len = 32;
 
   routing_type routing = routing_type::NONE;
+
+  std::string default_log_path  = "./log/ygm_logs_";
+  log_level   default_log_level = log_level::off;
 
   bool welcome = false;
 };

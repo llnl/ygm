@@ -46,6 +46,10 @@ inline comm::comm(MPI_Comm mcomm)
 }
 
 inline void comm::comm_setup(MPI_Comm c) {
+  m_logger.set_path(config.default_log_path + std::to_string(rank()));
+  m_logger.set_log_level(config.default_log_level);
+  m_logger.log(log_level::info, "Setting up ygm::comm");
+
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -61,8 +65,6 @@ inline void comm::comm_setup(MPI_Comm c) {
         new ygm::detail::byte_vector(config.irecv_size)};
     post_new_irecv(recv_buffer);
   }
-
-  m_logger.set_path("./log/ygm_logs" + std::to_string(rank()));
 }
 
 inline void comm::welcome(std::ostream &os) {
@@ -129,6 +131,8 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
 inline comm::~comm() {
   barrier();
+
+  m_logger.log(log_level::info, "Destroying ygm::comm");
 
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 

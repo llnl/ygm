@@ -57,6 +57,7 @@ class array
         m_global_size(size),
         m_default_value{},
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
@@ -68,6 +69,7 @@ class array
         m_global_size(size),
         m_default_value(default_value),
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
@@ -80,6 +82,7 @@ class array
         m_default_value{},
         partitioner(comm, l.size()) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(l.size());
@@ -97,6 +100,7 @@ class array
         std::initializer_list<std::tuple<key_type, mapped_type>> l)
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -124,6 +128,7 @@ class array
         m_default_value(rhs.m_default_value),
         m_local_vec(rhs.m_local_vec),
         partitioner(rhs.m_comm, rhs.m_global_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
     resize(m_global_size);
   }
@@ -134,6 +139,7 @@ class array
                  detail::SingleItemTuple<typename T::for_all_args> &&
                  std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(t.size());
@@ -162,6 +168,7 @@ class array
                          1, std::tuple_element_t<0, typename T::for_all_args>>,
                      mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -191,6 +198,7 @@ class array
                      std::tuple_element_t<0, typename T::for_all_args>,
                      mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -215,6 +223,7 @@ class array
                  (not detail::SingleItemTuple<typename T::value_type>) &&
                  std::convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     auto global_size = sum(t.size(), m_comm);
@@ -241,6 +250,7 @@ class array
                      std::tuple_element_t<1, typename T::value_type>,
                      mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -257,7 +267,10 @@ class array
     });
   }
 
-  ~array() { m_comm.barrier(); }
+  ~array() {
+    m_comm.barrier();
+    m_comm.log(log_level::info, "Destroying ygm::container::array");
+  }
 
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_vec[partitioner.local_index(key)] = value;

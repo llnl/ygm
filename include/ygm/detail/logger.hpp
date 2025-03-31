@@ -11,8 +11,6 @@
 
 namespace ygm {
 
-class comm;
-
 enum class log_level {
   off      = 0,
   critical = 1,
