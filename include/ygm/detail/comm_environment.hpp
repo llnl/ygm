@@ -53,7 +53,7 @@ class comm_environment {
       } else if (std::string(cc) == "NLNR") {
         routing = routing_type::NLNR;
       } else {
-        throw std::runtime_error("comm_enviornment -- unknown routing type");
+        throw std::runtime_error("comm_environment -- unknown routing type");
       }
     }
 
@@ -68,7 +68,7 @@ class comm_environment {
     // messages. In high node-count
     //      situations, this will give roughly 1/3 of communication as remote
     //      and 2/3 as local.
-    if (const char* cc = std::getenv("YGM_COM_BUFFER_SIZE_KB")) {
+    if (const char* cc = std::getenv("YGM_COMM_BUFFER_SIZE_KB")) {
       total_buffer_size = convert<size_t>(cc) * 1024;
     }
     switch (routing) {

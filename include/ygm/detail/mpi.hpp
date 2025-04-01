@@ -18,7 +18,7 @@ class mpi_init_finalize {
   ~mpi_init_finalize() {
     YGM_ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
     if (MPI_Finalize() != MPI_SUCCESS) {
-      std::cerr << "ERROR:  MPI_Finilize() != MPI_SUCCESS" << std::endl;
+      std::cerr << "ERROR:  MPI_Finalize() != MPI_SUCCESS" << std::endl;
       exit(-1);
     }
   }
@@ -26,7 +26,7 @@ class mpi_init_finalize {
 
 template <typename T>
 inline MPI_Datatype mpi_typeof(T) {
-  static_assert(always_false<>, "Unkown MPI Type");
+  static_assert(always_false<>, "Unknown MPI Type");
   return 0;
 }
 
