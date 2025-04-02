@@ -29,7 +29,6 @@ doxygen_add_docs(doxygen
         COMMENT "Generate documentation by Doxygen"
         )
 
-        #add_subdirectory(rtd)
 #
 # Sphinx
 #
