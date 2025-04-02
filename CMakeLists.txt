@@ -131,7 +131,7 @@ if (UNIX AND NOT APPLE)
 endif ()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(ygm stdc++fs)
+  target_link_libraries(ygm INTERFACE stdc++fs)
 endif()
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
