@@ -769,12 +769,6 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
                                                cereal::YGMInputArchive *bia,
                                                Lambda                   l) {
     Lambda *pl = nullptr;
-    size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                     (sizeof(Lambda) % sizeof(size_t) > 0)];
-    if constexpr (!std::is_empty<Lambda>::value) {
-      bia->loadBinary(l_storage, sizeof(Lambda));
-      pl = (Lambda *)l_storage;
-    }
 
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
