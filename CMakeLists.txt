@@ -30,19 +30,17 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(YGM_BUILD_TESTS "Build tests" OFF)
 option(YGM_BUILD_EXAMPLES "Build examples" OFF)
 option(YGM_BUILD_TOOLS "Build tools" OFF)
-option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
-option(YGM_RTD_ONLY
-       "Run Cmake for only generating documentation for Read the Docs" OFF
-)
-option(YGM_REQUIRE_PARQUET "Throws a fatal error if Arrow Parquet is not available" OFF)
-option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found" OFF)
+option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
+option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
+option(YGM_INSTALL_PARQUET "Installs Arrow Parquet if it is not found." OFF)
+option(YGM_REQUIRE_PARQUET "Throws a fatal error if Arrow Parquet is not available or is not installed successfully." OFF)
 
 #
 # Doxygen and Read the Docs (RTD) Documentation
 #
-if (YGM_DOXYGEN OR YGM_RTD_ONLY)
+if (YGM_BUILD_DOCS OR YGM_DOCS_ONLY)
     add_subdirectory(docs)
-    if (YGM_RTD_ONLY)
+    if (YGM_DOCS_ONLY)
         return()
     endif ()
 endif ()
@@ -101,6 +99,19 @@ if (NOT boost_POPULATED)
 endif ()
 
 #
+# spdlog
+#
+if (NOT spdlog_POPULATED)
+    set(SPDLOG_INSTALL On)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog
+        GIT_TAG v1.15.1
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif ()
+
+#
 # Arrow
 #
 include(FindArrowParquet)
@@ -119,7 +130,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal
+    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal spdlog_header_only
 )
 if (UNIX AND NOT APPLE)
     target_link_libraries(

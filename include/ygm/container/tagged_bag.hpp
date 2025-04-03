@@ -29,8 +29,14 @@ class tagged_bag {
   tagged_bag(ygm::comm &comm)
       : m_next_tag(tag_type(comm.rank()) << TAG_BITS),
         m_tagged_bag(ygm::container::map<tag_type, value_type>(comm)),
-        pthis(this) {}
-  ~tagged_bag() = default;
+        pthis(this) {
+    m_tagged_bag.comm().log(log_level::info,
+                            "Creating ygm::container::tagged_bag");
+  }
+  ~tagged_bag() {
+    m_tagged_bag.comm().log(log_level::info,
+                            "Creating ygm::container::tagged_bag");
+  }
 
   tag_type async_insert(const value_type &item) {
     tag_type tag = m_next_tag++;
@@ -103,7 +109,8 @@ class tagged_bag {
   //   return m_tagged_bag.all_gather(tags);
   // }
 
-  std::map<tag_type, value_type> gather_keys(const std::vector<tag_type> &tags) {
+  std::map<tag_type, value_type> gather_keys(
+      const std::vector<tag_type> &tags) {
     return m_tagged_bag.gather_keys(tags);
   }
   template <typename Function>
