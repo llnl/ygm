@@ -40,44 +40,32 @@ inline MPI_Datatype mpi_typeof<bool>(bool) {
   return MPI_CXX_BOOL;
 }
 
-template <>
-inline MPI_Datatype mpi_typeof<int8_t>(int8_t) {
-  return MPI_INT8_T;
+inline MPI_Datatype mpi_typeof(std::signed_integral auto t) {
+  if constexpr (sizeof(t) == 1) {
+    return MPI_INT8_T;
+  } else if constexpr (sizeof(t) == 2) {
+    return MPI_INT16_T;
+  } else if constexpr (sizeof(t) == 4) {
+    return MPI_INT32_T;
+  } else if constexpr (sizeof(t) == 8) {
+    return MPI_INT64_T;
+  } else {
+    static_assert(always_false<>, "Invalid integer size for MPI Type");
+  }
 }
 
-template <>
-inline MPI_Datatype mpi_typeof<int16_t>(int16_t) {
-  return MPI_INT16_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<int32_t>(int32_t) {
-  return MPI_INT32_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<int64_t>(int64_t) {
-  return MPI_INT64_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<uint8_t>(uint8_t) {
-  return MPI_UINT8_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<uint16_t>(uint16_t) {
-  return MPI_UINT16_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<uint32_t>(uint32_t) {
-  return MPI_UINT32_T;
-}
-
-template <>
-inline MPI_Datatype mpi_typeof<uint64_t>(uint64_t) {
-  return MPI_UINT64_T;
+inline MPI_Datatype mpi_typeof(std::unsigned_integral auto t) {
+  if constexpr (sizeof(t) == 1) {
+    return MPI_UINT8_T;
+  } else if constexpr (sizeof(t) == 2) {
+    return MPI_UINT16_T;
+  } else if constexpr (sizeof(t) == 4) {
+    return MPI_UINT32_T;
+  } else if constexpr (sizeof(t) == 8) {
+    return MPI_UINT64_T;
+  } else {
+    static_assert(always_false<>, "Invalid integer size for MPI Type");
+  }
 }
 
 template <>
