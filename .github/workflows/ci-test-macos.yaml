@@ -20,10 +20,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Update apt
+      - name: Update brew
         run: |
-          sudo add-apt-repository -y universe
-          sudo apt-get update
+          brew update
       - name: Cache boost
         uses: actions/cache@v4
         id: cache-boost
