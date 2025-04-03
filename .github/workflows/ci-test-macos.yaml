@@ -35,14 +35,6 @@ jobs:
           cd ~
           wget --no-verbose https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.bz2
           tar -xjf boost_1_77_0.tar.bz2
-      - name: Install Apache Arrow
-        run: |
-          brew search apache-arrow@
-          #brew install apache-arrow@16.1.0
-          #python -m pip install pyarrow==16.1.0
-          #PIP_PYARROW_ROOT=$(python -c "import pyarrow as pa; print(pa.get_library_dirs()[0])")
-          #echo "PIP_PYARROW_ROOT=${PIP_PYARROW_ROOT}" >> $GITHUB_ENV
-          #echo "ENABLE_PARQUET_TEST=true" >> $GITHUB_ENV
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: brew install mpich
@@ -73,4 +65,5 @@ jobs:
           echo Run 'make test' with OpenMPI, gcc-${{ matrix.gcc-version }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
+          export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
           ctest -VV -C ${{ env.BUILD_TYPE }}
