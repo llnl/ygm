@@ -37,8 +37,8 @@ jobs:
           tar -xjf boost_1_77_0.tar.bz2
       - name: Install Apache Arrow
         run: |
-          # python -m pip install pyarrow==16.1.*
-          brew install apache-arrow
+          brew install apache-arrow@16.1.0
+          python -m pip install pyarrow==16.1.0
           PIP_PYARROW_ROOT=$(python -c "import pyarrow as pa; print(pa.get_library_dirs()[0])")
           echo "PIP_PYARROW_ROOT=${PIP_PYARROW_ROOT}" >> $GITHUB_ENV
           echo "ENABLE_PARQUET_TEST=true" >> $GITHUB_ENV
