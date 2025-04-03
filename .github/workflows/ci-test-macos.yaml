@@ -6,9 +6,6 @@ on:
   push:
     branches: [ 'feature/**', 'hotfix/**']
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build-test:
     strategy:
@@ -17,6 +14,7 @@ jobs:
         os: [macos-14, macos-latest]
         gcc-version: [12, 13, 14]
         mpi-type: [mpich, openmpi]
+        build-type: [Release, Debug]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -51,14 +49,14 @@ jobs:
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
-          make -j
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
+          make -j3
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
           echo Run 'make test' with mpich, gcc-${{ matrix.gcc-version }}
           cd build
-          ctest -VV -C ${{ env.BUILD_TYPE }}
+          ctest -VV -C ${{ matrix.build-type }}
       - name: Make test (OpenMPI)
         if: matrix.mpi-type == 'openmpi'
         run: |
@@ -66,4 +64,4 @@ jobs:
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
           export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
-          ctest -VV -C ${{ env.BUILD_TYPE }}
+          ctest -VV -C ${{ matrix.build-type }}
