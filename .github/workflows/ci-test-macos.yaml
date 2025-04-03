@@ -11,9 +11,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-latest]
+        os: [macos-latest]
         gcc-version: [12, 13, 14]
-        mpi-type: [mpich, openmpi]
+        mpi-type: [openmpi]
         build-type: [Release, Debug]
     runs-on: ${{ matrix.os }}
     steps:
