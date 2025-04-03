@@ -38,7 +38,7 @@ jobs:
       - name: Install Apache Arrow
         run: |
           # python -m pip install pyarrow==16.1.*
-          brew install pyarrow
+          brew install apache-arrow
           PIP_PYARROW_ROOT=$(python -c "import pyarrow as pa; print(pa.get_library_dirs()[0])")
           echo "PIP_PYARROW_ROOT=${PIP_PYARROW_ROOT}" >> $GITHUB_ENV
           echo "ENABLE_PARQUET_TEST=true" >> $GITHUB_ENV
