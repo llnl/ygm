@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest]
-        gcc-version: [12, 13, 14]
+        compiler: [g++-12, g++-13, g++-14, clang-15]
         mpi-type: [openmpi]
         build-type: [Release, Debug]
     runs-on: ${{ matrix.os }}
@@ -43,24 +43,24 @@ jobs:
         run: |
           echo Run 'make'
           mpicc -show
-          g++-${{ matrix.gcc-version }} --version
+          ${{ matrix.compiler }} --version
           mkdir build
           cd build
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make -j3
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
-          echo Run 'make test' with mpich, gcc-${{ matrix.gcc-version }}
+          echo Run 'make test' with mpich, ${{ matrix.compiler }}
           cd build
           ctest -VV -C ${{ matrix.build-type }}
       - name: Make test (OpenMPI)
         if: matrix.mpi-type == 'openmpi'
         run: |
-          echo Run 'make test' with OpenMPI, gcc-${{ matrix.gcc-version }}
+          echo Run 'make test' with OpenMPI, ${{ matrix.compiler }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
           export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
