@@ -15,13 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, ubuntu-22.04]
-        gcc-version: [11, 12, 13, 14]
+        compiler: [g++-11, g++-12, g++-13, g++-14, clang++-18]
         mpi-type: [mpich, openmpi]
         exclude:
           - os: ubuntu-22.04
-            gcc-version: 13
+            compiler: g++-13
           - os: ubuntu-22.04
-            gcc-version: 14
+            compiler: g++-14
+          - os: ubuntu-22.04
+            compiler: clang++-18
           - os: ubuntu-24.04
             mpi-type: mpich
     runs-on: ${{ matrix.os }}
@@ -55,31 +57,31 @@ jobs:
       - name: Install OpenMPI
         if: matrix.mpi-type == 'openmpi'
         run: sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Install GCC-${{ matrix.gcc-version }}
-        if: (matrix.gcc-version == '11' && matrix.os == 'ubuntu-24.04')
+      - name: Install GCC
+        if: (matrix.compiler == 'g++-11' && matrix.os == 'ubuntu-24.04')
         run: sudo apt-get install gcc-11 g++-11
       - name: Make
         run: |
           echo Run 'make'
           mpicc -show
-          g++-${{ matrix.gcc-version }} --version
+          ${{ matrix.compiler }} --version
           mkdir build
           cd build
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
-          echo Run 'make test' with mpich, gcc-${{ matrix.gcc-version }}
+          echo Run 'make test' with mpich, ${{ matrix.compiler }}
           cd build
           ctest -VV -C ${{ env.BUILD_TYPE }}
       - name: Make test (OpenMPI)
         if: matrix.mpi-type == 'openmpi'
         run: |
-          echo Run 'make test' with OpenMPI, gcc-${{ matrix.gcc-version }}
+          echo Run 'make test' with OpenMPI, ${{ matrix.compiler }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
           ctest -VV -C ${{ env.BUILD_TYPE }}
