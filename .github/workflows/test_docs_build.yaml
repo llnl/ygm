@@ -1,0 +1,26 @@
+name: Test Documentation Generation
+
+on:
+  pull_request:
+    branches: [ master, '**-dev' ]
+  push:
+    branches: [ 'feature/**', 'hotfix/**']
+
+jobs:
+  build_docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update apt
+      run: |
+        sudo apt-get update
+    - name: Install dependencies
+      run: |
+        sudo apt-get install doxygen sphinx
+        pip install -r docs/sphinx/requirements.txt
+    - name: make
+      run: |
+        mkdir build
+        cd build
+        cmake ../ -DYGM_DOCS_ONLY=On
+        make sphinx

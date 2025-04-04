@@ -17,6 +17,7 @@
 #include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/lambda_map.hpp>
 #include <ygm/detail/layout.hpp>
+#include <ygm/detail/logger.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
@@ -180,6 +181,20 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
+  void set_log_level(const ygm::log_level level) {
+    m_logger.set_log_level(level);
+  }
+
+  template <typename... Args>
+  void log(const ygm::log_level level, Args &&...args) const {
+    m_logger.log(level, args...);
+  }
+
+  template <typename StringType>
+  void set_log_location(const StringType &s);
+
+  void set_log_location(std::filesystem::path p);
+
   // Private member functions
  private:
   void comm_setup(MPI_Comm comm);
@@ -190,7 +205,7 @@ class comm {
   std::pair<uint64_t, uint64_t> barrier_reduce_counts();
 
   void flush_next_send(std::deque<int> &dest_queue);
-  
+
   void flush_send_buffer(int dest);
 
   void handle_completed_send(mpi_isend_request &req_buffer);
@@ -216,11 +231,11 @@ class comm {
   size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda l,
                              RemoteLogicLambda rll, const PackArgs &...args);
 
-  void queue_message_bytes(const ygm::detail::byte_vector             &packed,
-                           const int                     dest);
+  void queue_message_bytes(const ygm::detail::byte_vector &packed,
+                           const int                       dest);
 
   void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                           const size_t                 buffer_size);
+                           const size_t buffer_size, const uint32_t from_rank);
 
   bool process_receive_queue();
 
@@ -244,13 +259,13 @@ class comm {
 
   std::vector<ygm::detail::byte_vector> m_vec_send_buffers;
 
-  size_t                              m_send_local_buffer_bytes = 0;
-  std::deque<int>                     m_send_local_dest_queue;
-  size_t                              m_send_remote_buffer_bytes = 0;
-  std::deque<int>                     m_send_remote_dest_queue;
+  size_t          m_send_local_buffer_bytes = 0;
+  std::deque<int> m_send_local_dest_queue;
+  size_t          m_send_remote_buffer_bytes = 0;
+  std::deque<int> m_send_remote_dest_queue;
 
-  std::deque<mpi_irecv_request>                        m_recv_queue;
-  std::deque<mpi_isend_request>                        m_send_queue;
+  std::deque<mpi_irecv_request>                          m_recv_queue;
+  std::deque<mpi_isend_request>                          m_send_queue;
   std::vector<std::shared_ptr<ygm::detail::byte_vector>> m_free_send_buffers;
 
   size_t m_pending_isend_bytes = 0;
@@ -268,6 +283,8 @@ class comm {
   const detail::layout           m_layout;
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
+
+  detail::logger m_logger;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;

@@ -13,12 +13,12 @@ namespace ygm {
 
 struct comm::mpi_irecv_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
+  MPI_Request                               request;
 };
 
 struct comm::mpi_isend_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
+  MPI_Request                               request;
 };
 
 struct comm::header_t {
@@ -46,6 +46,10 @@ inline comm::comm(MPI_Comm mcomm)
 }
 
 inline void comm::comm_setup(MPI_Comm c) {
+  m_logger.set_path(config.default_log_path + std::to_string(rank()));
+  m_logger.set_log_level(config.default_log_level);
+  m_logger.log(log_level::info, "Setting up ygm::comm");
+
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -57,7 +61,8 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   for (size_t i = 0; i < config.num_irecvs; ++i) {
-    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{new ygm::detail::byte_vector(config.irecv_size)};
+    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{
+        new ygm::detail::byte_vector(config.irecv_size)};
     post_new_irecv(recv_buffer);
   }
 }
@@ -126,6 +131,8 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
 inline comm::~comm() {
   barrier();
+
+  m_logger.log(log_level::info, "Destroying ygm::comm");
 
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
@@ -251,6 +258,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
+  log(log_level::debug, "Entering YGM barrier");
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -267,6 +275,7 @@ inline void comm::barrier() {
   YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
 
   cf_barrier();
+  log(log_level::debug, "Exiting YGM barrier");
 }
 
 /**
@@ -275,7 +284,9 @@ inline void comm::barrier() {
  * called it. See:  MPI_Barrier()
  */
 inline void comm::cf_barrier() const {
+  log(log_level::debug, "Entering YGM cf_barrier");
   YGM_ASSERT_MPI(MPI_Barrier(m_comm_barrier));
+  log(log_level::debug, "Exiting YGM cf_barrier");
 }
 
 template <typename T>
@@ -353,7 +364,7 @@ inline T comm::all_reduce(const T &in, MergeFunction merge) const {
 template <typename T>
 inline void comm::mpi_send(const T &data, int dest, int tag,
                            MPI_Comm comm) const {
-  ygm::detail::byte_vector        packed;
+  ygm::detail::byte_vector packed;
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
   size_t packed_size = packed.size();
@@ -382,7 +393,7 @@ inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
 
 template <typename T>
 inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-  ygm::detail::byte_vector        packed;
+  ygm::detail::byte_vector packed;
   cereal::YGMOutputArchive oarchive(packed);
   if (rank() == root) {
     oarchive(to_bcast);
@@ -468,8 +479,8 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-inline size_t comm::pack_header(ygm::detail::byte_vector &packed, const int dest,
-                                size_t size) {
+inline size_t comm::pack_header(ygm::detail::byte_vector &packed,
+                                const int dest, size_t size) {
   size_t size_before = packed.size();
 
   header_t h;
@@ -524,7 +535,8 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
-        handle_next_receive(req_buffer.buffer, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size,
+                            twin_status[i].MPI_SOURCE);
         flush_all_local_and_process_incoming();
       }
     }
@@ -550,10 +562,16 @@ inline void comm::flush_send_buffer(int dest) {
     }
     request.buffer->swap(m_vec_send_buffers[dest]);
     if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
+      log(log_level::debug, "MPI_Issend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
                                 MPI_BYTE, dest, 0, m_comm_async,
                                 &(request.request)));
     } else {
+      log(log_level::debug, "MPI_Isend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
                                MPI_BYTE, dest, 0, m_comm_async,
                                &(request.request)));
@@ -566,14 +584,13 @@ inline void comm::flush_send_buffer(int dest) {
     } else {
       m_send_remote_buffer_bytes -= request.buffer->size();
     }
-    
+
     m_send_queue.push_back(request);
     if (!m_in_process_receive_queue) {
       process_receive_queue();
     }
   }
 }
-
 
 inline void comm::flush_next_send(std::deque<int> &dest_queue) {
   if (!dest_queue.empty()) {
@@ -589,6 +606,9 @@ inline void comm::flush_next_send(std::deque<int> &dest_queue) {
  */
 inline void comm::handle_completed_send(mpi_isend_request &req_buffer) {
   m_pending_isend_bytes -= req_buffer.buffer->size();
+  log(log_level::debug, "Completed send of " +
+                            std::to_string(req_buffer.buffer->size()) +
+                            " bytes");
   if (m_free_send_buffers.size() < config.send_buffer_free_list_len) {
     req_buffer.buffer->clear();
     m_free_send_buffers.push_back(req_buffer.buffer);
@@ -615,7 +635,8 @@ inline void comm::check_completed_sends() {
 
 inline void comm::check_if_production_halt_required() {
   while (m_enable_interrupts && !m_in_process_receive_queue &&
-         m_pending_isend_bytes > (config.local_buffer_size + config.remote_buffer_size)) {
+         m_pending_isend_bytes >
+             (config.local_buffer_size + config.remote_buffer_size)) {
     process_receive_queue();
   }
 }
@@ -703,15 +724,16 @@ inline void comm::flush_to_capacity() {
   }
 }
 
-inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
+inline void comm::post_new_irecv(
+    std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
   recv_buffer->clear();
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
-  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
-                       MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
-                       &(recv_req.request)));
+  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size,
+                           MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
+                           &(recv_req.request)));
   m_recv_queue.push_back(recv_req);
 }
 
@@ -886,9 +908,7 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  {
-    packed.push_bytes(&lid, sizeof(lid));
-  }
+  { packed.push_bytes(&lid, sizeof(lid)); }
 
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
@@ -909,8 +929,8 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
  * destination. Does not modify packed message to add headers for routing.
  *
  */
-inline void comm::queue_message_bytes(const ygm::detail::byte_vector            &packed,
-                                      const int                    dest) {
+inline void comm::queue_message_bytes(const ygm::detail::byte_vector &packed,
+                                      const int                       dest) {
   m_send_count++;
   bool local = m_layout.is_local(dest);
   //
@@ -949,8 +969,11 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   }
 }
 
-inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                                      const size_t buffer_size) {
+inline void comm::handle_next_receive(
+    std::shared_ptr<ygm::detail::byte_vector> &buffer, const size_t buffer_size,
+    const uint32_t from_rank) {
+  log(log_level::debug, "Received " + std::to_string(buffer_size) +
+                            " bytes from rank " + std::to_string(from_rank));
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
@@ -963,8 +986,8 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
         m_recv_count++;
         stats.rpc_execute();
       } else {
-        int next_dest = m_router.next_hop(h.dest);
-        bool local = m_layout.is_local(next_dest);
+        int  next_dest = m_router.next_hop(h.dest);
+        bool local     = m_layout.is_local(next_dest);
 
         if (m_vec_send_buffers[next_dest].empty()) {
           if (local) {
@@ -1049,7 +1072,8 @@ inline bool comm::process_receive_queue() {
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
-        handle_next_receive(req_buffer.buffer, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size,
+                            twin_status[i].MPI_SOURCE);
       }
     }
   } else {
@@ -1077,11 +1101,30 @@ inline bool comm::local_process_incoming() {
       int buffer_size{0};
       YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
       stats.irecv(status.MPI_SOURCE, buffer_size);
-      handle_next_receive(req_buffer.buffer, buffer_size);
+      handle_next_receive(req_buffer.buffer, buffer_size, status.MPI_SOURCE);
     } else {
       break;  // not ready yet
     }
   }
   return received_to_return;
 }
+
+template <typename StringType>
+inline void comm::set_log_location(const StringType &s) {
+  set_log_location(std::filesystem::path(s));
+}
+
+inline void comm::set_log_location(std::filesystem::path p) {
+  // p will be treated as a desired directory location to store all logs. The
+  // full name of the individual loggers on each rank will be determined by the
+  // ygm::detail::logger objects.
+  if (std::filesystem::exists(p) && not std::filesystem::is_directory(p)) {
+    cout0("Cannot set log location: ", p, " exists and is not a directory");
+  }
+  std::filesystem::create_directories(p);
+
+  p /= ("ygm_logs" + std::to_string(rank()));
+  m_logger.set_path(p);
+}
+
 };  // namespace ygm

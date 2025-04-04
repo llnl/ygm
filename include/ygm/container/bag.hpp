@@ -32,11 +32,13 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   using container_type = ygm::container::bag_tag;
 
   bag(ygm::comm &comm) : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
   }
 
   bag(ygm::comm &comm, std::initializer_list<Item> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Item &i : l) {
@@ -47,10 +49,11 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   template <typename STLContainer>
-  bag(ygm::comm          &comm,
-      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Item>
+  bag(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Item>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
 
     for (const Item &i : cont) {
@@ -60,10 +63,11 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   template <typename YGMContainer>
-  bag(ygm::comm          &comm,
-      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  bag(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
 
     yc.for_all([this](const Item &value) { this->async_insert(value); });
@@ -71,10 +75,14 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.barrier();
   }
 
-  ~bag() { m_comm.barrier(); }
+  ~bag() {
+    m_comm.log(log_level::info, "Destroying ygm::container::bag");
+    m_comm.barrier();
+  }
 
   bag(const self_type &other)  // If I remove const it compiles
       : m_comm(other.comm()), pthis(this), partitioner(other.comm()) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
   }
 
@@ -83,6 +91,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
         pthis(this),
         partitioner(other.comm()),
         m_local_bag(std::move(other.m_local_bag)) {
+    m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
   }
 

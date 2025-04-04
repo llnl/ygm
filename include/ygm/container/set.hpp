@@ -42,6 +42,7 @@ class multiset
 
   multiset(ygm::comm &comm)
       : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
   }
 
@@ -49,6 +50,7 @@ class multiset
       : m_comm(other.comm()),
         pthis(this),
         partitioner(other.comm, other.partitioner) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
   }
 
@@ -57,11 +59,13 @@ class multiset
         pthis(this),
         partitioner(other.partitioner),
         m_local_set(std::move(other.m_local_set)) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
   }
 
   multiset(ygm::comm &comm, std::initializer_list<Value> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Value &i : l) {
@@ -73,10 +77,11 @@ class multiset
   }
 
   template <typename STLContainer>
-  multiset(ygm::comm &comm, const STLContainer &cont) requires
-      detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Value>
+  multiset(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Value>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
 
     for (const Value &i : cont) {
@@ -88,10 +93,13 @@ class multiset
 
   template <typename YGMContainer>
   multiset(ygm::comm          &comm,
-           const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
+           const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  //&&
       // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::multiset");
     pthis.check(m_comm);
 
     yc.for_all([this](const Value &value) { this->async_insert(value); });
@@ -99,7 +107,10 @@ class multiset
     m_comm.barrier();
   }
 
-  ~multiset() { m_comm.barrier(); }
+  ~multiset() {
+    m_comm.log(log_level::info, "Destroying ygm::container::multiset");
+    m_comm.barrier();
+  }
 
   multiset() = delete;
 
@@ -169,6 +180,7 @@ class set
 
   set(ygm::comm &comm)
       : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
 
@@ -176,6 +188,7 @@ class set
       : m_comm(other.comm()),
         pthis(this),
         partitioner(other.comm, other.partitioner) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
 
@@ -184,11 +197,13 @@ class set
         pthis(this),
         partitioner(other.partitioner),
         m_local_set(std::move(other.m_local_set)) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
 
   set(ygm::comm &comm, std::initializer_list<Value> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Value &i : l) {
@@ -199,10 +214,11 @@ class set
   }
 
   template <typename STLContainer>
-  set(ygm::comm          &comm,
-      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Value>
+  set(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Value>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
 
     for (const Value &i : cont) {
@@ -213,10 +229,13 @@ class set
 
   template <typename YGMContainer>
   set(ygm::comm          &comm,
-      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
+      const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  //&&
       // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
 
     yc.for_all([this](const Value &value) { this->async_insert(value); });
@@ -224,7 +243,10 @@ class set
     m_comm.barrier();
   }
 
-  ~set() { m_comm.barrier(); }
+  ~set() {
+    m_comm.log(log_level::info, "Destroying ygm::container::set");
+    m_comm.barrier();
+  }
 
   set() = delete;
 
