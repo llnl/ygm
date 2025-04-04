@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15]
-        compiler: [g++-12, g++-13, g++-14, clang-15]
+        compiler: [g++-12, g++-13, g++-14, clang-18]
         mpi-type: [openmpi]
         build-type: [Release, Debug]
     runs-on: ${{ matrix.os }}
@@ -42,8 +42,8 @@ jobs:
       - name: Make
         run: |
           echo Run 'make'
-          if [ "${{ matrix.compiler }}" == "clang-15" ]; then
-            COMPILER="$(brew --prefix llvm@15)/bin/clang"
+          if [ "${{ matrix.compiler }}" == "clang-18" ]; then
+            COMPILER="$(brew --prefix llvm@18)/bin/clang"
           else
             COMPILER="${{ matrix.compiler }}"
           fi
