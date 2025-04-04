@@ -6,9 +6,6 @@ on:
   push:
     branches: [ 'feature/**', 'hotfix/**']
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build-test:
     strategy:
@@ -17,6 +14,7 @@ jobs:
         os: [ubuntu-24.04, ubuntu-22.04]
         compiler: [g++-11, g++-12, g++-13, g++-14, clang++-18]
         mpi-type: [mpich, openmpi]
+        build-type: [Release, Debug]
         exclude:
           - os: ubuntu-22.04
             compiler: g++-13
@@ -26,6 +24,8 @@ jobs:
             compiler: clang++-18
           - os: ubuntu-24.04
             mpi-type: mpich
+          - os: ubuntu-22.04
+            build-type: debug
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -70,18 +70,18 @@ jobs:
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
           echo Run 'make test' with mpich, ${{ matrix.compiler }}
           cd build
-          ctest -VV -C ${{ env.BUILD_TYPE }}
+          ctest -VV -C ${{ matrix.build-type }}
       - name: Make test (OpenMPI)
         if: matrix.mpi-type == 'openmpi'
         run: |
           echo Run 'make test' with OpenMPI, ${{ matrix.compiler }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV -C ${{ env.BUILD_TYPE }}
+          ctest -VV -C ${{ matrix.build-type }}
