@@ -9,8 +9,8 @@ build:
 # Change the location of the requirements file
 python:
   install:
-    - requirements: docs/rtd/requirements.txt
+    - requirements: docs/sphinx/requirements.txt
 
 # Change the location of the configuration file
 sphinx:
-  configuration: docs/rtd/conf.py
+  configuration: docs/sphinx/conf.py
