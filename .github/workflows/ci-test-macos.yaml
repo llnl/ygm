@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-15]
         compiler: [g++-12, g++-13, g++-14, clang-15]
         mpi-type: [openmpi]
         build-type: [Release, Debug]
