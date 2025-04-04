@@ -12,69 +12,77 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  //
-  // Test number of lines in files
-  {
-    // assuming the build directory is inside the YGM root directory
-    const std::string dir_name = "data/parquet_files/";
+  // assuming the build directory is inside the YGM root directory
+  const std::string dir_name = "data/parquet_files/";
 
+  //
+  // Test number of columns and rows in files
+  {
     // parquet_parser assumes files have identical scehma
     ygm::io::parquet_parser parquetp(world, {dir_name});
 
-    // count total number of rows in files
-    size_t local_count = 0;
+    YGM_ASSERT_RELEASE(parquetp.num_files() == 3);
+    YGM_ASSERT_RELEASE(parquetp.num_rows() == 10);
+    YGM_ASSERT_RELEASE(parquetp.get_schema().size() == 6);
 
-    parquetp.for_all(
-        [&local_count](const auto& read_values) {
-          local_count++;
-        });
-
-    world.barrier();
-    auto row_count = world.all_reduce_sum(local_count);
-    YGM_ASSERT_RELEASE(row_count == 12);
-  }
-
-  //
-  // Test table entries
-  {
-    // assuming the build directory is inside the YGM root directory
-    const std::string dir_name = "data/parquet_files/";
-
-    // parquet_parser assumes files have identical scehma
-    ygm::io::parquet_parser parquetp(world, {dir_name});
-
-    // read fields in each row
-    struct columns {
-      std::string string_field;
-      char        char_array_field[4];
-      int64_t    int64_field;
-      double      double_field;
-      bool        boolean_field;
+    struct Row {
+      int32_t int32_col;
+      int64_t int64_col;
+      float   float_col;
+      double  double_col;
+      bool    bool_col;
     };
 
-    std::vector<columns>  rows;
-    std::set<std::string> strings;
+    std::unordered_map<std::string, Row> expected_data_table = {
+        {"apple", {1, 10, 1.1f, 10.01, true}},
+        {"banana", {2, 20, 2.2f, 20.02, false}},
+        {"cherry", {3, 30, 3.3f, 30.03, true}},
+        {"date", {4, 40, 4.4f, 40.04, false}},
+        {"elderberry", {5, 50, 5.5f, 50.05, true}},
+        {"fig", {6, 60, 6.6f, 60.06, false}},
+        {"grape", {7, 70, 7.7f, 70.07, true}},
+        {"honeydew", {8, 80, 8.8f, 80.08, false}},
+        {"kiwi", {9, 90, 9.9f, 90.09, true}},
+        {"lemon", {10, 100, 10.1f, 100.10, false}}};
 
+    size_t count_rows = 0;
     parquetp.for_all(
-        [&rows, &strings](const auto& read_values) {
-          columns data;
-          data.string_field = std::get<std::string>(read_values[0]);
-          // No support for FixedLenByteArray now
-          data.int64_field = std::get<int64_t>(read_values[2]);
-          data.double_field = std::get<double>(read_values[3]);
-          data.boolean_field = std::get<bool>(read_values[4]);
+        [&expected_data_table, &count_rows](const auto& read_values) {
+          const auto key        = std::get<std::string>(read_values[0]);
+          const auto int32_col  = std::get<int32_t>(read_values[1]);
+          const auto int64_col  = std::get<int64_t>(read_values[2]);
+          const auto float_col  = std::get<float>(read_values[3]);
+          const auto double_col = std::get<double>(read_values[4]);
+          const auto bool_col   = std::get<bool>(read_values[5]);
 
-          rows.emplace_back(data);
-
-          strings.insert(data.string_field);
+          const auto& expected = expected_data_table[key];
+          YGM_ASSERT_RELEASE(int32_col == expected.int32_col);
+          YGM_ASSERT_RELEASE(int64_col == expected.int64_col);
+          YGM_ASSERT_RELEASE(float_col == expected.float_col);
+          YGM_ASSERT_RELEASE(double_col == expected.double_col);
+          YGM_ASSERT_RELEASE(bool_col == expected.bool_col);
+          ++count_rows;
         });
+    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
 
-    world.barrier();
-    auto row_count = world.all_reduce_sum(rows.size());
-    YGM_ASSERT_RELEASE(row_count == 12);
+    // For all with column names
+    count_rows = 0;
+    parquetp.for_all({"int64_col", "float_col", "string_col", "int64_col"},
+                     [&expected_data_table, &count_rows](const auto& read_values) {
+                       const auto int64_col = std::get<int64_t>(read_values[0]);
+                       const auto float_col = std::get<float>(read_values[1]);
+                       const auto key = std::get<std::string>(read_values[2]);
+                       const auto int64_col2 =
+                           std::get<int64_t>(read_values[3]);
 
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
-                   1);
+                       const auto& expected = expected_data_table[key];
+                       YGM_ASSERT_RELEASE(int64_col == expected.int64_col);
+                       YGM_ASSERT_RELEASE(float_col == expected.float_col);
+                       YGM_ASSERT_RELEASE(int64_col2 == expected.int64_col);
+
+                       ++count_rows;
+                     });
+    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
   }
 
   return 0;

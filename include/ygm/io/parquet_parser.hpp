@@ -60,13 +60,16 @@ struct parquet_data_type {
   }
 
   /// Check if the data type is supported by this parser.
-  bool valid() const { return is_supported_parquet_type(type); }
+  bool supported() const { return is_supported_parquet_type(type); }
 
   friend std::ostream &operator<<(std::ostream &, const parquet_data_type &);
 };
 
 std::ostream &operator<<(std::ostream &os, const parquet_data_type &t) {
   os << parquet::TypeToString(t.type);
+  if (!t.supported()) {
+    os << " (unsupported)";
+  }
   return os;
 }
 }  // namespace detail
@@ -85,7 +88,7 @@ class parquet_parser {
       std::variant<std::monostate, bool, int32_t, int64_t, float, double,
                    std::string>;
 
-  struct column_metadata_type {
+  struct column_schema_type {
     detail::parquet_data_type type;
     std::string               name;
     // If true, this parser can not handle this column data.
@@ -99,25 +102,23 @@ class parquet_parser {
   }
 
   parquet_parser(ygm::comm &_comm, const std::vector<std::string> &stringpaths,
-                 bool recursive = false)
+                 const bool recursive = false)
       : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
-    check_paths(stringpaths, recursive);
-    read_file_schema();
-    count_all_rows();
-    m_comm.barrier();
+    init(stringpaths, recursive);
   }
 
   ~parquet_parser() { m_comm.barrier(); }
 
-  // Returns a list of column metadata.
-  // The order of the metadata is the same as the order of Parquet column
+  // Returns a list of column schema (simpler version).
+  // The order of the schema is the same as the order of Parquet column
   // indices (ascending order).
-  const std::vector<column_metadata_type> &get_metadata() {
-    return m_col_metadata;
+  // This function assumes that all files have the same schema.
+  const std::vector<column_schema_type> &get_schema() {
+    return m_col_schema;
   }
 
-  // Return Parquet file schema as a string
+  // Return full Parquet file schema directly returned by the Parqet reader as a string.
   // This function assumes that all files have the same schema.
   const std::string &schema_to_string() { return m_schema_string; }
 
@@ -130,9 +131,8 @@ class parquet_parser {
     read_parquet_files(fn);
   }
 
-  /// Read the specified columns and call the function for each row.
-  /// fn is called with a std::vector<parquet_type_variant>.
-  /// The values of unsupported or missing columns are set to std::monostate.
+  /// for_all(), read only the specified columns.
+  /// The values of the columns that do not exist are set to std::monostate.
   template <typename Function>
     requires std::invocable<Function, const std::vector<parquet_type_variant> &>
   void for_all(const std::vector<std::string> &columns, Function fn) {
@@ -146,6 +146,23 @@ class parquet_parser {
   size_t num_rows() { return m_num_total_rows; }
 
  private:
+  // Open Parquet files and read schema.
+  void init(const std::vector<std::string> &stringpaths,
+            const bool                      recursive = false) {
+    clear();
+    check_paths(stringpaths, recursive);
+    read_file_schema();
+    count_all_rows();
+    m_comm.barrier();
+  }
+
+  // Clean up the internal state.
+  void clear() {
+    m_paths.clear();
+    m_col_schema.clear();
+    m_num_total_rows = 0;
+  }
+
   /// Count the number of lines in a file.
   static size_t get_num_rows(const stdfs::path &input_filename) {
     std::shared_ptr<arrow::io::ReadableFile> input_file;
@@ -283,7 +300,7 @@ class parquet_parser {
         reader->metadata()->schema();
 
     const size_t num_cols = file_schema->num_columns();
-    m_col_metadata.resize(num_cols);
+    m_col_schema.resize(num_cols);
     for (size_t i = 0; i < num_cols; ++i) {
       // Assumes that Parquet column index space is contiguous, i.e., [0,
       // num_cols).
@@ -299,7 +316,7 @@ class parquet_parser {
         // Memo: for definition and repetition levels, see
         // https://blog.x.com/engineering/en_us/a/2013/dremel-made-simple-with-parquet
       }
-      m_col_metadata[i] = {
+      m_col_schema[i] = {
           .type = ptype, .name = column->name(), .unsupported = unsupported};
     }
     m_schema_string = file_schema->ToString();
@@ -344,30 +361,30 @@ class parquet_parser {
           std::numeric_limits<size_t>::max();
       if (columns_to_read) {
         for (const auto &col_name : *columns_to_read) {
-          auto it = std::find_if(m_col_metadata.begin(), m_col_metadata.end(),
-                                 [&col_name](const column_metadata_type &col) {
+          auto it = std::find_if(m_col_schema.begin(), m_col_schema.end(),
+                                 [&col_name](const column_schema_type &col) {
                                    return col.name == col_name;
                                  });
-          if (it != m_col_metadata.end()) {
-            column_indices.push_back(std::distance(m_col_metadata.begin(), it));
+          if (it != m_col_schema.end()) {
+            const auto col_index = std::distance(m_col_schema.begin(), it);
+            // Check if the column is supported
+            column_indices.push_back(col_index);
           } else {
             column_indices.push_back(k_invalid_col_index);
-            // TODO: verbose mode
-            // std::cerr << "Column " << col_name << " not found in the schema."
-            //           << std::endl;
           }
         }
       } else {
+        // Read all columns. Fill the column indices with the range [0,
+        // num_columns)
         column_indices.resize(num_columns);
-        // Fill the column indices with the range [0, num_columns)
         std::iota(column_indices.begin(), column_indices.end(), 0);
       }
 
       // TODO: verbose mode
       // Show warning if unsupported columns are found
       // for (const auto &col_index : column_indices) {
-      //   if (m_col_metadata[col_index].unsupported) {
-      //     std::cerr << "Column " << m_col_metadata[col_index].name
+      //   if (m_col_schema[col_index].unsupported) {
+      //     std::cerr << "Column " << m_col_schema[col_index].name
       //               << " is unsupported." << std::endl;
       //   }
       // }
@@ -393,14 +410,14 @@ class parquet_parser {
           // name (invalid index), or B) the column is unsupported,
           //  pass std::monostate to the user function
           if (column_indices[ci] == k_invalid_col_index ||
-              m_col_metadata[column_indices[ci]].unsupported) {
+              m_col_schema[column_indices[ci]].unsupported) {
             read_buf[ci].resize(num_rows, std::monostate{});
             continue;
           }
 
           std::shared_ptr<parquet::ColumnReader> column_reader =
               row_group_reader->Column(column_indices[ci]);
-          auto &col_metadata = m_col_metadata.at(column_indices[ci]);
+          auto &col_metadata = m_col_schema.at(column_indices[ci]);
           assert(!col_metadata.unsupported);
 
           if (col_metadata.type.equal(parquet::Type::BOOLEAN)) {
@@ -471,17 +488,18 @@ class parquet_parser {
       value_type value;
       // Read one value at a time. The number of rows read is returned.
       // values_read contains the number of non-null rows
-      int64_t    values_read = 0;
-      // Memo: Somehow it is needed to get this value from ReadBatch() when reading ByteArray? data
-      // If not, the reader fails.
-      int16_t definition_level = 0;
-      const auto rows_read =
-          typed_reader->ReadBatch(1, &definition_level, nullptr, &value, &values_read);
+      int64_t values_read = 0;
+      // Memo: Somehow it is needed to get this value from ReadBatch() when
+      // reading ByteArray? data If not, the reader fails.
+      int16_t    definition_level = 0;
+      const auto rows_read        = typed_reader->ReadBatch(
+          1, &definition_level, nullptr, &value, &values_read);
 
       // Ensure only one value is read
       if (rows_read != 1) {
         std::cerr << "Error read " << rows_read
-                  << " rows at once (expected to read only one row)." << std::endl;
+                  << " rows at once (expected to read only one row)."
+                  << std::endl;
         std::abort();
       }
 
@@ -490,8 +508,9 @@ class parquet_parser {
         read_values.emplace_back(std::monostate{});
       } else {
         if constexpr (std::is_same_v<value_type, parquet::ByteArray>) {
-        // std::cout << "Read " << static_cast<std::string_view>(value) << " values." << std::endl;// DB
-          // ByteArray has a conversion operator to std::string_view
+          // std::cout << "Read " << static_cast<std::string_view>(value) << "
+          // values." << std::endl;// DB ByteArray has a conversion operator to
+          // std::string_view
           read_values.emplace_back(
               std::string(static_cast<std::string_view>(value)));
         } else {
@@ -503,14 +522,14 @@ class parquet_parser {
     return read_values;
   }
 
-  bool is_owner(const size_t &item_ID) {
-    return m_comm.rank() == item_ID % m_comm.size() ? true : false;
+  bool is_owner(const size_t item_ID) {
+    return m_comm.rank() == (item_ID % m_comm.size());
   }
 
   ygm::comm                        &m_comm;
   typename ygm::ygm_ptr<self_type>  pthis;
   std::vector<stdfs::path>          m_paths;
-  std::vector<column_metadata_type> m_col_metadata;
+  std::vector<column_schema_type> m_col_schema;
   std::string                       m_schema_string;
   size_t                            m_num_total_rows{0};
 };

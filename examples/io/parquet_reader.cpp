@@ -30,15 +30,16 @@ int main(int argc, char** argv) {
                 << std::endl;
 
   // Print Schema
-  world.cout0() << "#Fields: " << parquetp.get_metadata().size() << std::endl;
+  world.cout0() << "#of Columns: " << parquetp.get_schema().size() << std::endl;
   world.cout0() << "Schema: " << std::endl;
-  for (const auto& col : parquetp.get_metadata()) {
+  for (const auto& col : parquetp.get_schema()) {
     world.cout0() << col.name << ": " << col.type << std::endl;
   }
   world.cout0() << std::endl;
+  world.cout0() << "Full schema: " << std::endl;
   world.cout0() << parquetp.schema_to_string() << std::endl;
 
-  world.cout0() << "#Rows: " << parquetp.num_rows() << std::endl;
+  world.cout0() << "#of Rows: " << parquetp.num_rows() << std::endl;
 
   // Print values
   for (int r = 0; r < world.size(); ++r) {
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
             std::visit([](const auto& value) {
               using T = std::decay_t<decltype(value)>;
                   if constexpr (std::is_same_v<T, std::monostate>) {
-                    std::cout << "NULL" << ", ";
+                    std::cout << "None" << ", ";
                   } else {
                     std::cout << value << ", ";
                   }
@@ -60,7 +61,6 @@ int main(int argc, char** argv) {
     }
     world.cf_barrier();
   }
-  world.barrier();
 
   return 0;
 }
