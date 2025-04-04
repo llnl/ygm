@@ -34,8 +34,16 @@ class comm_router;
 
 class comm {
  private:
-  class mpi_irecv_request;
-  class mpi_isend_request;
+  struct mpi_irecv_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                             request;
+  };
+
+  struct mpi_isend_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                             request;
+  };
+
   class header_t;
   friend class detail::interrupt_mask;
   friend class detail::comm_stats;

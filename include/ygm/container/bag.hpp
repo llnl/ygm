@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <fstream>
+
 #include <cereal/archives/json.hpp>
 #include <initializer_list>
 #include <ygm/container/container_traits.hpp>
