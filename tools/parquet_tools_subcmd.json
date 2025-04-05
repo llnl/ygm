@@ -12,15 +12,7 @@
     "opt": [
       {
         "key": "r",
-        "desc": "Read rows w/o converting."
-      },
-      {
-        "key": "v",
-        "desc": "Read rows converting to arrays of std::variant."
-      },
-      {
-        "key": "j",
-        "desc": "Read rows converting to arrays of JSON objects."
+        "desc": "Count rows by actually reading all data."
       }
     ]
   },
@@ -37,7 +29,7 @@
   },
   {
     "cmd": "dump",
-    "desc": "Dump data to files. One output file per rank.",
+    "desc": "Dump Parquet file data to CSV files. One output file per rank.",
     "req": [
       {
         "key": "i",
@@ -48,16 +40,6 @@
         "key": "o",
         "value": "path",
         "desc": "Prefix of output files."
-      }
-    ],
-    "opt": [
-      {
-        "key": "v",
-        "desc": "Dump rows converting to arrays of std::variant (default)"
-      },
-      {
-        "key": "j",
-        "desc": "Dump rows converting to arrays of JSON objects."
       }
     ]
   },
