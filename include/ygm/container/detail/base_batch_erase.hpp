@@ -42,17 +42,27 @@ struct base_batch_erase_key {
   }
 };
 
+template <typename Container, typename KeyType, typename MappedType>
+concept ContainerofErasableTuples = HasForAll<Container> &&
+    DoubleItemTuple<typename Container::for_all_args> && std::convertible_to<
+        typename std::tuple_element_t<0, typename Container::for_all_args>,
+        KeyType> &&
+    std::convertible_to<
+        typename std::tuple_element_t<1, typename Container::for_all_args>,
+        MappedType>;
+
 template <typename derived_type, typename for_all_args>
 struct base_batch_erase_key_value {
   using key_type    = typename std::tuple_element_t<0, for_all_args>;
   using mapped_type = typename std::tuple_element_t<1, for_all_args>;
 
   template <typename Container>
-  void erase(const Container &cont) requires HasForAll<Container> &&
-      DoubleItemTuple<typename Container::for_all_args> /*&&
-      std::convertible_to< typename std::tuple_element_t<0, typename
-      Container::for_all_args>, key_type> && std::convertible_to< typename
-      std::tuple_element_t<1, typename Container::for_all_args>, mapped_type>*/
+  void erase(const Container &cont) requires ContainerofErasableTuples<
+      Container, key_type, mapped_type> /* HasForAll<Container> &&
+DoubleItemTuple<typename Container::for_all_args> &&
+std::convertible_to< typename std::tuple_element_t<0, typename
+Container::for_all_args>, key_type> && std::convertible_to< typename
+std::tuple_element_t<1, typename Container::for_all_args>, mapped_type>*/
   {
     derived_type *derived_this = static_cast<derived_type *>(this);
 
