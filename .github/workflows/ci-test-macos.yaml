@@ -44,6 +44,7 @@ jobs:
           echo Run 'make'
           if [ "${{ matrix.compiler }}" == "clang-18" ]; then
             COMPILER="$(brew --prefix llvm@18)/bin/clang++"
+            ls "$(brew --prefix llvm@18)/bin"
           else
             COMPILER="${{ matrix.compiler }}"
           fi
