@@ -578,7 +578,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }
@@ -592,7 +592,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }
