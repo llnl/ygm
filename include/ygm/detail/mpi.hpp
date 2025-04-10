@@ -26,7 +26,7 @@ class mpi_init_finalize {
 
 template <typename T>
 inline MPI_Datatype mpi_typeof(T) {
-  static_assert(always_false<>, "Unknown MPI Type");
+  static_assert(always_false<T>, "Unknown MPI Type");
   return 0;
 }
 
@@ -50,7 +50,8 @@ inline MPI_Datatype mpi_typeof(std::signed_integral auto t) {
   } else if constexpr (sizeof(t) == 8) {
     return MPI_INT64_T;
   } else {
-    static_assert(always_false<>, "Invalid integer size for MPI Type");
+    static_assert(always_false<decltype(t)>,
+                  "Invalid integer size for MPI Type");
   }
 }
 
@@ -64,7 +65,8 @@ inline MPI_Datatype mpi_typeof(std::unsigned_integral auto t) {
   } else if constexpr (sizeof(t) == 8) {
     return MPI_UINT64_T;
   } else {
-    static_assert(always_false<>, "Invalid integer size for MPI Type");
+    static_assert(always_false<decltype(t)>,
+                  "Invalid integer size for MPI Type");
   }
 }
 
