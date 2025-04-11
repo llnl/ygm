@@ -48,13 +48,13 @@ jobs:
             COMPILER="${{ matrix.compiler }}"
           fi
           mpicc -show
+          mpicxx --show
           $COMPILER --version
           mkdir build
           cd build
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          which mpicxx
           cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=$COMPILER -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make 
       - name: Make test (mpich)
