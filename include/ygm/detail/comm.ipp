@@ -11,17 +11,6 @@
 
 namespace ygm {
 
-struct comm::mpi_irecv_request {
-  std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                               request;
-};
-
-struct comm::mpi_isend_request {
-  std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                               request;
-  int32_t                                   start_id;
-};
-
 struct comm::header_t {
   uint32_t message_size;
   int32_t  dest;
@@ -47,6 +36,10 @@ inline comm::comm(MPI_Comm mcomm)
 }
 
 inline void comm::comm_setup(MPI_Comm c) {
+  m_logger.set_path(config.default_log_path + std::to_string(rank()));
+  m_logger.set_log_level(config.default_log_level);
+  m_logger.log(log_level::info, "Setting up ygm::comm");
+
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -134,6 +127,8 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
 inline comm::~comm() {
   barrier();
+
+  m_logger.log(log_level::info, "Destroying ygm::comm");
 
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
@@ -262,13 +257,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-  if (m_trace_ygm || m_trace_mpi) {
-    m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count,
-                                 m_recv_count, m_pending_isend_bytes,
-                                 m_send_local_buffer_bytes,
-                                 m_send_remote_buffer_bytes);
-  }
-
+  log(log_level::debug, "Entering YGM barrier");
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -293,6 +282,7 @@ inline void comm::barrier() {
                                m_send_local_buffer_bytes,
                                m_send_remote_buffer_bytes);
   }
+  log(log_level::debug, "Exiting YGM barrier");
 }
 
 /**
@@ -301,7 +291,9 @@ inline void comm::barrier() {
  * called it. See:  MPI_Barrier()
  */
 inline void comm::cf_barrier() const {
+  log(log_level::debug, "Entering YGM cf_barrier");
   YGM_ASSERT_MPI(MPI_Barrier(m_comm_barrier));
+  log(log_level::debug, "Exiting YGM cf_barrier");
 }
 
 template <typename T>
@@ -490,7 +482,7 @@ inline std::string comm::outstr0(Args &&...args) const {
 template <typename... Args>
 inline std::string comm::outstr(Args &&...args) const {
   std::stringstream ss;
-  (ss << rank() << ": " << ... << args);
+  ((ss << rank() << ": ") << ... << args);
   return ss.str();
 }
 
@@ -556,7 +548,8 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
                                   twin_status[i].MPI_SOURCE, buffer_size);
         }
 
-        handle_next_receive(req_buffer.buffer, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size,
+                            twin_status[i].MPI_SOURCE);
         flush_all_local_and_process_incoming();
       }
     }
@@ -589,10 +582,16 @@ inline void comm::flush_send_buffer(int dest) {
     }
     request.buffer->swap(m_vec_send_buffers[dest]);
     if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
+      log(log_level::debug, "MPI_Issend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
                                 MPI_BYTE, dest, 0, m_comm_async,
                                 &(request.request)));
     } else {
+      log(log_level::debug, "MPI_Isend " +
+                                std::to_string(request.buffer->size()) +
+                                " bytes to rank " + std::to_string(dest));
       YGM_ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
                                MPI_BYTE, dest, 0, m_comm_async,
                                &(request.request)));
@@ -632,6 +631,9 @@ inline void comm::flush_next_send(std::deque<int> &dest_queue) {
  */
 inline void comm::handle_completed_send(mpi_isend_request &req_buffer) {
   m_pending_isend_bytes -= req_buffer.buffer->size();
+  log(log_level::debug, "Completed send of " +
+                            std::to_string(req_buffer.buffer->size()) +
+                            " bytes");
   if (m_free_send_buffers.size() < config.send_buffer_free_list_len) {
     req_buffer.buffer->clear();
     m_free_send_buffers.push_back(req_buffer.buffer);
@@ -773,14 +775,6 @@ inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
       std::forward<const PackArgs>(args)...);
 
   auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
-    Lambda *pl = nullptr;
-    size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                     (sizeof(Lambda) % sizeof(size_t) > 0)];
-    if constexpr (!std::is_empty<Lambda>::value) {
-      bia->loadBinary(l_storage, sizeof(Lambda));
-      pl = (Lambda *)l_storage;
-    }
-
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
       (*bia)(ta);
@@ -789,7 +783,7 @@ inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
     auto t1 = std::make_tuple((comm *)c);
 
     // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
-    ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+    ygm::meta::apply_optional(l, std::move(t1), std::move(ta));
   };
 
   return pack_lambda_generic(packed, l, dispatch_lambda,
@@ -805,12 +799,6 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
                                                cereal::YGMInputArchive *bia,
                                                Lambda                   l) {
     Lambda *pl = nullptr;
-    size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                     (sizeof(Lambda) % sizeof(size_t) > 0)];
-    if constexpr (!std::is_empty<Lambda>::value) {
-      bia->loadBinary(l_storage, sizeof(Lambda));
-      pl = (Lambda *)l_storage;
-    }
 
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
@@ -819,14 +807,6 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
 
     auto forward_local_and_dispatch_lambda =
         [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
-          Lambda *pl = nullptr;
-          size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                           (sizeof(Lambda) % sizeof(size_t) > 0)];
-          if constexpr (!std::is_empty<Lambda>::value) {
-            bia->loadBinary(l_storage, sizeof(Lambda));
-            pl = (Lambda *)l_storage;
-          }
-
           std::tuple<PackArgs...> ta;
           if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
             (*bia)(ta);
@@ -834,14 +814,6 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
 
           auto local_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
                                           Lambda l) {
-            Lambda *pl = nullptr;
-            size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                             (sizeof(Lambda) % sizeof(size_t) > 0)];
-            if constexpr (!std::is_empty<Lambda>::value) {
-              bia->loadBinary(l_storage, sizeof(Lambda));
-              pl = (Lambda *)l_storage;
-            }
-
             std::tuple<PackArgs...> ta;
             if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
               (*bia)(ta);
@@ -850,14 +822,14 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
             auto t1 = std::make_tuple((comm *)c);
 
             // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
-            ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+            ygm::meta::apply_optional(l, std::move(t1), std::move(ta));
           };
 
           // Pack lambda telling terminal ranks to execute user lambda.
           // TODO: Why does this work? Passing ta (tuple of args) to a function
           // expecting a parameter pack shouldn't work...
           ygm::detail::byte_vector packed_msg;
-          c->pack_lambda_generic(packed_msg, *pl, local_dispatch_lambda, ta);
+          c->pack_lambda_generic(packed_msg, l, local_dispatch_lambda, ta);
 
           for (auto dest : c->layout().local_ranks()) {
             if (dest != c->layout().rank()) {
@@ -868,11 +840,11 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
           auto t1 = std::make_tuple((comm *)c);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
-          ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+          ygm::meta::apply_optional(l, std::move(t1), std::move(ta));
         };
 
     ygm::detail::byte_vector packed_msg;
-    c->pack_lambda_generic(packed_msg, *pl, forward_local_and_dispatch_lambda,
+    c->pack_lambda_generic(packed_msg, l, forward_local_and_dispatch_lambda,
                            ta);
 
     int num_layers = c->layout().node_size() / c->layout().local_size() +
@@ -906,7 +878,7 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
     auto t1 = std::make_tuple((comm *)c);
 
     // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
-    ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+    ygm::meta::apply_optional(l, std::move(t1), std::move(ta));
   };
 
   ygm::detail::byte_vector packed_msg;
@@ -931,12 +903,32 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
     RemoteLogicLambda *rll = nullptr;
     Lambda            *pl  = nullptr;
 
+    // Deserialize captured values from RemoteLogicLambda and Lambda
+    size_t rll_storage[sizeof(RemoteLogicLambda) / sizeof(size_t) +
+                       (sizeof(RemoteLogicLambda) % sizeof(size_t) > 0)];
+    if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
+      bia->loadBinary(rll_storage, sizeof(RemoteLogicLambda));
+      rll = (Lambda *)rll_storage;
+    }
+
+    size_t l_storage[sizeof(Lambda) / sizeof(size_t) +
+                     (sizeof(Lambda) % sizeof(size_t) > 0)];
+    if constexpr (!std::is_empty<Lambda>::value) {
+      bia->loadBinary(l_storage, sizeof(Lambda));
+      pl = (Lambda *)l_storage;
+    }
+
     (*rll)(c, bia, *pl);
   };
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
   { packed.push_bytes(&lid, sizeof(lid)); }
+
+  if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
+    size_t size_before = packed.size();
+    packed.push_bytes(&rll, sizeof(RemoteLogicLambda));
+  }
 
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
@@ -998,8 +990,10 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector &packed,
 }
 
 inline void comm::handle_next_receive(
-    std::shared_ptr<ygm::detail::byte_vector> &buffer,
-    const size_t                               buffer_size) {
+    std::shared_ptr<ygm::detail::byte_vector> &buffer, const size_t buffer_size,
+    const uint32_t from_rank) {
+  log(log_level::debug, "Received " + std::to_string(buffer_size) +
+                            " bytes from rank " + std::to_string(from_rank));
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
@@ -1102,8 +1096,8 @@ inline bool comm::process_receive_queue() {
         if (m_trace_mpi) {
           m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), twin_status[i].MPI_SOURCE, buffer_size);
         }
-
-        handle_next_receive(req_buffer.buffer, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size,
+                            twin_status[i].MPI_SOURCE);
       }
     }
   } else {
@@ -1136,7 +1130,7 @@ inline bool comm::local_process_incoming() {
         m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), status.MPI_SOURCE, buffer_size);
       }
 
-      handle_next_receive(req_buffer.buffer, buffer_size);
+      handle_next_receive(req_buffer.buffer, buffer_size, status.MPI_SOURCE);
     } else {
       break;  // not ready yet
     }
@@ -1189,6 +1183,24 @@ bool comm::is_ygm_tracing_enabled() const {
 
 bool comm::is_mpi_tracing_enabled() const {
   return m_trace_mpi;
+}
+
+template <typename StringType>
+inline void comm::set_log_location(const StringType &s) {
+  set_log_location(std::filesystem::path(s));
+}
+
+inline void comm::set_log_location(std::filesystem::path p) {
+  // p will be treated as a desired directory location to store all logs. The
+  // full name of the individual loggers on each rank will be determined by the
+  // ygm::detail::logger objects.
+  if (std::filesystem::exists(p) && not std::filesystem::is_directory(p)) {
+    cout0("Cannot set log location: ", p, " exists and is not a directory");
+  }
+  std::filesystem::create_directories(p);
+
+  p /= ("ygm_logs" + std::to_string(rank()));
+  m_logger.set_path(p);
 }
 
 };  // namespace ygm

@@ -54,6 +54,7 @@ class map
 
   map(ygm::comm& comm)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
   }
 
@@ -62,11 +63,13 @@ class map
         pthis(this),
         partitioner(comm),
         m_default_value(default_value) {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
   }
 
   map(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -81,6 +84,7 @@ class map
                  std::convertible_to<typename STLContainer::value_type,
                                      std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -94,6 +98,7 @@ class map
     requires detail::HasForAll<YGMContainer> &&
                  detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -103,7 +108,10 @@ class map
     m_comm.barrier();
   }
 
-  ~map() { m_comm.barrier(); }
+  ~map() {
+    m_comm.log(log_level::info, "Destroying ygm::container::map");
+    m_comm.barrier();
+  }
 
   using detail::base_async_erase_key<map<Key, Value>,
                                      for_all_args>::async_erase;
@@ -380,6 +388,7 @@ class multimap
 
   multimap(ygm::comm& comm)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
   }
 
@@ -388,11 +397,13 @@ class multimap
         pthis(this),
         partitioner(comm),
         m_default_value(default_value) {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
   }
 
   multimap(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -407,6 +418,7 @@ class multimap
                  std::convertible_to<typename STLContainer::value_type,
                                      std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -420,6 +432,7 @@ class multimap
     requires detail::HasForAll<YGMContainer> &&
                  detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -429,7 +442,10 @@ class multimap
     m_comm.barrier();
   }
 
-  ~multimap() { m_comm.barrier(); }
+  ~multimap() {
+    m_comm.log(log_level::info, "Destroying ygm::container::multimap");
+    m_comm.barrier();
+  }
 
   void local_insert(const key_type& key) {
     if (m_local_map.count(key) == 0) {

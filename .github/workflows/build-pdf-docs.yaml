@@ -1,0 +1,38 @@
+name: Build PDF Documentation
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  build_docs:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update apt
+      run: |
+        sudo apt-get update
+    - name: Install dependencies
+      run: |
+        sudo apt-get install doxygen sphinx
+        pip install -r docs/sphinx/requirements.txt
+        sudo apt-get install texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra latexmk
+    - name: make
+      run: |
+        mkdir build
+        cd build
+        cmake ../ -DYGM_DOCS_ONLY=On
+        make sphinx-pdf
+    - name: Move PDF
+      run: |
+        cp build/docs/sphinx/latex/ygm.pdf ./docs
+    - uses: EndBug/add-and-commit@v9
+      with:
+        author_name: YGM-docs bot
+        message: 'Generating and committing docs'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

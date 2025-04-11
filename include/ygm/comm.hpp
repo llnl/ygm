@@ -17,6 +17,7 @@
 #include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/lambda_map.hpp>
 #include <ygm/detail/layout.hpp>
+#include <ygm/detail/logger.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/tracer.hpp>
@@ -35,8 +36,17 @@ class tracer;
 
 class comm {
  private:
-  class mpi_irecv_request;
-  class mpi_isend_request;
+  struct mpi_irecv_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                             request;
+  };
+
+  struct mpi_isend_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                             request;
+    int32_t                                 start_id;
+  };
+
   class header_t;
   friend class detail::interrupt_mask;
   friend class detail::comm_stats;
@@ -193,6 +203,19 @@ class comm {
   bool is_ygm_tracing_enabled() const;
 
   bool is_mpi_tracing_enabled() const;
+  void set_log_level(const ygm::log_level level) {
+    m_logger.set_log_level(level);
+  }
+
+  template <typename... Args>
+  void log(const ygm::log_level level, Args &&...args) const {
+    m_logger.log(level, args...);
+  }
+
+  template <typename StringType>
+  void set_log_location(const StringType &s);
+
+  void set_log_location(std::filesystem::path p);
 
   // Private member functions
  private:
@@ -234,7 +257,7 @@ class comm {
                            const int                       dest);
 
   void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                           const size_t buffer_size);
+                           const size_t buffer_size, const uint32_t from_rank);
 
   bool process_receive_queue();
 
@@ -285,6 +308,8 @@ class comm {
   detail::tracer                 m_tracer = detail::tracer(m_layout.size(), m_layout.rank(), config.trace_path);
   bool                           m_trace_ygm = config.trace_ygm;
   bool                           m_trace_mpi = config.trace_mpi;
+
+  detail::logger m_logger;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;

@@ -131,10 +131,14 @@ class disjoint_set_impl {
 
   disjoint_set_impl(ygm::comm &comm, const size_t cache_size)
       : m_comm(comm), pthis(this), m_cache(cache_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::disjoint_set");
     pthis.check(m_comm);
   }
 
-  ~disjoint_set_impl() { m_comm.barrier(); }
+  ~disjoint_set_impl() {
+    m_comm.log(log_level::info, "Destroying ygm::container::disjoint_set");
+    m_comm.barrier();
+  }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
