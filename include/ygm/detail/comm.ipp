@@ -552,7 +552,8 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         if (m_trace_mpi) {
-          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
+          m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(),
+                                  twin_status[i].MPI_SOURCE, buffer_size);
         }
 
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -649,7 +650,7 @@ inline void comm::check_completed_sends() {
       stats.isend_test();
       if (flag) {
         if (m_trace_mpi) {
-          m_tracer.trace_mpi_send(m_tracer.get_next_message_id(),
+          m_tracer.trace_mpi_send_complete(m_tracer.get_next_message_id(),
                                   m_send_queue.front().id,
                                   m_send_queue.front().buffer->size());
         }
@@ -1099,7 +1100,7 @@ inline bool comm::process_receive_queue() {
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         if (m_trace_mpi) {
-          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
+          m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), twin_status[i].MPI_SOURCE, buffer_size);
         }
 
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -1132,7 +1133,7 @@ inline bool comm::local_process_incoming() {
       stats.irecv(status.MPI_SOURCE, buffer_size);
 
       if (m_trace_mpi) {
-        m_tracer.trace_mpi_recv(0, status.MPI_SOURCE, buffer_size);
+        m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), status.MPI_SOURCE, buffer_size);
       }
 
       handle_next_receive(req_buffer.buffer, buffer_size);
@@ -1144,38 +1145,41 @@ inline bool comm::local_process_incoming() {
 }
 
 void comm::enable_ygm_tracing() {
-  if(rank0()) {
-    std::cout << "Creating directory" << std::endl;
+  // Setup tracing if not already enabled
+  if (!m_trace_ygm && !m_trace_mpi) {
     m_tracer.create_directory();
-  }
-  cf_barrier();
+    cf_barrier();
+    m_tracer.open_file();
+  } 
   m_trace_ygm = true;
-  m_tracer.open_file();
 }
 
 void comm::enable_mpi_tracing() {
-   if(rank0()) {
-    std::cout << "Creating directory" << std::endl;
+   // Setup tracing if not already enabled
+  if (!m_trace_ygm && !m_trace_mpi) {
     m_tracer.create_directory();
-  }
-  cf_barrier();
-
-  m_trace_mpi = true;
-  m_tracer.open_file();
+    cf_barrier();
+    m_tracer.open_file();
+  } 
+  m_trace_mpi= true;
 }
 
 void comm::disable_ygm_tracing() {
   m_trace_ygm = false;
-  if (m_trace_ygm || m_trace_mpi) {
-    m_tracer.close_file();
-  }
+
+  // if (!m_trace_ygm && !m_trace_mpi) {
+  //   m_tracer.close_file();
+  //   cf_barrier();
+  // }
 }
 
 void comm::disable_mpi_tracing() {
   m_trace_mpi = false;
-  if (m_trace_ygm || m_trace_mpi) {
-    m_tracer.close_file();
-  }
+
+  // if (!m_trace_ygm && !m_trace_mpi) {
+  //   m_tracer.close_file();
+  //   cf_barrier();
+  // }
 }
 
 bool comm::is_ygm_tracing_enabled() const {

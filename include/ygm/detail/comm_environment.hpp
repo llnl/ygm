@@ -130,10 +130,10 @@ class comm_environment {
         throw std::runtime_error("comm_enviornment -- unknown routing type");
       }
     }
-    if (const char* cc = std::getenv("YGM_COMM_TRACE")) {
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_YGM")) {
       trace_ygm = convert<bool>(cc);
     }
-    if (const char* cc = std::getenv("YGM_MPI_TRACE")) {
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_MPI")) {
       trace_mpi = convert<bool>(cc);
     }
     if (const char* cc = std::getenv("YGM_COMM_TRACE_PATH")) {
@@ -163,8 +163,9 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
-    os << "YGM_COMM_TRACE           = " << trace_ygm << "\n";
-    os << "YGM_MPI_TRACE           = " << trace_mpi << "\n";
+    os << "YGM_COMM_TRACE_YGM          = " << trace_ygm << "\n";
+    os << "YGM_COMM_TRACE_MPI          = " << trace_mpi << "\n";
+    os << "YGM_COMM_TRACE_PATH         = " << trace_path << "\n";
     os << "======================================\n";
   }
 
