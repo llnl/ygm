@@ -42,12 +42,12 @@ struct mpi_send_event {
 // MPI SEND COMPLETE
 struct mpi_send_complete_event {
   uint64_t event_id;
-  int      to;
+  uint64_t start_id;
   uint32_t buffer_size;
 
   template <class Archive>
   void serialize(Archive& ar) {
-    ar(event_id, to, buffer_size);
+    ar(event_id, start_id, buffer_size);
   }
 };
 
@@ -189,10 +189,10 @@ class tracer {
     log_event(event);
   }
 
-  void trace_mpi_send_complete(uint64_t id, int dest, uint32_t bytes) {
+  void trace_mpi_send_complete(uint64_t id, uint64_t start_id, uint32_t bytes) {
     mpi_send_complete_event event;
     event.event_id    = id;
-    event.to          = dest;
+    event.start_id    = start_id;
     event.buffer_size = bytes;
 
     log_event(event);

@@ -19,7 +19,7 @@ struct comm::mpi_irecv_request {
 struct comm::mpi_isend_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
   MPI_Request                               request;
-  int32_t                                   id;
+  int32_t                                   start_id;
 };
 
 struct comm::header_t {
@@ -576,9 +576,9 @@ inline void comm::flush_send_buffer(int dest) {
     mpi_isend_request request;
 
     if (m_trace_mpi) {
-      request.id = m_tracer.get_next_message_id();
+      request.start_id = m_tracer.get_next_message_id();
     } else {
-      request.id = 0;
+      request.start_id = 0;
     }
 
     if (m_free_send_buffers.empty()) {
@@ -608,7 +608,7 @@ inline void comm::flush_send_buffer(int dest) {
     }
 
     if (m_trace_mpi) {
-      m_tracer.trace_mpi_send(request.id, dest, request.buffer->size());
+      m_tracer.trace_mpi_send(request.start_id, dest, request.buffer->size());
     }
 
     m_send_queue.push_back(request);
@@ -651,7 +651,7 @@ inline void comm::check_completed_sends() {
       if (flag) {
         if (m_trace_mpi) {
           m_tracer.trace_mpi_send_complete(m_tracer.get_next_message_id(),
-                                  m_send_queue.front().id,
+                                  m_send_queue.front().start_id,
                                   m_send_queue.front().buffer->size());
         }
         handle_completed_send(m_send_queue.front());
@@ -1166,7 +1166,7 @@ void comm::enable_mpi_tracing() {
 
 void comm::disable_ygm_tracing() {
   m_trace_ygm = false;
-
+  cf_barrier();
   // if (!m_trace_ygm && !m_trace_mpi) {
   //   m_tracer.close_file();
   //   cf_barrier();
@@ -1175,6 +1175,7 @@ void comm::disable_ygm_tracing() {
 
 void comm::disable_mpi_tracing() {
   m_trace_mpi = false;
+  cf_barrier();
 
   // if (!m_trace_ygm && !m_trace_mpi) {
   //   m_tracer.close_file();

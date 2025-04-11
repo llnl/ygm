@@ -54,7 +54,7 @@ void deserializeFromFile(const std::string& filename) {
             std::cout << "{"
                       << "\"type\":\"MPI_SEND_COMPLETE\","
                       << "\"event_id\":" << arg.event_id << ","
-                      << "\"to\":" << arg.to << ","
+                      << "\"start_id\":" << arg.start_id << ","
                       << "\"buffer_size\":" << arg.buffer_size << "}";
           } else if constexpr (std::is_same_v<T, mpi_recv_event>) {
             std::cout << "{"
