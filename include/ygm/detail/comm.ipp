@@ -63,10 +63,10 @@ inline void comm::comm_setup(MPI_Comm c) {
     post_new_irecv(recv_buffer);
   }
 
-  if (config.trace_ygm || config.trace_mpi) {
-    if (rank0()) m_tracer.create_directory(config.trace_path);
-    YGM_ASSERT_MPI(MPI_Barrier(c));
-    m_tracer.open_file(config.trace_path, rank(), size());
+  if (m_trace_ygm || m_trace_mpi) {
+    if (rank0()) m_tracer.create_directory();
+    cf_barrier();
+    m_tracer.open_file();
   }
 }
 
@@ -214,7 +214,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     std::memcpy(&*iter, &bytes, sizeof(header_t::message_size));
   }
 
-  if (config.trace_ygm) {
+  if (m_trace_ygm) {
     m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes);
   }
 
@@ -262,7 +262,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-  if (config.trace_ygm || config.trace_mpi) {
+  if (m_trace_ygm || m_trace_mpi) {
     m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count,
                                  m_recv_count, m_pending_isend_bytes,
                                  m_send_local_buffer_bytes,
@@ -287,7 +287,7 @@ inline void comm::barrier() {
 
   cf_barrier();
 
-  if (config.trace_ygm || config.trace_mpi) {
+  if (m_trace_ygm || m_trace_mpi) {
     m_tracer.trace_barrier_end(m_tracer.get_next_message_id(), m_send_count,
                                m_recv_count, m_pending_isend_bytes,
                                m_send_local_buffer_bytes,
@@ -551,7 +551,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
-        if (config.trace_mpi) {
+        if (m_trace_mpi) {
           m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
 
@@ -574,7 +574,7 @@ inline void comm::flush_send_buffer(int dest) {
     check_completed_sends();
     mpi_isend_request request;
 
-    if (config.trace_mpi) {
+    if (m_trace_mpi) {
       request.id = m_tracer.get_next_message_id();
     } else {
       request.id = 0;
@@ -606,7 +606,7 @@ inline void comm::flush_send_buffer(int dest) {
       m_send_remote_buffer_bytes -= request.buffer->size();
     }
 
-    if (config.trace_mpi) {
+    if (m_trace_mpi) {
       m_tracer.trace_mpi_send(request.id, dest, request.buffer->size());
     }
 
@@ -648,7 +648,7 @@ inline void comm::check_completed_sends() {
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
       stats.isend_test();
       if (flag) {
-        if (config.trace_mpi) {
+        if (m_trace_mpi) {
           m_tracer.trace_mpi_send(m_tracer.get_next_message_id(),
                                   m_send_queue.front().id,
                                   m_send_queue.front().buffer->size());
@@ -1098,7 +1098,7 @@ inline bool comm::process_receive_queue() {
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
-        if (config.trace_mpi) {
+        if (m_trace_mpi) {
           m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
 
@@ -1131,7 +1131,7 @@ inline bool comm::local_process_incoming() {
       YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
       stats.irecv(status.MPI_SOURCE, buffer_size);
 
-      if (config.trace_mpi) {
+      if (m_trace_mpi) {
         m_tracer.trace_mpi_recv(0, status.MPI_SOURCE, buffer_size);
       }
 
@@ -1142,4 +1142,48 @@ inline bool comm::local_process_incoming() {
   }
   return received_to_return;
 }
+
+void comm::enable_ygm_tracing() {
+  if(rank0()) {
+    std::cout << "Creating directory" << std::endl;
+    m_tracer.create_directory();
+  }
+  cf_barrier();
+  m_trace_ygm = true;
+  m_tracer.open_file();
+}
+
+void comm::enable_mpi_tracing() {
+   if(rank0()) {
+    std::cout << "Creating directory" << std::endl;
+    m_tracer.create_directory();
+  }
+  cf_barrier();
+
+  m_trace_mpi = true;
+  m_tracer.open_file();
+}
+
+void comm::disable_ygm_tracing() {
+  m_trace_ygm = false;
+  if (m_trace_ygm || m_trace_mpi) {
+    m_tracer.close_file();
+  }
+}
+
+void comm::disable_mpi_tracing() {
+  m_trace_mpi = false;
+  if (m_trace_ygm || m_trace_mpi) {
+    m_tracer.close_file();
+  }
+}
+
+bool comm::is_ygm_tracing_enabled() const {
+  return m_trace_ygm;
+}
+
+bool comm::is_mpi_tracing_enabled() const {
+  return m_trace_mpi;
+}
+
 };  // namespace ygm

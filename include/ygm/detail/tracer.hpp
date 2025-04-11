@@ -107,35 +107,41 @@ struct variant_event {
 
 class tracer {
  public:
-  tracer() = default;
-
-  ~tracer() {
-    if (output_file.is_open()) {
-      output_file.close();
-      if (output_file.fail()) {
-        std::cerr << "Error closing trace file!" << std::endl;
-      }
-    }
+  tracer(int comm_size, int comm_rank, const std::string& trace_path) {
+    m_comm_size = comm_size;
+    m_rank      = comm_rank;
+    m_next_message_id = m_rank - m_comm_size;
+    m_trace_path      = trace_path;
   }
 
-  void create_directory(const std::string& trace_path) {
-    if (!std::filesystem::is_directory(trace_path)) {
-      if (!std::filesystem::create_directories(trace_path)) {
+  ~tracer() {
+    close_file();
+  }
+
+  void create_directory() {
+    if (!std::filesystem::is_directory(m_trace_path)) {
+      if (!std::filesystem::create_directories(m_trace_path)) {
         std::cerr << "Error creating directory!" << std::endl;
       }
     }
   }
 
-  void open_file(const std::string& trace_path, int comm_rank, int comm_size) {
-    m_comm_size = comm_size;
-    m_rank      = comm_rank;
-    std::string file_path =
-        trace_path + "/trace_" + std::to_string(comm_rank) + ".bin";
+  void open_file() {
+    std::string file_path = m_trace_path + "/trace_" + std::to_string(m_rank) + ".bin";
     output_file.open(file_path, std::ios::binary);
 
     if (!output_file.is_open()) {
       std::cerr << "Error opening " << file_path << " for writing!"
                 << std::endl;
+    }
+  }
+
+  void close_file() {
+    if (output_file.is_open()) {
+      output_file.close();
+      if (output_file.fail()) {
+        std::cerr << "Error closing trace file!" << std::endl;
+      }
     }
   }
 
@@ -221,6 +227,7 @@ class tracer {
   int           m_comm_size       = 0;
   int           m_rank            = -1;
   int           m_next_message_id = 0;
+  std::string   m_trace_path;
 };
 
 }  // namespace ygm::detail

@@ -182,6 +182,18 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
+  void enable_ygm_tracing();
+
+  void disable_ygm_tracing();
+
+  void enable_mpi_tracing();
+
+  void disable_mpi_tracing();
+
+  bool is_ygm_tracing_enabled() const;
+
+  bool is_mpi_tracing_enabled() const;
+
   // Private member functions
  private:
   void comm_setup(MPI_Comm comm);
@@ -270,7 +282,9 @@ class comm {
   const detail::layout           m_layout;
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
-  detail::tracer                 m_tracer;
+  detail::tracer                 m_tracer = detail::tracer(m_layout.size(), m_layout.rank(), config.trace_path);
+  bool                           m_trace_ygm = config.trace_ygm;
+  bool                           m_trace_mpi = config.trace_mpi;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;
