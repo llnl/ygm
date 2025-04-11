@@ -108,32 +108,30 @@ struct variant_event {
 class tracer {
  public:
   tracer(int comm_size, int rank, const std::string& trace_path) {
-    m_comm_size = comm_size;
-    m_rank = rank;
+    m_comm_size       = comm_size;
+    m_rank            = rank;
     m_next_message_id = m_rank - m_comm_size;
-    m_trace_path = trace_path;
+    m_trace_path      = trace_path;
   }
 
-  ~tracer() {
-    close_file();
-  }
+  ~tracer() { close_file(); }
 
   // Check if file is already open
-  bool is_file_open() const {
-    return output_file.is_open();
-  }
+  bool is_file_open() const { return output_file.is_open(); }
 
   // Create directory if it doesn't exist
   bool create_directory() {
-    if(m_rank == 0) {
+    if (m_rank == 0) {
       if (!std::filesystem::is_directory(m_trace_path)) {
         try {
           if (!std::filesystem::create_directories(m_trace_path)) {
-            std::cerr << "Error creating directory: " << m_trace_path << std::endl;
+            std::cerr << "Error creating directory: " << m_trace_path
+                      << std::endl;
             return false;
           }
         } catch (const std::filesystem::filesystem_error& e) {
-          std::cerr << "Filesystem error creating directory: " << e.what() << std::endl;
+          std::cerr << "Filesystem error creating directory: " << e.what()
+                    << std::endl;
           return false;
         }
       }
@@ -144,14 +142,16 @@ class tracer {
   // Open trace file if not already open
   bool open_file() {
     if (output_file.is_open()) {
-      return true; // Already open
+      return true;  // Already open
     }
-    
-    std::string file_path = m_trace_path + "/trace_" + std::to_string(m_rank) + ".bin";
+
+    std::string file_path =
+        m_trace_path + "/trace_" + std::to_string(m_rank) + ".bin";
     output_file.open(file_path, std::ios::binary);
 
     if (!output_file.is_open()) {
-      std::cerr << "Error opening " << file_path << " for writing!" << std::endl;
+      std::cerr << "Error opening " << file_path << " for writing!"
+                << std::endl;
       return false;
     }
     return true;

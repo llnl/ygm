@@ -257,6 +257,12 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
+  if (m_trace_ygm || m_trace_mpi) {
+    m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count,
+                                 m_recv_count, m_pending_isend_bytes,
+                                 m_send_local_buffer_bytes,
+                                 m_send_remote_buffer_bytes);
+  }
   log(log_level::debug, "Entering YGM barrier");
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
@@ -543,11 +549,6 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
-        if (m_trace_mpi) {
-          m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(),
-                                  twin_status[i].MPI_SOURCE, buffer_size);
-        }
-
         handle_next_receive(req_buffer.buffer, buffer_size,
                             twin_status[i].MPI_SOURCE);
         flush_all_local_and_process_incoming();
@@ -653,8 +654,8 @@ inline void comm::check_completed_sends() {
       if (flag) {
         if (m_trace_mpi) {
           m_tracer.trace_mpi_send_complete(m_tracer.get_next_message_id(),
-                                  m_send_queue.front().start_id,
-                                  m_send_queue.front().buffer->size());
+                                           m_send_queue.front().start_id,
+                                           m_send_queue.front().buffer->size());
         }
         handle_completed_send(m_send_queue.front());
         m_send_queue.pop_front();
@@ -994,6 +995,12 @@ inline void comm::handle_next_receive(
     const uint32_t from_rank) {
   log(log_level::debug, "Received " + std::to_string(buffer_size) +
                             " bytes from rank " + std::to_string(from_rank));
+
+  if (m_trace_mpi) {
+    m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), from_rank,
+                            buffer_size);
+  }
+
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
@@ -1093,9 +1100,6 @@ inline bool comm::process_receive_queue() {
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
-        if (m_trace_mpi) {
-          m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), twin_status[i].MPI_SOURCE, buffer_size);
-        }
         handle_next_receive(req_buffer.buffer, buffer_size,
                             twin_status[i].MPI_SOURCE);
       }
@@ -1126,10 +1130,6 @@ inline bool comm::local_process_incoming() {
       YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
       stats.irecv(status.MPI_SOURCE, buffer_size);
 
-      if (m_trace_mpi) {
-        m_tracer.trace_mpi_recv(m_tracer.get_next_message_id(), status.MPI_SOURCE, buffer_size);
-      }
-
       handle_next_receive(req_buffer.buffer, buffer_size, status.MPI_SOURCE);
     } else {
       break;  // not ready yet
@@ -1144,18 +1144,18 @@ void comm::enable_ygm_tracing() {
     m_tracer.create_directory();
     cf_barrier();
     m_tracer.open_file();
-  } 
+  }
   m_trace_ygm = true;
 }
 
 void comm::enable_mpi_tracing() {
-   // Setup tracing if not already enabled
+  // Setup tracing if not already enabled
   if (!m_trace_ygm && !m_trace_mpi) {
     m_tracer.create_directory();
     cf_barrier();
     m_tracer.open_file();
-  } 
-  m_trace_mpi= true;
+  }
+  m_trace_mpi = true;
 }
 
 void comm::disable_ygm_tracing() {
@@ -1177,13 +1177,9 @@ void comm::disable_mpi_tracing() {
   // }
 }
 
-bool comm::is_ygm_tracing_enabled() const {
-  return m_trace_ygm;
-}
+bool comm::is_ygm_tracing_enabled() const { return m_trace_ygm; }
 
-bool comm::is_mpi_tracing_enabled() const {
-  return m_trace_mpi;
-}
+bool comm::is_mpi_tracing_enabled() const { return m_trace_mpi; }
 
 template <typename StringType>
 inline void comm::set_log_location(const StringType &s) {

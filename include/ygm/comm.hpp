@@ -38,13 +38,13 @@ class comm {
  private:
   struct mpi_irecv_request {
     std::shared_ptr<ygm::detail::byte_vector> buffer;
-    MPI_Request                             request;
+    MPI_Request                               request;
   };
 
   struct mpi_isend_request {
     std::shared_ptr<ygm::detail::byte_vector> buffer;
-    MPI_Request                             request;
-    int32_t                                 start_id;
+    MPI_Request                               request;
+    int32_t                                   start_id;
   };
 
   class header_t;
@@ -305,9 +305,10 @@ class comm {
   const detail::layout           m_layout;
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
-  detail::tracer                 m_tracer = detail::tracer(m_layout.size(), m_layout.rank(), config.trace_path);
-  bool                           m_trace_ygm = config.trace_ygm;
-  bool                           m_trace_mpi = config.trace_mpi;
+  detail::tracer                 m_tracer =
+      detail::tracer(m_layout.size(), m_layout.rank(), config.trace_path);
+  bool m_trace_ygm = config.trace_ygm;
+  bool m_trace_mpi = config.trace_mpi;
 
   detail::logger m_logger;
 
