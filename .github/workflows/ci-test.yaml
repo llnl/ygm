@@ -69,7 +69,7 @@ jobs:
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
           cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
-          make -j
+          make -j4
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
