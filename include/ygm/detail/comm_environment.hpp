@@ -120,6 +120,15 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_SEND_BUFFER_FREE_LIST_LEN")) {
       send_buffer_free_list_len = convert<size_t>(cc);
     }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_YGM")) {
+      trace_ygm = convert<bool>(cc);
+    }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_MPI")) {
+      trace_mpi = convert<bool>(cc);
+    }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_PATH")) {
+      trace_path = std::string(cc);
+    }
     if (const char* cc = std::getenv("YGM_DEFAULT_LOG_PATH")) {
       default_log_path = std::string(cc);
     }
@@ -166,6 +175,9 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
+    os << "YGM_COMM_TRACE_YGM          = " << trace_ygm << "\n";
+    os << "YGM_COMM_TRACE_MPI          = " << trace_mpi << "\n";
+    os << "YGM_COMM_TRACE_PATH         = " << trace_path << "\n";
     os << "YGM_DEFAULT_LOG_PATH             = " << default_log_path << "\n"
        << "YGM_DEFAULT_LOG_LEVEL            = ";
     switch (default_log_level) {
@@ -210,6 +222,10 @@ class comm_environment {
   log_level   default_log_level = log_level::off;
 
   bool welcome = false;
+
+  bool        trace_ygm  = false;
+  bool        trace_mpi  = false;
+  std::string trace_path = "trace/";
 };
 
 }  // namespace detail
