@@ -85,8 +85,19 @@ class comm {
   void async_bcast(AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
+  void async_bcast(AsyncFunction fn, const SendArgs &...args) const {
+    const_cast<comm *>(this)->async_bcast(fn, args...);
+  }
+
+  template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                    const SendArgs &...args);
+
+  template <typename AsyncFunction, typename... SendArgs>
+  void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
+                   const SendArgs &...args) const {
+    const_cast<comm *>(this)->async_mcast(dests, fn, args...);
+  }
 
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
