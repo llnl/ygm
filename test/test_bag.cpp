@@ -25,8 +25,6 @@ int main(int argc, char** argv) {
     static_assert(std::is_same_v<decltype(bbag)::for_all_args,
                                  std::tuple<decltype(bbag)::value_type>>);
   }
-  
-
 
   //
   // Test Rank 0 async_insert
@@ -116,10 +114,8 @@ int main(int argc, char** argv) {
 
     ygm::container::bag<std::string> bbag3 = std::move(bbag);
     YGM_ASSERT_RELEASE(bbag.size() == 0);
-    YGM_ASSERT_RELEASE(bbag3.size() == 3);  
+    YGM_ASSERT_RELEASE(bbag3.size() == 3);
   }
-
-
 
   //
   // Test all ranks async_insert
@@ -146,6 +142,16 @@ int main(int argc, char** argv) {
       if (world.rank0()) {
         YGM_ASSERT_RELEASE(all_data.size() == 3);
       }
+    }
+    {
+      std::vector<std::string> all_data;
+      bbag.gather(all_data);
+      YGM_ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
+    }
+    {
+      std::set<std::string> all_data;
+      bbag.gather(all_data);
+      YGM_ASSERT_RELEASE(all_data.size() == 3);
     }
   }
 
@@ -295,10 +301,10 @@ int main(int argc, char** argv) {
     bbag.gather(value_set, 0);
     if (world.rank0()) {
       YGM_ASSERT_RELEASE(value_set.size() == 200);
-      YGM_ASSERT_RELEASE(*std::min_element(value_set.begin(), value_set.end()) ==
-                     0);
-      YGM_ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) ==
-                     199);
+      YGM_ASSERT_RELEASE(
+          *std::min_element(value_set.begin(), value_set.end()) == 0);
+      YGM_ASSERT_RELEASE(
+          *std::max_element(value_set.begin(), value_set.end()) == 199);
     }
   }
 
@@ -349,6 +355,4 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(vec_bags[bag_index].size() == world.size() * 2);
     }
   }
-
-
 }

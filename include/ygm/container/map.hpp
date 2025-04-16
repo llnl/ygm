@@ -79,10 +79,10 @@ class map
   }
 
   template <typename STLContainer>
-  map(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  map(ygm::comm&          comm,
+      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type,
+                          std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
@@ -94,9 +94,9 @@ class map
   }
 
   template <typename YGMContainer>
-  map(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  map(ygm::comm&          comm,
+      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
@@ -181,7 +181,7 @@ class map
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -203,7 +203,7 @@ class map
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -254,7 +254,7 @@ class map
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "key_type&, mapped_type&) signature");
     }
@@ -268,7 +268,7 @@ class map
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "key_type&, const mapped_type&) signature");
     }
@@ -413,10 +413,9 @@ class multimap
   }
 
   template <typename STLContainer>
-  multimap(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  multimap(ygm::comm& comm, const STLContainer& cont) requires
+      detail::STLContainer<STLContainer> && std::convertible_to<
+          typename STLContainer::value_type, std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
@@ -428,9 +427,9 @@ class multimap
   }
 
   template <typename YGMContainer>
-  multimap(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  multimap(ygm::comm&          comm,
+           const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
@@ -506,7 +505,7 @@ class multimap
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -528,7 +527,7 @@ class multimap
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -579,7 +578,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }
@@ -593,7 +592,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }

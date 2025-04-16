@@ -20,6 +20,7 @@
 #include <ygm/detail/logger.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
+#include <ygm/detail/tracer.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
@@ -30,12 +31,22 @@ class interrupt_mask;
 class comm_stats;
 class layout;
 class comm_router;
+class tracer;
 }  // namespace detail
 
 class comm {
  private:
-  class mpi_irecv_request;
-  class mpi_isend_request;
+  struct mpi_irecv_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                               request;
+  };
+
+  struct mpi_isend_request {
+    std::shared_ptr<ygm::detail::byte_vector> buffer;
+    MPI_Request                               request;
+    int32_t                                   start_id;
+  };
+
   class header_t;
   friend class detail::interrupt_mask;
   friend class detail::comm_stats;
@@ -74,8 +85,19 @@ class comm {
   void async_bcast(AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
+  void async_bcast(AsyncFunction fn, const SendArgs &...args) const {
+    const_cast<comm *>(this)->async_bcast(fn, args...);
+  }
+
+  template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                    const SendArgs &...args);
+
+  template <typename AsyncFunction, typename... SendArgs>
+  void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
+                   const SendArgs &...args) const {
+    const_cast<comm *>(this)->async_mcast(dests, fn, args...);
+  }
 
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
@@ -181,6 +203,17 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
+  void enable_ygm_tracing();
+
+  void disable_ygm_tracing();
+
+  void enable_mpi_tracing();
+
+  void disable_mpi_tracing();
+
+  bool is_ygm_tracing_enabled() const;
+
+  bool is_mpi_tracing_enabled() const;
   void set_log_level(const ygm::log_level level) {
     m_logger.set_log_level(level);
   }
@@ -283,6 +316,10 @@ class comm {
   const detail::layout           m_layout;
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
+  detail::tracer                 m_tracer =
+      detail::tracer(m_layout.size(), m_layout.rank(), config.trace_path);
+  bool m_trace_ygm = config.trace_ygm;
+  bool m_trace_mpi = config.trace_mpi;
 
   detail::logger m_logger;
 

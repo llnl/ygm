@@ -49,22 +49,32 @@ struct base_iteration_value {
   void gather(STLContainer& gto, int rank) const {
     static_assert(
         std::is_same_v<typename STLContainer::value_type, value_type>);
-    // TODO, make an all gather version that defaults to rank = -1 & uses a temp
-    // container.
     bool                 all_gather   = (rank == -1);
-    static STLContainer* spgto        = &gto;
     const auto*          derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&     mycomm       = derived_this->comm();
+    static STLContainer* spgto;
+    spgto = &gto;
 
-    auto glambda = [&mycomm, rank](const auto& value) {
-      mycomm.async(
-          rank, [](const auto& value) { generic_insert(*spgto, value); },
-          value);
+    auto glambda = [&mycomm, rank, all_gather](const auto& value) {
+      auto insert_lambda = [](const auto& value) {
+        generic_insert(*spgto, value);
+      };
+
+      if (all_gather) {
+        mycomm.async_bcast(insert_lambda, value);
+      } else {
+        mycomm.async(rank, insert_lambda, value);
+      }
     };
 
     derived_this->for_all(glambda);
 
     derived_this->comm().barrier();
+  }
+
+  template <typename STLContainer>
+  void gather(STLContainer& gto) const {
+    gather(gto, -1);
   }
 
   template <typename Compare = std::greater<value_type>>
@@ -204,27 +214,36 @@ struct base_iteration_key_value {
   template <typename STLContainer>
   void gather(STLContainer& gto, int rank) const {
     static_assert(std::is_same_v<typename STLContainer::value_type,
-                                 std::pair<key_type, mapped_type>>);
-    // TODO, make an all gather version that defaults to rank = -1 & uses a temp
-    // container.
+                                 std::pair<key_type, mapped_type>> ||
+                  std::is_same_v<typename STLContainer::value_type,
+                                 std::pair<const key_type, mapped_type>>);
     bool                 all_gather   = (rank == -1);
-    static STLContainer* spgto        = &gto;
     const derived_type*  derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&     mycomm       = derived_this->comm();
+    static STLContainer* spgto;
+    spgto = &gto;
 
-    auto glambda = [&mycomm, rank](const key_type&    key,
-                                   const mapped_type& value) {
-      mycomm.async(
-          rank,
-          [](const key_type& key, const mapped_type& value) {
-            generic_insert(*spgto, std::make_pair(key, value));
-          },
-          key, value);
+    auto glambda = [&mycomm, rank, all_gather](const key_type&    key,
+                                               const mapped_type& value) {
+      auto insert_lambda = [](const key_type& key, const mapped_type& value) {
+        generic_insert(*spgto, std::make_pair(key, value));
+      };
+
+      if (all_gather) {
+        mycomm.async_bcast(insert_lambda, key, value);
+      } else {
+        mycomm.async(rank, insert_lambda, key, value);
+      }
     };
 
     derived_this->for_all(glambda);
 
     derived_this->comm().barrier();
+  }
+
+  template <typename STLContainer>
+  void gather(STLContainer& gto) const {
+    gather(gto, -1);
   }
 
   template <typename Compare = std::greater<std::pair<key_type, mapped_type>>>
@@ -356,7 +375,6 @@ struct base_iteration_key_value {
 };
 
 }  // namespace ygm::container::detail
-
 #include <ygm/container/detail/filter_proxy.hpp>
 #include <ygm/container/detail/flatten_proxy.hpp>
 #include <ygm/container/detail/transform_proxy.hpp>

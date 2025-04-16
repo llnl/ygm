@@ -130,8 +130,9 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs cereal spdlog_header_only
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only
 )
+
 if (UNIX AND NOT APPLE)
     target_link_libraries(
         ygm
@@ -139,6 +140,10 @@ if (UNIX AND NOT APPLE)
         INTERFACE rt
     )
 endif ()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(ygm INTERFACE stdc++fs)
+endif()
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 include(GNUInstallDirs)

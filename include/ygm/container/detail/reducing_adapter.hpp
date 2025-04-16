@@ -105,7 +105,7 @@ class reducing_adapter {
                              Container, ygm::container::array_tag>()) {
       m_container.async_binary_op_update_value(key, value, m_reducer);
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<ReductionOp>,
                     "Container unsuitable for reducing_adapter");
     }
   }

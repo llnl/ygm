@@ -488,5 +488,34 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap2.count("red") == 1);
   }
 
+  //
+  // Test gather
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+    smap.async_insert("apple", "orange");
+    smap.async_insert("red", "green");
+
+    {
+      std::map<std::string, std::string> local_map;
+      smap.gather(local_map, 0);
+      if (world.rank0()) {
+        YGM_ASSERT_RELEASE(local_map.size() == 3);
+        YGM_ASSERT_RELEASE(local_map["dog"] == "cat");
+        YGM_ASSERT_RELEASE(local_map["apple"] == "orange");
+        YGM_ASSERT_RELEASE(local_map["red"] == "green");
+      }
+    }
+    {
+      std::map<std::string, std::string> local_map;
+      smap.gather(local_map);
+      YGM_ASSERT_RELEASE(local_map.size() == 3);
+      YGM_ASSERT_RELEASE(local_map["dog"] == "cat");
+      YGM_ASSERT_RELEASE(local_map["apple"] == "orange");
+      YGM_ASSERT_RELEASE(local_map["red"] == "green");
+    }
+  }
+
   return 0;
 }
