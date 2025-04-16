@@ -799,8 +799,6 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
   auto forward_remote_and_dispatch_lambda = [](comm                    *c,
                                                cereal::YGMInputArchive *bia,
                                                Lambda                   l) {
-    Lambda *pl = nullptr;
-
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
       (*bia)(ta);

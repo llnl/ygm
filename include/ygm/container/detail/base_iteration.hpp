@@ -50,9 +50,10 @@ struct base_iteration_value {
     static_assert(
         std::is_same_v<typename STLContainer::value_type, value_type>);
     bool                 all_gather   = (rank == -1);
-    static STLContainer* spgto        = &gto;
     const auto*          derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&     mycomm       = derived_this->comm();
+    static STLContainer* spgto;
+    spgto = &gto;
 
     auto glambda = [&mycomm, rank, all_gather](const auto& value) {
       auto insert_lambda = [](const auto& value) {
@@ -217,9 +218,10 @@ struct base_iteration_key_value {
                   std::is_same_v<typename STLContainer::value_type,
                                  std::pair<const key_type, mapped_type>>);
     bool                 all_gather   = (rank == -1);
-    static STLContainer* spgto        = &gto;
     const derived_type*  derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&     mycomm       = derived_this->comm();
+    static STLContainer* spgto;
+    spgto = &gto;
 
     auto glambda = [&mycomm, rank, all_gather](const key_type&    key,
                                                const mapped_type& value) {
