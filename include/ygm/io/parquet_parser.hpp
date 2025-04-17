@@ -115,27 +115,29 @@ class parquet_parser {
   // string. This function assumes that all files have the same schema.
   const std::string &schema_to_string() { return m_schema_string; }
 
-  /// Read all columns and call the function for each row.
+  /// Read all rows and call the function for each row.
   /// fn is called with a std::vector<parquet_type_variant>.
-  /// The values of unsupported columns are set to std::monostate.
+  /// The value of an unsupported column is set to std::monostate.
+  /// num_rows: Max number of rows the rank to read.
   template <typename Function>
     requires std::invocable<Function, const std::vector<parquet_type_variant> &>
-  void for_all(Function fn) {
-    read_parquet_files(fn);
+  void for_all(Function     fn,
+               const size_t num_rows = std::numeric_limits<size_t>::max()) {
+    read_parquet_files(fn, num_rows);
   }
 
   /// for_all(), read only the specified columns.
-  /// The values of the columns that do not exist are set to std::monostate.
   template <typename Function>
     requires std::invocable<Function, const std::vector<parquet_type_variant> &>
-  void for_all(const std::vector<std::string> &columns, Function fn) {
-    read_parquet_files(fn, columns);
+  void for_all(const std::vector<std::string> &columns, Function fn,
+               const size_t num_rows = std::numeric_limits<size_t>::max()) {
+    read_parquet_files(fn, num_rows, columns);
   }
 
-  // Returns the number of total files
+  // Return the number of total files
   size_t num_files() { return m_paths.size(); }
 
-  // Returns the number of rows in all files
+  // Return the number of rows in all files
   size_t num_rows() { return m_num_total_rows; }
 
  private:
@@ -321,10 +323,18 @@ class parquet_parser {
     requires std::invocable<Function, const std::vector<parquet_type_variant> &>
   void read_parquet_files(
       Function                                fn,
+      const size_t max_num_rows_to_read,
       std::optional<std::vector<std::string>> columns = std::nullopt) {
+    size_t count_rows = 0;
     for (size_t i = 0; i < m_paths.size(); ++i) {
       if (is_owner(i)) {
-        read_parquet_file(m_paths[i], fn, columns);
+        assert(max_num_rows_to_read >= count_rows);
+        count_rows += read_parquet_file(
+            m_paths[i], fn, max_num_rows_to_read - count_rows, columns);
+      }
+      assert(count_rows <= max_num_rows_to_read);
+      if (count_rows >= max_num_rows_to_read) {
+        break;
       }
     }
   }
@@ -337,9 +347,11 @@ class parquet_parser {
   /// If 'columns' is not empty, only the specified columns are read.
   template <typename Function>
     requires std::invocable<Function, const std::vector<parquet_type_variant> &>
-  void read_parquet_file(
+  size_t read_parquet_file(
       const stdfs::path &file_path, Function fn,
+      const size_t max_num_rows_to_read,
       std::optional<std::vector<std::string>> columns_to_read = std::nullopt) {
+    size_t num_read_rows = 0;
     try {
       // Create a ParquetReader instance
       auto parquet_reader = parquet::ParquetFileReader::OpenFile(file_path);
@@ -380,7 +392,7 @@ class parquet_parser {
       // Get the number of RowGroups
       const size_t num_row_groups = file_metadata->num_row_groups();
 
-      // Iterate over all the RowGroups in the file
+       // Iterate over all the RowGroups in the file
       for (int r = 0; r < num_row_groups; ++r) {
         std::shared_ptr<parquet::RowGroupReader> row_group_reader =
             parquet_reader->RowGroup(r);
@@ -445,11 +457,17 @@ class parquet_parser {
 
         // Finally, call the user function for each row
         for (size_t i = 0; i < num_rows; ++i) {
+          if (num_read_rows == max_num_rows_to_read) {
+            return max_num_rows_to_read; // Read enough rows
+          }
+          assert(num_read_rows < max_num_rows_to_read);
+
           std::vector<parquet_type_variant> row;
           for (size_t j = 0; j < column_indices.size(); ++j) {
             row.push_back(std::move(read_buf[j][i]));
           }
           fn(row);
+          ++num_read_rows;
         }
       }
     } catch (const std::exception &e) {
@@ -458,6 +476,8 @@ class parquet_parser {
                 << e.what() << std::endl;
       throw;
     }
+
+    return num_read_rows;
   }
 
   // Read all values of a row group of a column using

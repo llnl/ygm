@@ -58,5 +58,23 @@
         "desc": "Prefix of output parquet files."
       }
     ]
+  },
+  {
+    "cmd": "peek",
+    "desc": "All ranks peek at the assigned parquet files' first 'n' lines.",
+    "req": [
+      {
+        "key": "i",
+        "value": "path",
+        "desc": "Parquet file path or a directory path that contains parquet files. All parquet files must have the same schema."
+      }
+    ],
+    "opt": [
+      {
+        "key": "n",
+        "value": "number",
+        "desc": "Number of rows to peek. Default is 1."
+      }
+    ]
   }
 ]

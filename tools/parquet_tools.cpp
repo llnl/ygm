@@ -25,7 +25,8 @@ namespace stdfs = std::filesystem;
 struct options_t {
   std::string subcommand;
   std::string input_path;
-  bool        read_lines = false;
+  bool        read_lines        = false;
+  ssize_t     num_lines_to_peek = 1;
   std::string output_file_prefix{"output"};
 };
 
@@ -33,6 +34,7 @@ static constexpr char const* const ROWCOUNT = "rowcount";
 static constexpr char const* const SCHEMA   = "schema";
 static constexpr char const* const DUMP     = "dump";
 static constexpr char const* const CONVERT  = "convert";
+static constexpr char const* const PEEK     = "peek";
 
 bool parse_arguments(int argc, char** argv, options_t&, bool&);
 template <typename os_t>
@@ -40,6 +42,7 @@ void show_usage(char** argv, os_t&);
 void count_rows(const options_t&, ygm::comm&);
 void dump(const options_t&, ygm::comm&);
 void convert(const options_t&, ygm::comm&);
+void peek(const options_t&, ygm::comm&);
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -65,6 +68,8 @@ int main(int argc, char** argv) {
       dump(opt, world);
     } else if (opt.subcommand == CONVERT) {
       convert(opt, world);
+    } else if (opt.subcommand == PEEK) {
+      peek(opt, world);
     } else {
       world.cerr0() << "Unknown subcommand: " << opt.subcommand << std::endl;
     }
@@ -77,7 +82,7 @@ int main(int argc, char** argv) {
 bool parse_arguments(int argc, char** argv, options_t& options,
                      bool& show_help) {
   int opt;
-  while ((opt = getopt(argc, argv, "c:i:ro:h")) != -1) {
+  while ((opt = getopt(argc, argv, "c:i:ro:n:h")) != -1) {
     switch (opt) {
       case 'c':
         options.subcommand = optarg;
@@ -90,6 +95,9 @@ bool parse_arguments(int argc, char** argv, options_t& options,
         break;
       case 'o':
         options.output_file_prefix = optarg;
+        break;
+      case 'n':
+        options.num_lines_to_peek = std::stoll(optarg);
         break;
       case 'h':
         show_help = true;
@@ -176,19 +184,21 @@ void show_usage(char** argv, os_t& os) {
 }
 
 void count_rows(const options_t& opt, ygm::comm& world) {
-  world.cout0() << "Count rows, actually reading data." << std::endl;
-
+  world.cout0() << "Count rows." << std::endl;
   ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
 
   std::size_t num_rows = 0;
 
+  world.cf_barrier();  // Make sure to get the accurate elapsed time
   ygm::timer timer{};
   if (opt.read_lines) {
+    world.cout0() << "Actually read lines." << std::endl;
     parquetp.for_all([&num_rows](const auto& row) { ++num_rows; });
     num_rows = world.all_reduce_sum(num_rows);
   } else {
     num_rows = parquetp.num_rows();
   }
+  world.cf_barrier();  // Make sure to get the accurate elapsed time
   const auto elapsed_time = timer.elapsed();
 
   world.cout0() << "Elapsed time: " << elapsed_time << " seconds" << std::endl;
@@ -349,5 +359,42 @@ void convert(const options_t& opt, ygm::comm& world) {
   });
   if (schema_defined) {
     parquet_writer << parquet::EndRowGroup;
+  }
+}
+
+void peek(const options_t& opt, ygm::comm& world) {
+  world.cout0() << "Peek files." << std::endl;
+  if (opt.num_lines_to_peek <= 0) {
+    world.cout0() << "Invalid number of lines to peek: "
+                  << opt.num_lines_to_peek << std::endl;
+    return;
+  }
+  ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
+
+  std::vector<std::vector<ygm::io::parquet_parser::parquet_type_variant>>
+      read_buf;
+  parquetp.for_all([&](const auto& row) { read_buf.push_back(row); },
+                   opt.num_lines_to_peek);
+  world.cf_barrier();
+
+  for (int r = 0; r < world.size(); ++r) {
+    if (r == world.rank()) {
+      for (const auto& row : read_buf) {
+        for (const auto& v : row) {
+          std::visit(
+              [](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                  std::cout << "[NA]\t";
+                } else {
+                  std::cout << value << "\t";
+                }
+              },
+              v);
+        }
+        std::cout << std::endl;
+      }
+    }
+    world.cf_barrier();
   }
 }
