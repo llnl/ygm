@@ -1175,9 +1175,9 @@ inline void comm::disable_mpi_tracing() {
   // }
 }
 
-bool comm::is_ygm_tracing_enabled() const { return m_trace_ygm; }
+inline bool comm::is_ygm_tracing_enabled() const { return m_trace_ygm; }
 
-bool comm::is_mpi_tracing_enabled() const { return m_trace_mpi; }
+inline bool comm::is_mpi_tracing_enabled() const { return m_trace_mpi; }
 
 template <typename StringType>
 inline void comm::set_log_location(const StringType &s) {
