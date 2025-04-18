@@ -45,7 +45,7 @@ function(upgrade_pip)
     endif()
 
     execute_process(
-            COMMAND ${Python3_EXECUTABLE} -m pip install --upgrade pip
+            COMMAND ${Python3_EXECUTABLE} -m pip install --upgrade --no-user pip
             RESULT_VARIABLE result
             OUTPUT_QUIET
     )
@@ -67,7 +67,7 @@ function(pip_install_python_package package_name)
     endif()
 
     execute_process(
-            COMMAND ${Python3_EXECUTABLE} -m pip install ${package_name}
+            COMMAND ${Python3_EXECUTABLE} -m pip install --no-user ${package_name}
             RESULT_VARIABLE result
             OUTPUT_QUIET
     )
