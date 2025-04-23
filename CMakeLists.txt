@@ -24,6 +24,7 @@ option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
 option(YGM_RTD_ONLY "Run Cmake for only generating documentation for Read the Docs" OFF)
 option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
 option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
+option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
 
 #
 # Early exit if only installing headers
@@ -141,6 +142,10 @@ target_include_directories(
 target_link_libraries(
     ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt ${YGM_CEREAL_TARGET}
 )
+
+if (YGM_DONT_USE_MREMAP)
+    target_compile_definitions(ygm INTERFACE YGM_DONT_USE_MREMAP)
+endif ()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
