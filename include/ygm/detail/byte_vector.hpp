@@ -129,7 +129,7 @@ class byte_vector {
       return;
     }
 // if max osx handler
-#if __APPLE__
+#if __APPLE__ || YGM_DONT_USE_MREMAP
     pointer temp = (pointer)mmap(NULL, new_capacity, PROT_READ | PROT_WRITE,
                                  MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     if (temp == MAP_FAILED) {
