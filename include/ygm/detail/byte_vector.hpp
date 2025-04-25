@@ -140,11 +140,13 @@ class byte_vector {
     m_data = temp;
 #else
     try {
-      m_data =
+      pointer new_data =
           (pointer)mremap(m_data, m_capacity, new_capacity, MREMAP_MAYMOVE);
-      if (m_data == MAP_FAILED) {
+      if (new_data == MAP_FAILED) {
         throw std::runtime_error("mremap failed to resize byte_vector:" +
                                  std::string(strerror(errno)));
+      } else {
+        m_data = new_data;
       }
     } catch (
         const std::runtime_error& err) {  // Fallback to mmap if mremap fails
