@@ -20,15 +20,16 @@ endif ()
 
 
 if (Arrow_FOUND AND Parquet_FOUND)
-    if (Boost_FOUND OR boost_POPULATED)
-        add_ygm_example(parquet_tools)
-        target_include_directories(parquet_tools PUBLIC ${Boost_INCLUDE_DIRS})
-        link_arrow_parquet(parquet_tools)
-        if (Boost_FOUND)
-            target_include_directories(parquet_tools PRIVATE ${Boost_INCLUDE_DIRS})
-        else (boost_POPULATED)
-            target_link_libraries(parquet_tools PRIVATE Boost::json)
-        endif ()
-    endif ()
+    add_ygm_tool(parquet_tools)
+    link_arrow_parquet(parquet_tools)
+
+    # Change the way to link Boost based on how Boost is found
+    if (Boost_FOUND)
+        # Found by find_package()
+        target_link_libraries(parquet_tools PUBLIC ${Boost_INCLUDE_DIRS})
+    elseif (boost_POPULATED)
+        # Found by FetchContent
+        target_link_libraries(parquet_tools PUBLIC Boost::json)
+    endif()
 endif ()
 file(COPY ./parquet_tools_subcmd.json DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
