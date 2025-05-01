@@ -397,12 +397,26 @@ class parquet_parser {
    * @return false
    */
   bool is_file_good(const stdfs::path &p) {
+    // skip hidden files
+    if (p.filename().string()[0] == '.') {
+      return false;
+    }
+
+    // Accept only files with .parquet extension
+    if (p.extension() != ".parquet") {
+      return false;
+    }
+
+    // Make sure the file is openable
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     try {
       PARQUET_ASSIGN_OR_THROW(input_file, arrow::io::ReadableFile::Open(p));
+      std::unique_ptr<parquet::ParquetFileReader> parquet_reader =
+          parquet::ParquetFileReader::Open(input_file);
     } catch (...) {
       return false;
     }
+
     return true;
   }
 
