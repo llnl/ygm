@@ -57,6 +57,7 @@ class array
         m_global_size(size),
         m_default_value{},
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
@@ -68,6 +69,7 @@ class array
         m_global_size(size),
         m_default_value(default_value),
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
@@ -80,6 +82,7 @@ class array
         m_default_value{},
         partitioner(comm, l.size()) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(l.size());
@@ -97,6 +100,7 @@ class array
         std::initializer_list<std::tuple<key_type, mapped_type>> l)
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -124,16 +128,17 @@ class array
         m_default_value(rhs.m_default_value),
         m_local_vec(rhs.m_local_vec),
         partitioner(rhs.m_comm, rhs.m_global_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
     resize(m_global_size);
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> &&
+      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(t.size());
@@ -148,20 +153,19 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 detail::DoubleItemTuple<
-                     std::tuple_element_t<0, typename T::for_all_args>> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         0, std::tuple_element_t<0, typename T::for_all_args>>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         1, std::tuple_element_t<0, typename T::for_all_args>>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> && detail::
+          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              0, std::tuple_element_t<0, typename T::for_all_args>>,
+          key_type> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              1, std::tuple_element_t<0, typename T::for_all_args>>,
+          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -181,16 +185,13 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::DoubleItemTuple<typename T::for_all_args> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
+          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
+      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -210,11 +211,11 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 (not detail::SingleItemTuple<typename T::value_type>) &&
-                 std::convertible_to<typename T::value_type, mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      (not detail::SingleItemTuple<typename T::value_type>)&&std::
+          convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     auto global_size = sum(t.size(), m_comm);
@@ -231,16 +232,13 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 detail::DoubleItemTuple<typename T::value_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::value_type>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<1, typename T::value_type>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
+          std::tuple_element_t<0, typename T::value_type>, key_type> &&
+      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -257,7 +255,10 @@ class array
     });
   }
 
-  ~array() { m_comm.barrier(); }
+  ~array() {
+    m_comm.barrier();
+    m_comm.log(log_level::info, "Destroying ygm::container::array");
+  }
 
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_vec[partitioner.local_index(key)] = value;
@@ -276,7 +277,7 @@ class array
           std::forward_as_tuple(
               index, m_local_vec[partitioner.local_index(index)], args...));
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote array lambda must be "
                     "invocable with (const "
                     "key_type, mapped_type &, ...) or "
@@ -419,7 +420,7 @@ class array
     } else if constexpr (std::is_invocable<decltype(fn), mapped_type&>()) {
       std::for_each(std::begin(m_local_vec), std::end(m_local_vec), fn);
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local array lambda must be "
                     "invocable with (const "
                     "key_type, mapped_type &) or "

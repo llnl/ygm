@@ -195,6 +195,11 @@ class line_parser : public ygm::container::detail::base_iteration_value<
       }
       // Keep reading until line containing bytes_end is read
       while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
+        // Check if last character is '\r'. This will happen if a file was edited on Windows and can cause issues for
+        // parsing
+        if (not line.empty() && (line.back() == 0x0D)) {
+          line.resize(line.size()-1);
+        }
         // Skip first line if necessary
         if (not first_line || not m_skip_first_line) {
           fn(line);

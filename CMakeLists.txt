@@ -5,9 +5,19 @@
 
 cmake_minimum_required(VERSION 3.14)
 
+# ---------------------------------------------------------------------------- #
+# CMake policy
+# ---------------------------------------------------------------------------- #
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
+    cmake_policy(SET CMP0167 NEW)
+endif ()
+
+# ---------------------------------------------------------------------------- #
+# YGM configuration
+# ---------------------------------------------------------------------------- #
 project(
     ygm
-    VERSION 0.7
+    VERSION 0.8
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -17,20 +27,22 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #
 # Configuration options for YGM
 #
-option(JUST_INSTALL_YGM_HEADERS "Install YGM header files without building anything" OFF)
 option(YGM_BUILD_TESTS "Build tests" OFF)
+option(YGM_BUILD_EXAMPLES "Build examples" OFF)
 option(YGM_BUILD_TOOLS "Build tools" OFF)
-option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
-option(YGM_RTD_ONLY "Run Cmake for only generating documentation for Read the Docs" OFF)
-option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
-option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
+option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
+option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
+option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
 option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
 
 #
-# Early exit if only installing headers
+# Doxygen and Read the Docs (RTD) Documentation
 #
-if (JUST_INSTALL_YGM_HEADERS)
-  return()
+if (YGM_BUILD_DOCS OR YGM_DOCS_ONLY)
+    add_subdirectory(docs)
+    if (YGM_DOCS_ONLY)
+        return()
+    endif ()
 endif ()
 
 # Require out-of-source builds
@@ -54,80 +66,58 @@ include(FetchContent)
 #
 # Cereal
 #
-set(YGM_CEREAL_VERSION 1.3.0)
-# Would like to version this find, but the spack config file is versionless so
-# will always throw an error.
-set(YGM_CEREAL_TARGET "cereal::cereal")
-find_package(cereal CONFIG QUIET)
-if (NOT cereal_FOUND)
-    # Currently cereal version 1.3.0 has an outdated CMakeLists.txt, so we need
-    # to use this specific commit for now.
-    FetchContent_Declare(
-        cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-        GIT_TAG v1.3.2
-    )
-    FetchContent_GetProperties(cereal)
-    if (cereal_POPULATED)
-        message(STATUS ${PROJECT_NAME}
-                       " found already populated cereal dependency: "
-                       ${cereal_SOURCE_DIR}
+if (NOT cereal_POPULATED)
+    find_package(cereal CONFIG QUIET)
+    if (NOT cereal_FOUND)
+        set(JUST_INSTALL_CEREAL TRUE)
+        FetchContent_Declare(
+            cereal
+            GIT_REPOSITORY https://github.com/USCiLab/cereal.git
+            GIT_TAG v1.3.2
         )
-    else ()
-        # Do not compile any cereal tests
-        set(JUST_INSTALL_CEREAL ON)
-        # Install cereal at ${CMAKE_INSTALL_PREFIX}
-        set(CEREAL_INSTALL ON)
-        # Populate cereal
-        FetchContent_Populate(cereal)
-        # Include cereal root cmake boilerplate
-        add_subdirectory(${cereal_SOURCE_DIR} ${cereal_BINARY_DIR})
-
-        message(STATUS ${PROJECT_NAME} " cloned cereal dependency: "
-                       ${cereal_SOURCE_DIR}
-        )
-    endif ()
-else ()
-    message(STATUS ${PROJECT_NAME} " found installed cereal dependency: "
-                   ${cereal_DIR}
-    )
-    # cereal installed with spack creates library target "cereal", whereas
-    # installing from source creates target "cereal::cereal". This is the only
-    # simple way I could figure out how to differentiate the two, but this will
-    # cause problems if a spack instance installs headers to a path that does
-    # not include the substring "spack".
-    if (${cereal_DIR} MATCHES ".*spack.*")
-        set(YGM_CEREAL_TARGET "cereal")
-    else ()
-        # cereal::cereal should be the right target
+        FetchContent_MakeAvailable(cereal)
     endif ()
 endif ()
 
 #
 # Boost
 #
-# only required by ygm/detail/cereal_boost_json.hpp. YGM will build if Boost is
-# not found. The user must manually link Boost to the executable.
+if (NOT boost_POPULATED)
+    find_package(Boost 1.78)
+    if (Boost_FOUND)
+        message(STATUS ${PROJECT_NAME} " found boost include dirs: "
+                       ${Boost_INCLUDE_DIRS}
+        )
+    else ()
+        FetchContent_Declare(
+            Boost
+            URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
+        )
+        set(BOOST_INCLUDE_LIBRARIES json)
+        FetchContent_MakeAvailable(Boost)
+    endif ()
+endif ()
+
 #
-# find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not
-# working on LC
-find_package(Boost 1.75)
-if (Boost_FOUND)
-    message(STATUS ${PROJECT_NAME} " found boost include dirs: "
-                   ${Boost_INCLUDE_DIRS}
+# spdlog
+#
+if (NOT spdlog_POPULATED)
+    set(SPDLOG_INSTALL On)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.14.1
     )
-else ()
-    message(WARNING ${PROJECT_NAME}
-                    " did not find Boost >=1.75. Building without Boost."
-    )
+    FetchContent_MakeAvailable(spdlog)
 endif ()
 
 #
 # Arrow
 #
-#
 include(FindArrowParquet)
-find_or_install_arrow_parquet()
+if (YGM_INSTALL_PARQUET)
+    install_arrow_parquet()
+endif ()
 
 #
 # Create the YGM target library
@@ -140,24 +130,33 @@ target_include_directories(
                   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
-    ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt ${YGM_CEREAL_TARGET}
+    ygm
+    PUBLIC
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only
 )
 
 if (YGM_DONT_USE_MREMAP)
     target_compile_definitions(ygm INTERFACE YGM_DONT_USE_MREMAP)
 endif ()
 
-option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
+if (UNIX AND NOT APPLE)
+    target_link_libraries(
+        ygm
+        PUBLIC
+        INTERFACE rt
+    )
+endif ()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(ygm INTERFACE stdc++fs)
+endif()
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# List libraries to be installed
-set(YGM_EXPORT_TARGETS ygm)
-
 install(
-    TARGETS ${PROJECT_NAME}
+    TARGETS ${PROJECT_NAME} cereal
     EXPORT ${PROJECT_NAME}Targets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -195,7 +194,12 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
 )
 
 if (YGM_BUILD_TESTS)
+    option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
+    enable_testing()
     add_subdirectory(test)
+endif ()
+if (YGM_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif ()
 if (YGM_BUILD_TOOLS)
     add_subdirectory(tools)

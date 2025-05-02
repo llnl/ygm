@@ -16,22 +16,22 @@ namespace ygm::container::detail {
 template <typename derived_type, typename for_all_args>
 struct base_async_visit {
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit(const std::tuple_element<0, for_all_args>::type& key,
-                   Visitor visitor, const VisitorArgs&... args)
-    requires DoubleItemTuple<for_all_args>
-  {
+  void async_visit(
+      const typename std::tuple_element<0, for_all_args>::type& key,
+      Visitor                                                   visitor,
+      const VisitorArgs&... args) requires DoubleItemTuple<for_all_args> {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(Visitor, "ygm::container::async_visit()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
-      pcont->local_visit(key, visitor, args...);
-    };
+    auto vlambda =
+        [visitor](auto pcont,
+                  const typename std::tuple_element<0, for_all_args>::type& key,
+                  const VisitorArgs&... args) mutable {
+          pcont->local_visit(key, visitor, args...);
+        };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
                                args...);
@@ -39,10 +39,9 @@ struct base_async_visit {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
-      const std::tuple_element<0, for_all_args>::type& key, Visitor visitor,
-      const VisitorArgs&... args)
-    requires DoubleItemTuple<for_all_args>
-  {
+      const typename std::tuple_element<0, for_all_args>::type& key,
+      Visitor                                                   visitor,
+      const VisitorArgs&... args) requires DoubleItemTuple<for_all_args> {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
         Visitor, "ygm::container::async_visit_if_contains()");
 
@@ -50,12 +49,12 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
-      pcont->local_visit_if_contains(key, visitor, args...);
-    };
+    auto vlambda =
+        [visitor](auto pcont,
+                  const typename std::tuple_element<0, for_all_args>::type& key,
+                  const VisitorArgs&... args) mutable {
+          pcont->local_visit_if_contains(key, visitor, args...);
+        };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
                                args...);
@@ -63,10 +62,9 @@ struct base_async_visit {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
-      const std::tuple_element<0, for_all_args>::type& key, Visitor visitor,
-      const VisitorArgs&... args) const
-    requires DoubleItemTuple<for_all_args>
-  {
+      const typename std::tuple_element<0, for_all_args>::type& key,
+      Visitor                                                   visitor,
+      const VisitorArgs&... args) const requires DoubleItemTuple<for_all_args> {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
         Visitor, "ygm::container::async_visit_if_contains()");
 
@@ -74,12 +72,12 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [visitor](
-                       const auto                                       pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const VisitorArgs&... args) mutable {
-      pcont->local_visit_if_contains(key, visitor, args...);
-    };
+    auto vlambda =
+        [visitor](const auto pcont,
+                  const typename std::tuple_element<0, for_all_args>::type& key,
+                  const VisitorArgs&... args) mutable {
+          pcont->local_visit_if_contains(key, visitor, args...);
+        };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
                                args...);

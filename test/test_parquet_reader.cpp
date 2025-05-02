@@ -12,123 +12,77 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  //
-  // Test number of lines in files
-  {
-    // assuming the build directory is inside the YGM root directory
-    const std::string dir_name = "data/parquet_files/";
+  // assuming the build directory is inside the YGM root directory
+  const std::string dir_name = "data/parquet_files/";
 
+  //
+  // Test number of columns and rows in files
+  {
     // parquet_parser assumes files have identical scehma
     ygm::io::parquet_parser parquetp(world, {dir_name});
 
-    // count total number of rows in files
-    size_t local_count = 0;
+    YGM_ASSERT_RELEASE(parquetp.num_files() == 3);
+    YGM_ASSERT_RELEASE(parquetp.num_rows() == 10);
+    YGM_ASSERT_RELEASE(parquetp.get_schema().size() == 6);
 
-    parquetp.for_all(
-        [&local_count](auto& stream_reader, const auto& field_count) {
-          stream_reader.SkipColumns(field_count);
-          stream_reader.EndRow();
-          local_count++;
-        });
-
-    world.barrier();
-    auto row_count = world.all_reduce_sum(local_count);
-    YGM_ASSERT_RELEASE(row_count == 12);
-  }
-
-  //
-  // Test table entries
-  {
-    // assuming the build directory is inside the YGM root directory
-    const std::string dir_name = "data/parquet_files/";
-
-    // parquet_parser assumes files have identical scehma
-    ygm::io::parquet_parser parquetp(world, {dir_name});
-
-    // read fields in each row
-    struct columns {
-      std::string string_field;
-      char        char_array_field[4];
-      uint64_t    uint64_t_field;
-      double      double_field;
-      bool        boolean_field;
+    struct Row {
+      int32_t int32_col;
+      int64_t int64_col;
+      float   float_col;
+      double  double_col;
+      bool    bool_col;
     };
 
-    std::vector<columns>  rows;
-    std::set<std::string> strings;
+    std::unordered_map<std::string, Row> expected_data_table = {
+        {"apple", {1, 10, 1.1f, 10.01, true}},
+        {"banana", {2, 20, 2.2f, 20.02, false}},
+        {"cherry", {3, 30, 3.3f, 30.03, true}},
+        {"date", {4, 40, 4.4f, 40.04, false}},
+        {"elderberry", {5, 50, 5.5f, 50.05, true}},
+        {"fig", {6, 60, 6.6f, 60.06, false}},
+        {"grape", {7, 70, 7.7f, 70.07, true}},
+        {"honeydew", {8, 80, 8.8f, 80.08, false}},
+        {"kiwi", {9, 90, 9.9f, 90.09, true}},
+        {"lemon", {10, 100, 10.1f, 100.10, false}}};
 
+    size_t count_rows = 0;
     parquetp.for_all(
-        [&rows, &strings](auto& stream_reader, const auto& field_count) {
-          using columns_t = decltype(rows)::value_type;
-          columns_t columns_obj;
-          stream_reader >> columns_obj.string_field;
-          stream_reader >> columns_obj.char_array_field;
-          stream_reader >> columns_obj.uint64_t_field;
-          stream_reader >> columns_obj.double_field;
-          stream_reader >> columns_obj.boolean_field;
-          stream_reader.EndRow();
-          rows.emplace_back(columns_obj);
+        [&expected_data_table, &count_rows](const auto& read_values) {
+          const auto key        = std::get<std::string>(read_values[0]);
+          const auto int32_col  = std::get<int32_t>(read_values[1]);
+          const auto int64_col  = std::get<int64_t>(read_values[2]);
+          const auto float_col  = std::get<float>(read_values[3]);
+          const auto double_col = std::get<double>(read_values[4]);
+          const auto bool_col   = std::get<bool>(read_values[5]);
 
-          strings.insert(columns_obj.string_field);
+          const auto& expected = expected_data_table[key];
+          YGM_ASSERT_RELEASE(int32_col == expected.int32_col);
+          YGM_ASSERT_RELEASE(int64_col == expected.int64_col);
+          YGM_ASSERT_RELEASE(float_col == expected.float_col);
+          YGM_ASSERT_RELEASE(double_col == expected.double_col);
+          YGM_ASSERT_RELEASE(bool_col == expected.bool_col);
+          ++count_rows;
         });
+    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
 
-    world.barrier();
-    auto row_count = world.all_reduce_sum(rows.size());
-    YGM_ASSERT_RELEASE(row_count == 12);
+    // For all with column names
+    count_rows = 0;
+    parquetp.for_all({"int64_col", "float_col", "string_col", "int64_col"},
+                     [&expected_data_table, &count_rows](const auto& read_values) {
+                       const auto int64_col = std::get<int64_t>(read_values[0]);
+                       const auto float_col = std::get<float>(read_values[1]);
+                       const auto key = std::get<std::string>(read_values[2]);
+                       const auto int64_col2 =
+                           std::get<int64_t>(read_values[3]);
 
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
-                   1);
-  }
+                       const auto& expected = expected_data_table[key];
+                       YGM_ASSERT_RELEASE(int64_col == expected.int64_col);
+                       YGM_ASSERT_RELEASE(float_col == expected.float_col);
+                       YGM_ASSERT_RELEASE(int64_col2 == expected.int64_col);
 
-  //
-  // Test the parallel read using files that contain different number of rows
-  {
-    // assuming the build directory is inside the YGM root directory
-    const std::filesystem::path dir_name =
-        "data/parquet_files_different_sizes/";
-
-    // This test case tests the following cases (assuming there are 4
-    // processes, and Arrow >= v14):
-    // 1. 0 item files at the top and end.
-    // 2. read a large file by multiple processes.
-    // 3. a small file is read by a single process.
-    // 4. a single process reads multiple files.
-    // 5. skip files that contain nothing
-    // 6. total number of rows does not have to
-    // be splitable evenly by all processes.
-    //
-    // Every file contains 1 column, and thre are 11 items in total.
-    // n-th item's value is 10^n, thus the sum of all value is 11,111,111,111.
-    ygm::io::parquet_parser parquetp(world, {dir_name / "0.parquet",  // 0 item
-                                             dir_name / "1.parquet",  // 7 items
-                                             dir_name / "2.parquet",  // 0 item
-                                             dir_name / "3.parquet",  // 0 item
-                                             dir_name / "4.parquet",  // 2 items
-                                             dir_name / "5.parquet",  // 1 item
-                                             dir_name / "6.parquet",  // 1 item
-                                             dir_name / "7.parquet"}  // 0 item
-    );
-
-    // count total number of rows in the files
-    size_t  local_count = 0;
-    int64_t local_sum   = 0;
-    parquetp.for_all([&local_sum, &local_count](auto&       stream_reader,
-                                                const auto& field_count) {
-      if (field_count > 0) {
-        int64_t buf;
-        stream_reader >> buf;
-        local_sum += buf;
-      }
-      stream_reader.SkipColumns(field_count);
-      stream_reader.EndRow();
-      local_count++;
-    });
-
-    world.barrier();
-    const auto sum = world.all_reduce_sum(local_sum);
-    YGM_ASSERT_RELEASE(sum == 11111111111);
-    const auto row_count = world.all_reduce_sum(local_count);
-    YGM_ASSERT_RELEASE(row_count == 11);
+                       ++count_rows;
+                     });
+    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
   }
 
   return 0;

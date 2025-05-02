@@ -33,10 +33,12 @@ endfunction ()
 
 add_ygm_seq_test(test_cereal_archive)
 add_ygm_seq_test(test_byte_vector)
+add_ygm_seq_test(test_logger)
 
 add_ygm_test(test_comm)
 add_ygm_test(test_comm_2)
 add_ygm_test(test_barrier)
+add_ygm_test(test_lambda_capture)
 add_ygm_test(test_layout)
 add_ygm_test(test_large_messages)
 add_ygm_test(test_map)
@@ -86,14 +88,6 @@ endif ()
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_parquet_reader)
     link_arrow_parquet(MPI_test_parquet_reader)
-
-    if (Boost_FOUND)
-        add_ygm_test(test_parquet_reader_json)
-        target_include_directories(MPI_test_parquet_reader_json
-                PUBLIC
-                ${Boost_INCLUDE_DIRS})
-        link_arrow_parquet(MPI_test_parquet_reader_json)
-    endif ()
 endif ()
 
 #

@@ -54,6 +54,7 @@ class map
 
   map(ygm::comm& comm)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
   }
 
@@ -62,11 +63,13 @@ class map
         pthis(this),
         partitioner(comm),
         m_default_value(default_value) {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
   }
 
   map(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -76,11 +79,12 @@ class map
   }
 
   template <typename STLContainer>
-  map(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  map(ygm::comm&          comm,
+      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type,
+                          std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -90,10 +94,11 @@ class map
   }
 
   template <typename YGMContainer>
-  map(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  map(ygm::comm&          comm,
+      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -103,7 +108,10 @@ class map
     m_comm.barrier();
   }
 
-  ~map() { m_comm.barrier(); }
+  ~map() {
+    m_comm.log(log_level::info, "Destroying ygm::container::map");
+    m_comm.barrier();
+  }
 
   using detail::base_async_erase_key<map<Key, Value>,
                                      for_all_args>::async_erase;
@@ -173,7 +181,7 @@ class map
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -195,7 +203,7 @@ class map
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -246,7 +254,7 @@ class map
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "key_type&, mapped_type&) signature");
     }
@@ -260,7 +268,7 @@ class map
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "key_type&, const mapped_type&) signature");
     }
@@ -380,6 +388,7 @@ class multimap
 
   multimap(ygm::comm& comm)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
   }
 
@@ -388,11 +397,13 @@ class multimap
         pthis(this),
         partitioner(comm),
         m_default_value(default_value) {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
   }
 
   multimap(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -402,11 +413,11 @@ class multimap
   }
 
   template <typename STLContainer>
-  multimap(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  multimap(ygm::comm& comm, const STLContainer& cont) requires
+      detail::STLContainer<STLContainer> && std::convertible_to<
+          typename STLContainer::value_type, std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -416,10 +427,11 @@ class multimap
   }
 
   template <typename YGMContainer>
-  multimap(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  multimap(ygm::comm&          comm,
+           const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    m_comm.log(log_level::info, "Creating ygm::container::multimap");
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -429,7 +441,10 @@ class multimap
     m_comm.barrier();
   }
 
-  ~multimap() { m_comm.barrier(); }
+  ~multimap() {
+    m_comm.log(log_level::info, "Destroying ygm::container::multimap");
+    m_comm.barrier();
+  }
 
   void local_insert(const key_type& key) {
     if (m_local_map.count(key) == 0) {
@@ -490,7 +505,7 @@ class multimap
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -512,7 +527,7 @@ class multimap
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "remote map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&, ...) or (ptr_type, const "
                     "&key_type, mapped_type&, ...) signatures");
@@ -563,7 +578,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }
@@ -577,7 +592,7 @@ class multimap
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local map lambda signature must be invocable with (const "
                     "&key_type, mapped_type&) signature");
     }

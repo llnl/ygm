@@ -131,10 +131,14 @@ class disjoint_set_impl {
 
   disjoint_set_impl(ygm::comm &comm, const size_t cache_size)
       : m_comm(comm), pthis(this), m_cache(cache_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::disjoint_set");
     pthis.check(m_comm);
   }
 
-  ~disjoint_set_impl() { m_comm.barrier(); }
+  ~disjoint_set_impl() {
+    m_comm.log(log_level::info, "Destroying ygm::container::disjoint_set");
+    m_comm.barrier();
+  }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
@@ -416,7 +420,7 @@ class disjoint_set_impl {
                   std::forward_as_tuple(orig_a, orig_b, true, args...));
             } else {
               static_assert(
-                  ygm::detail::always_false<>,
+                  ygm::detail::always_false<Function>,
                   "remote disjoint_set lambda signature must be invocable "
                   "with (const value_type &, const value_type &, const bool) "
                   "signature");
@@ -460,7 +464,7 @@ class disjoint_set_impl {
                     std::forward_as_tuple(orig_a, orig_b, true, args...));
               } else {
                 static_assert(
-                    ygm::detail::always_false<>,
+                    ygm::detail::always_false<Function>,
                     "remote disjoint_set lambda signature must be invocable "
                     "with (const value_type &, const value_type &, const bool) "
                     "signature");
@@ -617,7 +621,7 @@ class disjoint_set_impl {
         fn(item, item_data.get_parent());
       }
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local disjoint_set lambda signature must be invocable "
                     "with (const value_type &, const value_type &) signature");
     }

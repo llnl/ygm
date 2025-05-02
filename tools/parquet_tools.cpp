@@ -13,11 +13,10 @@
 
 #include <arrow/io/file.h>
 #include <parquet/stream_writer.h>
+#include <boost/json/src.hpp>
 
 #include <ygm/comm.hpp>
 #include <ygm/io/csv_parser.hpp>
-#include <ygm/io/parquet2json.hpp>
-#include <ygm/io/parquet2variant.hpp>
 #include <ygm/io/parquet_parser.hpp>
 #include <ygm/utility.hpp>
 
@@ -26,9 +25,8 @@ namespace stdfs = std::filesystem;
 struct options_t {
   std::string subcommand;
   std::string input_path;
-  bool        variant    = false;
-  bool        json       = false;
-  bool        read_lines = false;
+  bool        read_lines        = false;
+  ssize_t     num_lines_to_peek = 1;
   std::string output_file_prefix{"output"};
 };
 
@@ -36,6 +34,7 @@ static constexpr char const* const ROWCOUNT = "rowcount";
 static constexpr char const* const SCHEMA   = "schema";
 static constexpr char const* const DUMP     = "dump";
 static constexpr char const* const CONVERT  = "convert";
+static constexpr char const* const PEEK     = "peek";
 
 bool parse_arguments(int argc, char** argv, options_t&, bool&);
 template <typename os_t>
@@ -43,6 +42,7 @@ void show_usage(char** argv, os_t&);
 void count_rows(const options_t&, ygm::comm&);
 void dump(const options_t&, ygm::comm&);
 void convert(const options_t&, ygm::comm&);
+void peek(const options_t&, ygm::comm&);
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -68,6 +68,8 @@ int main(int argc, char** argv) {
       dump(opt, world);
     } else if (opt.subcommand == CONVERT) {
       convert(opt, world);
+    } else if (opt.subcommand == PEEK) {
+      peek(opt, world);
     } else {
       world.cerr0() << "Unknown subcommand: " << opt.subcommand << std::endl;
     }
@@ -80,7 +82,7 @@ int main(int argc, char** argv) {
 bool parse_arguments(int argc, char** argv, options_t& options,
                      bool& show_help) {
   int opt;
-  while ((opt = getopt(argc, argv, "c:i:vjro:h")) != -1) {
+  while ((opt = getopt(argc, argv, "c:i:ro:n:h")) != -1) {
     switch (opt) {
       case 'c':
         options.subcommand = optarg;
@@ -91,16 +93,11 @@ bool parse_arguments(int argc, char** argv, options_t& options,
       case 'r':
         options.read_lines = true;
         break;
-      case 'v':
-        options.read_lines = true;
-        options.variant    = true;
-        break;
-      case 'j':
-        options.read_lines = true;
-        options.json       = true;
-        break;
       case 'o':
         options.output_file_prefix = optarg;
+        break;
+      case 'n':
+        options.num_lines_to_peek = std::stoll(optarg);
         break;
       case 'h':
         show_help = true;
@@ -140,7 +137,7 @@ void show_usage(char** argv, os_t& os) {
   boost::json::string_view sv(content.c_str());
   boost::json::value       v = boost::json::parse(sv);
 
-  // JSON strings are double quoted by Boost.JSON.
+  // JSON strings are double-quoted by Boost.JSON.
   // Remove leading and trailing quotes
   auto format = [](boost::json::string bs) {
     std::string s = bs.c_str();
@@ -187,71 +184,53 @@ void show_usage(char** argv, os_t& os) {
 }
 
 void count_rows(const options_t& opt, ygm::comm& world) {
-  if (opt.variant) {
-    world.cout0() << "Read as variants." << std::endl;
-  } else if (opt.json) {
-    world.cout0() << "Read as JSON objects." << std::endl;
-  } else if (opt.read_lines) {
-    world.cout0() << "Read rows w/o converting." << std::endl;
-  }
-
+  world.cout0() << "Count rows." << std::endl;
   ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
-  const auto&             schema = parquetp.schema();
 
-  std::size_t num_rows        = 0;
-  std::size_t num_error_lines = 0;
+  std::size_t num_rows = 0;
 
+  world.cf_barrier();  // Make sure to get the accurate elapsed time
   ygm::timer timer{};
   if (opt.read_lines) {
-    parquetp.for_all([&schema, &opt, &num_rows, &num_error_lines](
-                         auto& stream_reader, const auto&) {
-      if (opt.variant) {
-        try {
-          ygm::io::read_parquet_as_variant(stream_reader, schema);
-        } catch (...) {
-          ++num_error_lines;
-        }
-      } else if (opt.json) {
-        try {
-          ygm::io::read_parquet_as_json(stream_reader, schema);
-        } catch (...) {
-          ++num_error_lines;
-        }
-      } else {
-        stream_reader.SkipColumns(schema.size());
-        stream_reader.EndRow();
-      }
-      ++num_rows;
-    });
+    world.cout0() << "Actually read lines." << std::endl;
+    parquetp.for_all([&num_rows](const auto& row) { ++num_rows; });
     num_rows = world.all_reduce_sum(num_rows);
   } else {
-    num_rows = parquetp.row_count();
+    num_rows = parquetp.num_rows();
   }
+  world.cf_barrier();  // Make sure to get the accurate elapsed time
   const auto elapsed_time = timer.elapsed();
 
   world.cout0() << "Elapsed time: " << elapsed_time << " seconds" << std::endl;
   world.cout0() << "#of rows = " << num_rows << std::endl;
-  if (opt.variant || opt.json) {
-    world.cout0() << "#of conversion error lines = "
-                  << world.all_reduce_sum(num_error_lines) << std::endl;
+}
+
+// Convert a string to CSV format
+// Always enclose the string in double quotes
+std::string conv2csv(const std::string& str) {
+  std::string csv_str;
+  csv_str += "\"";
+  for (const char& c : str) {
+    if (c == '\"') {
+      csv_str += "\"";
+    }
+    csv_str += c;
   }
+  csv_str += "\"";
+  return csv_str;
 }
 
 void dump(const options_t& opt, ygm::comm& world) {
-  if (opt.json) {
-    world.cout0() << "Dump as JSON objects." << std::endl;
-  } else {
-    world.cout0() << "Dump as variants." << std::endl;
-  }
+  world.cout0() << "Dump as CSV." << std::endl;
 
   ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
-  const auto&             schema = parquetp.schema();
+  const auto&             schema = parquetp.get_schema();
 
-  std::size_t num_rows        = 0;
-  std::size_t num_error_lines = 0;
+  std::size_t num_rows = 0;
 
-  std::filesystem::path output_path =
-      std::string(opt.output_file_prefix) + "-" + std::to_string(world.rank());
+  std::filesystem::path output_path = std::string(opt.output_file_prefix) +
+                                      "-" + std::to_string(world.rank()) +
+                                      ".csv";
   std::ofstream ofs(output_path);
   if (!ofs) {
     world.cerr0() << "Failed to open the output file: " << output_path
@@ -260,31 +239,40 @@ void dump(const options_t& opt, ygm::comm& world) {
   }
 
   ygm::timer timer{};
-  parquetp.for_all([&schema, &opt, &num_rows, &num_error_lines, &ofs](
-                       auto& stream_reader, const auto&) {
-    if (opt.json) {
-      try {
-        const auto row = ygm::io::read_parquet_as_json(stream_reader, schema);
-        ofs << row << std::endl;
-      } catch (...) {
-        ++num_error_lines;
-      }
-    } else {
-      auto row = ygm::io::read_parquet_as_variant(stream_reader, schema);
-      for (const auto& v : row) {
-        std::visit(
-            [&ofs](auto&& arg) {
-              if constexpr (std::is_same_v<std::decay_t<decltype(arg)>,
-                                           std::monostate>) {
-                ofs << "[NA] ";
-              } else {
-                ofs << arg << " ";
-              }
-            },
-            v);
-      }
-      ofs << std::endl;
+
+  // Write header
+  for (int i = 0; i < schema.size(); ++i) {
+    ofs << conv2csv(schema[i].name);
+    if (i < schema.size() - 1) {
+      ofs << ",";
     }
+  }
+  ofs << "\n";
+
+  // Write data
+  parquetp.for_all([&num_rows, &ofs](const auto& row) {
+    for (int i = 0; i < row.size(); ++i) {
+      std::string str;
+      std::visit(
+          [&str](auto&& value) {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, std::monostate>) {
+              str = "[NA]";
+            } else if constexpr (std::is_same_v<T, std::string>) {
+              str = value;
+            } else {
+              str = std::to_string(value);
+            }
+          },
+          row[i]);
+      const auto csv_str = conv2csv(str);
+      ofs << csv_str;
+      if (i < row.size() - 1) {
+        ofs << ",";
+      }
+    }
+    ofs << "\n";
+
     ++num_rows;
   });
   ofs.close();
@@ -298,10 +286,6 @@ void dump(const options_t& opt, ygm::comm& world) {
 
   world.cout0() << "Elapsed time: " << elapsed_time << " seconds" << std::endl;
   world.cout0() << "#of rows = " << num_rows << std::endl;
-  if (opt.variant || opt.json) {
-    world.cout0() << "#of conversion error lines = "
-                  << world.all_reduce_sum(num_error_lines) << std::endl;
-  }
 }
 
 void convert(const options_t& opt, ygm::comm& world) {
@@ -375,5 +359,42 @@ void convert(const options_t& opt, ygm::comm& world) {
   });
   if (schema_defined) {
     parquet_writer << parquet::EndRowGroup;
+  }
+}
+
+void peek(const options_t& opt, ygm::comm& world) {
+  world.cout0() << "Peek files." << std::endl;
+  if (opt.num_lines_to_peek <= 0) {
+    world.cout0() << "Invalid number of lines to peek: "
+                  << opt.num_lines_to_peek << std::endl;
+    return;
+  }
+  ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
+
+  std::vector<std::vector<ygm::io::parquet_parser::parquet_type_variant>>
+      read_buf;
+  parquetp.for_all([&](const auto& row) { read_buf.push_back(row); },
+                   opt.num_lines_to_peek);
+  world.cf_barrier();
+
+  for (int r = 0; r < world.size(); ++r) {
+    if (r == world.rank()) {
+      for (const auto& row : read_buf) {
+        for (const auto& v : row) {
+          std::visit(
+              [](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, std::monostate>) {
+                  std::cout << "[NA]\t";
+                } else {
+                  std::cout << value << "\t";
+                }
+              },
+              v);
+        }
+        std::cout << std::endl;
+      }
+    }
+    world.cf_barrier();
   }
 }

@@ -1,4 +1,4 @@
-name: CI Test
+name: CI Test macOS
 
 on:
   pull_request:
@@ -11,28 +11,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-22.04]
-        compiler: [g++-11, g++-12, g++-13, g++-14, clang++-18]
-        mpi-type: [mpich, openmpi]
+        os: [macos-15]
+        compiler: [g++-13, g++-14, clang-18]
+        mpi-type: [openmpi]
         build-type: [Release, Debug]
-        exclude:
-          - os: ubuntu-22.04
-            compiler: g++-13
-          - os: ubuntu-22.04
-            compiler: g++-14
-          - os: ubuntu-22.04
-            compiler: clang++-18
-          - os: ubuntu-24.04
-            mpi-type: mpich
-          - os: ubuntu-22.04
-            build-type: debug
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Update apt
+      - name: Update brew
         run: |
-          sudo add-apt-repository -y universe
-          sudo apt-get update
+          brew update
       - name: Cache boost
         uses: actions/cache@v4
         id: cache-boost
@@ -47,22 +35,24 @@ jobs:
           tar -xjf boost_1_77_0.tar.bz2
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
-        run: sudo apt-get install mpich
+        run: brew install mpich
       - name: Install OpenMPI
         if: matrix.mpi-type == 'openmpi'
-        run: sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Install GCC
-        if: (matrix.compiler == 'g++-11' && matrix.os == 'ubuntu-24.04')
-        run: sudo apt-get install gcc-11 g++-11
+        run: brew install open-mpi
       - name: Make
         run: |
           echo Run 'make'
+          if [ "${{ matrix.compiler }}" == "clang-18" ]; then
+            COMPILER="$(brew --prefix llvm@18)/bin/clang++"
+          else
+            COMPILER="${{ matrix.compiler }}"
+          fi
           mpicc -show
-          ${{ matrix.compiler }} --version
+          $COMPILER --version
           mkdir build
           cd build
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=ON
-          make -j4
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=$COMPILER -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=OFF
+          make -j3
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
@@ -75,4 +65,5 @@ jobs:
           echo Run 'make test' with OpenMPI, ${{ matrix.compiler }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
+          export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
           ctest -VV -C ${{ matrix.build-type }}
