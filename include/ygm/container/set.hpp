@@ -151,9 +151,9 @@ class multiset
 
   detail::hash_partitioner<std::hash<value_type>> partitioner;
 
- private:
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
+ private:
   ygm::comm                       &m_comm;
   std::multiset<value_type>        m_local_set;
   typename ygm::ygm_ptr<self_type> pthis;
@@ -287,9 +287,9 @@ class set
 
   detail::hash_partitioner<std::hash<value_type>> partitioner;
 
- private:
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
+ private:
   ygm::comm                       &m_comm;
   std::set<value_type>             m_local_set;
   typename ygm::ygm_ptr<self_type> pthis;

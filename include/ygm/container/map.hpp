@@ -343,9 +343,9 @@ class map
 
   detail::hash_partitioner<std::hash<key_type>> partitioner;
 
- private:
   void local_swap(self_type& other) { m_local_map.swap(other.m_local_map); }
 
+ private:
   ygm::comm&                                m_comm;
   std::unordered_map<key_type, mapped_type> m_local_map;
   mapped_type                               m_default_value;
@@ -654,9 +654,9 @@ class multimap
 
   detail::hash_partitioner<std::hash<key_type>> partitioner;
 
- private:
   void local_swap(self_type& other) { m_local_map.swap(other.m_local_map); }
 
+ private:
   ygm::comm&                                     m_comm;
   std::unordered_multimap<key_type, mapped_type> m_local_map;
   mapped_type                                    m_default_value;
