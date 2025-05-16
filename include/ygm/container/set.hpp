@@ -46,23 +46,6 @@ class multiset
     pthis.check(m_comm);
   }
 
-  multiset(const self_type &other)
-      : m_comm(other.comm()),
-        pthis(this),
-        partitioner(other.comm, other.partitioner) {
-    m_comm.log(log_level::info, "Creating ygm::container::multiset");
-    pthis.check(m_comm);
-  }
-
-  multiset(self_type &&other) noexcept
-      : m_comm(other.comm()),
-        pthis(this),
-        partitioner(other.partitioner),
-        m_local_set(std::move(other.m_local_set)) {
-    m_comm.log(log_level::info, "Creating ygm::container::multiset");
-    pthis.check(m_comm);
-  }
-
   multiset(ygm::comm &comm, std::initializer_list<Value> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::multiset");
@@ -113,6 +96,24 @@ class multiset
   }
 
   multiset() = delete;
+
+  multiset(const self_type &other)
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm()),
+        m_local_set(other.m_local_set) {
+    m_comm.log(log_level::info, "Copying ygm::container::multiset");
+    pthis.check(m_comm);
+  }
+
+  multiset(self_type &&other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.partitioner),
+        m_local_set(std::move(other.m_local_set)) {
+    m_comm.log(log_level::info, "Moving ygm::container::multiset");
+    pthis.check(m_comm);
+  }
 
   multiset &operator=(const self_type &other) {
     return *this = multiset(other);

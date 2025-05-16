@@ -242,5 +242,127 @@ int main(int argc, char** argv) {
     }
   }
 
+  //
+  // Test copy constructor
+  {
+    ygm::container::multiset<int> mset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset.async_insert(1);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(mset.size() == size);
+
+    ygm::container::multiset<int> mset2(mset);
+    YGM_ASSERT_RELEASE(mset.size() == size);
+    YGM_ASSERT_RELEASE(mset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset2.async_insert(2 * i);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(mset.size() == size);
+    YGM_ASSERT_RELEASE(mset2.size() == 2 * size);
+  }
+
+  //
+  // Test copy assignment operator
+  {
+    ygm::container::multiset<int> mset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset.async_insert(1);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(mset.size() == size);
+
+    ygm::container::multiset<int> mset2(world);
+    mset2 = mset;
+    YGM_ASSERT_RELEASE(mset.size() == size);
+    YGM_ASSERT_RELEASE(mset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset2.async_insert(2 * i);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(mset.size() == size);
+    YGM_ASSERT_RELEASE(mset2.size() == 2 * size);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::multiset<int> mset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset.async_insert(1);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(mset.size() == size);
+
+    ygm::container::multiset<int> mset2(std::move(mset));
+    YGM_ASSERT_RELEASE(mset.size() == 0);
+    YGM_ASSERT_RELEASE(mset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset2.async_insert(2 * i);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(mset.size() == 0);
+    YGM_ASSERT_RELEASE(mset2.size() == 2 * size);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::multiset<int> mset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset.async_insert(1);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(mset.size() == size);
+
+    ygm::container::multiset<int> mset2(world);
+    mset2 = std::move(mset);
+    YGM_ASSERT_RELEASE(mset.size() == 0);
+    YGM_ASSERT_RELEASE(mset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        mset2.async_insert(2 * i);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(mset.size() == 0);
+    YGM_ASSERT_RELEASE(mset2.size() == 2 * size);
+  }
+
   return 0;
 }
