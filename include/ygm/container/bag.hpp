@@ -83,7 +83,10 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   bag(const self_type &other)
-      : m_comm(other.comm()), pthis(this), partitioner(other.comm()) {
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm()),
+        m_local_bag(other.m_local_bag) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
   }
