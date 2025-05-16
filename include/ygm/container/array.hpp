@@ -267,7 +267,7 @@ class array
         m_default_value(other.m_default_value),
         m_local_vec(other.m_local_vec),
         partitioner(other.m_comm, other.m_global_size) {
-    m_comm.log(log_level::info, "Creating ygm::container::array");
+    m_comm.log(log_level::info, "Copying ygm::container::array");
     pthis.check(m_comm);
   }
 
@@ -278,7 +278,7 @@ class array
         m_default_value(other.m_default_value),
         m_local_vec(std::move(other.m_local_vec)),
         partitioner(other.comm(), other.m_global_size) {
-    m_comm.log(log_level::info, "Creating ygm::container::array");
+    m_comm.log(log_level::info, "Moving ygm::container::array");
     pthis.check(m_comm);
 
     other.m_global_size = 0;
