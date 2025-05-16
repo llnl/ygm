@@ -82,7 +82,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.barrier();
   }
 
-  bag(const self_type &other)  // If I remove const it compiles
+  bag(const self_type &other)
       : m_comm(other.comm()), pthis(this), partitioner(other.comm()) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);

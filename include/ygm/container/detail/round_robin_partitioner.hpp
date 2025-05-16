@@ -8,7 +8,7 @@
 namespace ygm::container::detail {
 
 struct round_robin_partitioner {
-  round_robin_partitioner(ygm::comm &comm)
+  round_robin_partitioner(const ygm::comm &comm)
       : m_next(comm.rank()), m_comm_size(comm.size()) {}
   template <typename Item>
   int owner(const Item &) {

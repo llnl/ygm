@@ -29,9 +29,7 @@ struct base_misc {
     derived_this->local_swap(other);
   }
 
-  ygm::comm& comm() { return static_cast<derived_type*>(this)->m_comm; }
-
-  const ygm::comm& comm() const {
+  ygm::comm& comm() const {
     return static_cast<const derived_type*>(this)->m_comm;
   }
 
