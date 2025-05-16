@@ -121,22 +121,11 @@ class array
     m_comm.barrier();
   }
 
-  array(const self_type& rhs)
-      : m_comm(rhs.m_comm),
-        pthis(this),
-        m_global_size(rhs.m_global_size),
-        m_default_value(rhs.m_default_value),
-        m_local_vec(rhs.m_local_vec),
-        partitioner(rhs.m_comm, rhs.m_global_size) {
-    m_comm.log(log_level::info, "Creating ygm::container::array");
-    pthis.check(m_comm);
-    resize(m_global_size);
-  }
-
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::SingleItemTuple<typename T::for_all_args> &&
-      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::SingleItemTuple<typename T::for_all_args> &&
+                 std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -153,17 +142,19 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::SingleItemTuple<typename T::for_all_args> && detail::
-          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
-      std::convertible_to<
-          std::tuple_element_t<
-              0, std::tuple_element_t<0, typename T::for_all_args>>,
-          key_type> &&
-      std::convertible_to<
-          std::tuple_element_t<
-              1, std::tuple_element_t<0, typename T::for_all_args>>,
-          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::SingleItemTuple<typename T::for_all_args> &&
+                 detail::DoubleItemTuple<
+                     std::tuple_element_t<0, typename T::for_all_args>> &&
+                 std::convertible_to<
+                     std::tuple_element_t<
+                         0, std::tuple_element_t<0, typename T::for_all_args>>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<
+                         1, std::tuple_element_t<0, typename T::for_all_args>>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -185,11 +176,15 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
-          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
-      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
-                          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::DoubleItemTuple<typename T::for_all_args> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::for_all_args>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::for_all_args>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -211,9 +206,10 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
-      (not detail::SingleItemTuple<typename T::value_type>)&&std::
-          convertible_to<typename T::value_type, mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::STLContainer<T> &&
+                 (not detail::SingleItemTuple<typename T::value_type>) &&
+                 std::convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -232,11 +228,15 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
-      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
-          std::tuple_element_t<0, typename T::value_type>, key_type> &&
-      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
-                          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::STLContainer<T> &&
+                 detail::DoubleItemTuple<typename T::value_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::value_type>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<1, typename T::value_type>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -258,6 +258,57 @@ class array
   ~array() {
     m_comm.barrier();
     m_comm.log(log_level::info, "Destroying ygm::container::array");
+  }
+
+  array(const self_type& other)
+      : m_comm(other.comm()),
+        pthis(this),
+        m_global_size(other.m_global_size),
+        m_default_value(other.m_default_value),
+        m_local_vec(other.m_local_vec),
+        partitioner(other.m_comm, other.m_global_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
+    pthis.check(m_comm);
+  }
+
+  array(self_type&& other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        m_global_size(other.m_global_size),
+        m_default_value(other.m_default_value),
+        m_local_vec(std::move(other.m_local_vec)),
+        partitioner(other.comm(), other.m_global_size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
+    pthis.check(m_comm);
+
+    other.m_global_size = 0;
+  }
+
+  array& operator=(const self_type& other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::array copy assignment operator");
+    resize(other.m_global_size);
+    m_default_value = other.m_default_value;
+    m_local_vec     = other.m_local_vec;
+
+    return *this;
+  }
+
+  array& operator=(self_type&& other) noexcept {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::array move assignment operator");
+    m_global_size   = other.m_global_size;
+    m_default_value = other.m_default_value;
+    partitioner = detail::block_partitioner<key_type>(m_comm, m_global_size);
+
+    std::swap(m_local_vec, other.m_local_vec);
+
+    if (other.m_local_vec.size() > 0) {
+      other.m_local_vec.clear();
+    }
+    other.m_global_size = 0;
+
+    return *this;
   }
 
   void local_insert(const key_type& key, const mapped_type& value) {
