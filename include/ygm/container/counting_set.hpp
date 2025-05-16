@@ -87,6 +87,40 @@ class counting_set
     m_comm.log(log_level::info, "Destroying ygm::container::counting_set");
   }
 
+  counting_set(const self_type &other)
+      : m_comm(other.comm()),
+        pthis(this),
+        m_count_cache(other.m_count_cache),
+        m_cache_empty(other.m_cache_empty),
+        m_map(other.m_map) {
+    m_comm.log(log_level::info, "Copying ygm::container::counting_set");
+    pthis.check(m_comm);
+  }
+
+  counting_set(self_type &&other)
+      : m_comm(other.comm()),
+        pthis(this),
+        m_count_cache(std::move(other.m_count_cache)),
+        m_cache_empty(other.m_cache_empty),
+        m_map(std::move(other.m_map)) {
+    m_comm.log(log_level::info, "Moving ygm::container::counting_set");
+    pthis.check(m_comm);
+  }
+
+  counting_set &operator=(const self_type &other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::counting_set copy assignment operator");
+    return *this = counting_set(other);
+  }
+
+  counting_set &operator=(self_type &&other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::counting_set move assignment operator");
+    std::swap(m_count_cache, other.m_count_cache);
+    m_map = std::move(other.m_map);
+    return *this;
+  }
+
   void async_insert(const key_type &key) { cache_insert(key); }
 
   template <typename Function>

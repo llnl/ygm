@@ -338,5 +338,126 @@ int main(int argc, char** argv) {
     }
   }
 
+  //
+  // Test copy constructor
+  {
+    ygm::container::set<int> iset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset.async_insert(i);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == size);
+
+    ygm::container::set<int> iset2(iset);
+    YGM_ASSERT_RELEASE(iset.size() == size);
+    YGM_ASSERT_RELEASE(iset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset2.async_insert(2 * i + size);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(iset.size() == size);
+    YGM_ASSERT_RELEASE(iset2.size() == 2 * size);
+  }
+
+  //
+  // Test copy assignment operator
+  {
+    ygm::container::set<int> iset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset.async_insert(i);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == size);
+
+    ygm::container::set<int> iset2(world);
+    iset2 = iset;
+    YGM_ASSERT_RELEASE(iset.size() == size);
+    YGM_ASSERT_RELEASE(iset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset2.async_insert(2 * i + size);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(iset.size() == size);
+    YGM_ASSERT_RELEASE(iset2.size() == 2 * size);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::set<int> iset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset.async_insert(i);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == size);
+
+    ygm::container::set<int> iset2(std::move(iset));
+    YGM_ASSERT_RELEASE(iset.size() == 0);
+    YGM_ASSERT_RELEASE(iset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset2.async_insert(2 * i + size);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(iset.size() == 0);
+    YGM_ASSERT_RELEASE(iset2.size() == 2 * size);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::set<int> iset(world);
+
+    int size = 32;
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset.async_insert(i);
+      }
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == size);
+
+    ygm::container::set<int> iset2(world);
+    iset2 = std::move(iset);
+    YGM_ASSERT_RELEASE(iset.size() == 0);
+    YGM_ASSERT_RELEASE(iset2.size() == size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        iset2.async_insert(2 * i + size);
+      }
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(iset.size() == 0);
+    YGM_ASSERT_RELEASE(iset2.size() == 2 * size);
+  }
   return 0;
 }

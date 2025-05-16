@@ -481,6 +481,40 @@ class multimap
     m_comm.barrier();
   }
 
+  multimap(const self_type& other)
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm()),
+        m_default_value(other.m_default_value),
+        m_local_map(other.m_local_map) {
+    m_comm.log(log_level::info, "Copying ygm::container::map");
+    pthis.check(m_comm);
+  }
+
+  multimap(self_type&& other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm()),
+        m_default_value(other.m_default_value),
+        m_local_map(std::move(other.m_local_map)) {
+    m_comm.log(log_level::info, "Moving ygm::container::map");
+    pthis.check(m_comm);
+  }
+
+  multimap& operator=(const self_type& other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::map copy assignment operator");
+    return *this = multimap(other);
+  }
+
+  multimap& operator=(self_type&& other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::map move assignment operator");
+    std::swap(m_local_map, other.m_local_map);
+    std::swap(m_default_value, other.m_default_value);
+    return *this;
+  }
+
   void local_insert(const key_type& key) {
     if (m_local_map.count(key) == 0) {
       m_local_map.insert({key, m_default_value});
