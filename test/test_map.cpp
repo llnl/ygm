@@ -517,5 +517,107 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Test copy constructor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(smap);
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test copy assignment operator
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(world);
+    smap2 = smap;
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test move constructor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(std::move(smap));
+
+    YGM_ASSERT_RELEASE(smap.size() ==
+                       0);  // I don't think this is guaranteed for a move. smap
+                            // will be in some undefined state
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 0);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test move assignment operator
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(world);
+    smap2 = std::move(smap);
+
+    YGM_ASSERT_RELEASE(smap.size() ==
+                       0);  // I don't think this is guaranteed for a move. smap
+                            // will be in some undefined state
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 0);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
   return 0;
 }
