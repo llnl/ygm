@@ -136,20 +136,14 @@ class map
   map& operator=(const self_type& other) {
     m_comm.log(log_level::info,
                "Calling ygm::container::map copy assignment operator");
-    partitioner     = detail::hash_partitioner<std::hash<key_type>>(m_comm);
-    m_default_value = other.m_default_value;
-    m_local_map     = other.m_local_map;
-
-    return *this;
+    return *this = map(other);
   }
 
   map& operator=(self_type&& other) {
     m_comm.log(log_level::info,
                "Calling ygm::container::map move assignment operator");
-    partitioner     = detail::hash_partitioner<std::hash<key_type>>(m_comm);
-    m_default_value = std::move(other.m_default_value);
-    m_local_map     = std::move(other.m_local_map);
-
+    std::swap(m_local_map, other.m_local_map);
+    std::swap(m_default_value, other.m_default_value);
     return *this;
   }
 

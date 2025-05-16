@@ -116,10 +116,14 @@ class multiset
   }
 
   multiset &operator=(const self_type &other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::multiset copy assignment operator");
     return *this = multiset(other);
   }
 
   multiset &operator=(self_type &&other) noexcept {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::multiset move assignment operator");
     std::swap(m_local_set, other.m_local_set);
     return *this;
   }
