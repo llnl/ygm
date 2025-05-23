@@ -74,27 +74,27 @@ class comm {
   //
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async(int dest, AsyncFunction fn, const SendArgs &...args);
+  void async(int dest, AsyncFunction &&fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async(int dest, AsyncFunction fn, const SendArgs &...args) const {
+  void async(int dest, AsyncFunction &&fn, const SendArgs &...args) const {
     const_cast<comm *>(this)->async(dest, fn, args...);
   }
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast(AsyncFunction fn, const SendArgs &...args);
+  void async_bcast(AsyncFunction &&fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast(AsyncFunction fn, const SendArgs &...args) const {
+  void async_bcast(AsyncFunction &&fn, const SendArgs &...args) const {
     const_cast<comm *>(this)->async_bcast(fn, args...);
   }
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
+  void async_mcast(const std::vector<int> &dests, AsyncFunction &&fn,
                    const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
+  void async_mcast(const std::vector<int> &dests, AsyncFunction &&fn,
                    const SendArgs &...args) const {
     const_cast<comm *>(this)->async_mcast(dests, fn, args...);
   }
@@ -254,14 +254,14 @@ class comm {
   void post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer);
 
   template <typename Lambda, typename... PackArgs>
-  size_t pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
+  size_t pack_lambda(ygm::detail::byte_vector &packed, Lambda &&l,
                      const PackArgs &...args);
 
   template <typename Lambda, typename... PackArgs>
-  void pack_lambda_broadcast(Lambda l, const PackArgs &...args);
+  void pack_lambda_broadcast(Lambda &&l, const PackArgs &...args);
 
   template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
-  size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda l,
+  size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda &&l,
                              RemoteLogicLambda rll, const PackArgs &...args);
 
   void queue_message_bytes(const ygm::detail::byte_vector &packed,

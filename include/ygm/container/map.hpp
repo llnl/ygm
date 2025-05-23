@@ -194,14 +194,14 @@ class map
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type& key, Function& fn,
+  void local_visit(const key_type& key, Function&& fn,
                    const VisitorArgs&... args) {
     local_insert(key);  // inserts only if missing
-    local_visit_if_contains(key, fn, args...);
+    local_visit_if_contains(key, std::forward<Function>(fn), args...);
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit_if_contains(const key_type& key, Function& fn,
+  void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) {
     ygm::detail::interrupt_mask mask(m_comm);
     auto                        range = m_local_map.equal_range(key);
@@ -211,7 +211,7 @@ class map
                                     mapped_type&, VisitorArgs&...>()) {
       for (auto itr = range.first; itr != range.second; ++itr) {
         ygm::meta::apply_optional(
-            fn, std::make_tuple(pthis),
+            std::forward<Function>(fn), std::make_tuple(pthis),
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
@@ -223,7 +223,7 @@ class map
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit_if_contains(const key_type& key, Function& fn,
+  void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) const {
     ygm::detail::interrupt_mask mask(m_comm);
     auto                        range = m_local_map.equal_range(key);
@@ -233,7 +233,7 @@ class map
                                     mapped_type&, VisitorArgs&...>()) {
       for (auto itr = range.first; itr != range.second; ++itr) {
         ygm::meta::apply_optional(
-            fn, std::make_tuple(pthis),
+            std::forward<Function>(fn), std::make_tuple(pthis),
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
@@ -281,7 +281,7 @@ class map
   }
 
   template <typename Function>
-  void local_for_all(Function fn) {
+  void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     mapped_type&>()) {
       for (std::pair<const key_type, mapped_type>& kv : m_local_map) {
@@ -295,7 +295,7 @@ class map
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
+  void local_for_all(Function&& fn) const {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     const mapped_type&>()) {
       for (const std::pair<const key_type, mapped_type>& kv : m_local_map) {
@@ -553,14 +553,14 @@ class multimap
   size_t local_size() const { return m_local_map.size(); }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type& key, Function& fn,
+  void local_visit(const key_type& key, Function&& fn,
                    const VisitorArgs&... args) {
     local_insert(key);  // inserts only if missing
-    local_visit_if_contains(key, fn, args...);
+    local_visit_if_contains(key, std::forward<Function>(fn), args...);
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit_if_contains(const key_type& key, Function& fn,
+  void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) {
     ygm::detail::interrupt_mask mask(m_comm);
     auto                        range = m_local_map.equal_range(key);
@@ -570,7 +570,7 @@ class multimap
                                     mapped_type&, VisitorArgs&...>()) {
       for (auto itr = range.first; itr != range.second; ++itr) {
         ygm::meta::apply_optional(
-            fn, std::make_tuple(pthis),
+            std::forward<Function>(fn), std::make_tuple(pthis),
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
@@ -582,7 +582,7 @@ class multimap
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit_if_contains(const key_type& key, Function& fn,
+  void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) const {
     ygm::detail::interrupt_mask mask(m_comm);
     auto                        range = m_local_map.equal_range(key);
@@ -592,7 +592,7 @@ class multimap
                                     mapped_type&, VisitorArgs&...>()) {
       for (auto itr = range.first; itr != range.second; ++itr) {
         ygm::meta::apply_optional(
-            fn, std::make_tuple(pthis),
+            std::forward<Function>(fn), std::make_tuple(pthis),
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
@@ -640,7 +640,7 @@ class multimap
   }
 
   template <typename Function>
-  void local_for_all(Function fn) {
+  void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     mapped_type&>()) {
       for (std::pair<const key_type, mapped_type>& kv : m_local_map) {
@@ -654,7 +654,7 @@ class multimap
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
+  void local_for_all(Function&& fn) const {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     mapped_type&>()) {
       for (const std::pair<const key_type, mapped_type>& kv : m_local_map) {

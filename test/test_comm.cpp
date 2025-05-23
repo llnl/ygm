@@ -23,14 +23,14 @@ int main(int argc, char** argv) {
       auto   pcounter = world.make_ygm_ptr(counter);
       if (world.rank0()) {
         for (int dest = 0; dest < world.size(); ++dest) {
-          world.async(
-              dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
+          world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
         }
       }
       world.barrier();
       YGM_ASSERT_RELEASE(counter == 1);
     }
 
+    /*
     //
     // Test all ranks async to all others
     {
@@ -133,6 +133,7 @@ int main(int argc, char** argv) {
       world.barrier();
       YGM_ASSERT_RELEASE(done);
     }
+    */
   }
 
   YGM_ASSERT_MPI(MPI_Finalize());

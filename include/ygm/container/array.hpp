@@ -316,7 +316,7 @@ class array
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type index, Function& fn,
+  void local_visit(const key_type index, Function&& fn,
                    const VisitorArgs&... args) {
     ygm::detail::interrupt_mask mask(m_comm);
     if constexpr (std::is_invocable<decltype(fn), const key_type, mapped_type&,
@@ -324,7 +324,7 @@ class array
                   std::is_invocable<decltype(fn), ptr_type, const key_type,
                                     mapped_type&, VisitorArgs&...>()) {
       ygm::meta::apply_optional(
-          fn, std::make_tuple(pthis),
+          std::forward<Function>(fn), std::make_tuple(pthis),
           std::forward_as_tuple(
               index, m_local_vec[partitioner.local_index(index)], args...));
     } else {
@@ -461,7 +461,7 @@ class array
   }
 
   template <typename Function>
-  void local_for_all(Function fn) {
+  void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     mapped_type&>()) {
       for (int i = 0; i < m_local_vec.size(); ++i) {
@@ -469,7 +469,8 @@ class array
         fn(g_index, m_local_vec[i]);
       }
     } else if constexpr (std::is_invocable<decltype(fn), mapped_type&>()) {
-      std::for_each(std::begin(m_local_vec), std::end(m_local_vec), fn);
+      std::for_each(std::begin(m_local_vec), std::end(m_local_vec),
+                    std::forward<Function>(fn));
     } else {
       static_assert(ygm::detail::always_false<Function>,
                     "local array lambda must be "

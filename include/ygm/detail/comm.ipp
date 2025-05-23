@@ -151,7 +151,7 @@ inline comm::~comm() {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
+inline void comm::async(int dest, AsyncFunction &&fn, const SendArgs &...args) {
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
@@ -194,7 +194,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     }
   }
 
-  uint32_t bytes = pack_lambda(m_vec_send_buffers[next_dest], fn,
+  uint32_t bytes = pack_lambda(m_vec_send_buffers[next_dest],
+                               std::forward<AsyncFunction>(fn),
                                std::forward<const SendArgs>(args)...);
   if (local) {
     m_send_local_buffer_bytes += bytes;
@@ -218,12 +219,13 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
+inline void comm::async_bcast(AsyncFunction &&fn, const SendArgs &...args) {
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_bcast()");
 
   check_if_production_halt_required();
 
-  pack_lambda_broadcast(fn, std::forward<const SendArgs>(args)...);
+  pack_lambda_broadcast(std::forward<AsyncFunction>(fn),
+                        std::forward<const SendArgs>(args)...);
 
   //
   // Check if send buffer capacity has been exceeded
@@ -231,12 +233,13 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
+inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction &&fn,
                               const SendArgs &...args) {
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_mcast()");
 
   for (auto dest : dests) {
-    async(dest, fn, std::forward<const SendArgs>(args)...);
+    async(dest, std::forward<AsyncFunction>(fn),
+          std::forward<const SendArgs>(args)...);
   }
 }
 
@@ -769,13 +772,14 @@ inline void comm::post_new_irecv(
 }
 
 template <typename Lambda, typename... PackArgs>
-inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
+inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda &&l,
                                 const PackArgs &...args) {
   size_t                        size_before = packed.size();
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
 
-  auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
+  auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
+                            std::remove_reference_t<Lambda> &&l) {
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
       (*bia)(ta);
@@ -787,32 +791,34 @@ inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
     ygm::meta::apply_optional(l, std::move(t1), std::move(ta));
   };
 
-  return pack_lambda_generic(packed, l, dispatch_lambda,
+  return pack_lambda_generic(packed, std::forward<Lambda>(l), dispatch_lambda,
                              std::forward<const PackArgs>(args)...);
 }
 
 template <typename Lambda, typename... PackArgs>
-inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
+inline void comm::pack_lambda_broadcast(Lambda &&l, const PackArgs &...args) {
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
 
   auto forward_remote_and_dispatch_lambda = [](comm                    *c,
                                                cereal::YGMInputArchive *bia,
-                                               Lambda                   l) {
+                                               std::remove_reference_t<Lambda>
+                                                   l) {
     std::tuple<PackArgs...> ta;
     if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
       (*bia)(ta);
     }
 
     auto forward_local_and_dispatch_lambda =
-        [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
+        [](comm *c, cereal::YGMInputArchive *bia,
+           std::remove_reference_t<Lambda> l) {
           std::tuple<PackArgs...> ta;
           if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
             (*bia)(ta);
           }
 
           auto local_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
-                                          Lambda l) {
+                                          std::remove_reference_t<Lambda> l) {
             std::tuple<PackArgs...> ta;
             if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
               (*bia)(ta);
@@ -825,8 +831,8 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
           };
 
           // Pack lambda telling terminal ranks to execute user lambda.
-          // TODO: Why does this work? Passing ta (tuple of args) to a function
-          // expecting a parameter pack shouldn't work...
+          // TODO: Why does this work? Passing ta (tuple of args) to a
+          // function expecting a parameter pack shouldn't work...
           ygm::detail::byte_vector packed_msg;
           c->pack_lambda_generic(packed_msg, l, local_dispatch_lambda, ta);
 
@@ -853,8 +859,8 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
     int node_partner_offset = (c->layout().local_id() - c->layout().node_id()) %
                               c->layout().local_size();
 
-    // % operator is remainder, not actually mod. Need to fix result if result
-    // was negative
+    // % operator is remainder, not actually mod. Need to fix result if
+    // result was negative
     if (node_partner_offset < 0) {
       node_partner_offset += c->layout().local_size();
     }
@@ -881,7 +887,8 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
   };
 
   ygm::detail::byte_vector packed_msg;
-  pack_lambda_generic(packed_msg, l, forward_remote_and_dispatch_lambda,
+  pack_lambda_generic(packed_msg, std::forward<Lambda>(l),
+                      forward_remote_and_dispatch_lambda,
                       std::forward<const PackArgs>(args)...);
 
   // Initial send to all local ranks
@@ -892,32 +899,33 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
 
 template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
 inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
-                                        Lambda l, RemoteLogicLambda rll,
+                                        Lambda &&l, RemoteLogicLambda rll,
                                         const PackArgs &...args) {
   size_t                        size_before = packed.size();
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
 
   auto remote_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
-    RemoteLogicLambda *rll = nullptr;
-    Lambda            *pl  = nullptr;
+    std::remove_reference_t<Lambda> *pl  = nullptr;
+    RemoteLogicLambda               *rll = nullptr;
 
     // Deserialize captured values from RemoteLogicLambda and Lambda
     size_t rll_storage[sizeof(RemoteLogicLambda) / sizeof(size_t) +
                        (sizeof(RemoteLogicLambda) % sizeof(size_t) > 0)];
     if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
       bia->loadBinary(rll_storage, sizeof(RemoteLogicLambda));
-      rll = (Lambda *)rll_storage;
+      rll = (RemoteLogicLambda *)rll_storage;
     }
 
-    size_t l_storage[sizeof(Lambda) / sizeof(size_t) +
-                     (sizeof(Lambda) % sizeof(size_t) > 0)];
-    if constexpr (!std::is_empty<Lambda>::value) {
-      bia->loadBinary(l_storage, sizeof(Lambda));
-      pl = (Lambda *)l_storage;
+    size_t l_storage[sizeof(std::remove_reference_t<Lambda>) / sizeof(size_t) +
+                     (sizeof(std::remove_reference_t<Lambda>) % sizeof(size_t) >
+                      0)];
+    if constexpr (!std::is_empty<std::remove_reference_t<Lambda>>::value) {
+      bia->loadBinary(l_storage, sizeof(std::remove_reference_t<Lambda>));
+      pl = (std::remove_reference_t<Lambda> *)l_storage;
     }
 
-    (*rll)(c, bia, *pl);
+    (*rll)(c, bia, std::move(*pl));
   };
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
@@ -929,10 +937,11 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
     packed.push_bytes(&rll, sizeof(RemoteLogicLambda));
   }
 
-  if constexpr (!std::is_empty<Lambda>::value) {
-    // oarchive.saveBinary(&l, sizeof(Lambda));
+  if constexpr (!std::is_empty<std::remove_reference_t<Lambda>>::value) {
+    // std::cout << "Non-empty lambda" << std::endl;
+    //  oarchive.saveBinary(&l, sizeof(Lambda));
     size_t size_before = packed.size();
-    packed.push_bytes(&l, sizeof(Lambda));
+    packed.push_bytes(&l, sizeof(std::remove_reference_t<Lambda>));
   }
 
   if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {

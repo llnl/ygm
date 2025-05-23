@@ -141,13 +141,15 @@ class multiset
   size_t local_size() const { return m_local_set.size(); }
 
   template <typename Function>
-  void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  void local_for_all(Function &&fn) {
+    std::for_each(m_local_set.begin(), m_local_set.end(),
+                  std::forward<Function>(fn));
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
-    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
+  void local_for_all(Function &&fn) const {
+    std::for_each(m_local_set.cbegin(), m_local_set.cend(),
+                  std::forward<Function>(fn));
   }
 
   void serialize(const std::string &fname) {}
@@ -278,13 +280,15 @@ class set
   size_t local_size() const { return m_local_set.size(); }
 
   template <typename Function>
-  void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  void local_for_all(Function &&fn) {
+    std::for_each(m_local_set.begin(), m_local_set.end(),
+                  std::forward<Function>(fn));
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
-    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
+  void local_for_all(Function &&fn) const {
+    std::for_each(m_local_set.cbegin(), m_local_set.cend(),
+                  std::forward<Function>(fn));
   }
 
   void serialize(const std::string &fname) {}

@@ -18,19 +18,23 @@ struct base_async_visit {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      Visitor                                                   visitor,
-      const VisitorArgs&... args) requires DoubleItemTuple<for_all_args> {
+      Visitor&& visitor, const VisitorArgs&... args)
+    requires DoubleItemTuple<for_all_args>
+  {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(Visitor, "ygm::container::async_visit()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);
 
+    // Copy of visitor is created when capturing. If this capture is done by
+    // reference, then the async call will serialize a reference to visitor
+    // (including its primitive captures), rather than copying visitor itself
     auto vlambda =
         [visitor](auto pcont,
                   const typename std::tuple_element<0, for_all_args>::type& key,
                   const VisitorArgs&... args) mutable {
-          pcont->local_visit(key, visitor, args...);
+          pcont->local_visit(key, std::forward<Visitor>(visitor), args...);
         };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
@@ -40,8 +44,9 @@ struct base_async_visit {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      Visitor                                                   visitor,
-      const VisitorArgs&... args) requires DoubleItemTuple<for_all_args> {
+      Visitor visitor, const VisitorArgs&... args)
+    requires DoubleItemTuple<for_all_args>
+  {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
         Visitor, "ygm::container::async_visit_if_contains()");
 
@@ -49,6 +54,9 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
+    // Copy of visitor is created when capturing. If this capture is done by
+    // reference, then the async call will serialize a reference to visitor
+    // (including its primitive captures), rather than copying visitor itself
     auto vlambda =
         [visitor](auto pcont,
                   const typename std::tuple_element<0, for_all_args>::type& key,
@@ -63,8 +71,9 @@ struct base_async_visit {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      Visitor                                                   visitor,
-      const VisitorArgs&... args) const requires DoubleItemTuple<for_all_args> {
+      Visitor visitor, const VisitorArgs&... args) const
+    requires DoubleItemTuple<for_all_args>
+  {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
         Visitor, "ygm::container::async_visit_if_contains()");
 
@@ -72,6 +81,9 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
+    // Copy of visitor is created when capturing. If this capture is done by
+    // reference, then the async call will serialize a reference to visitor
+    // (including its primitive captures), rather than copying visitor itself
     auto vlambda =
         [visitor](const auto pcont,
                   const typename std::tuple_element<0, for_all_args>::type& key,

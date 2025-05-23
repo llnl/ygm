@@ -124,13 +124,13 @@ class counting_set
   void async_insert(const key_type &key) { cache_insert(key); }
 
   template <typename Function>
-  void local_for_all(Function fn) {
-    m_map.local_for_all(fn);
+  void local_for_all(Function &&fn) {
+    m_map.local_for_all(std::forward<Function>(fn));
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
-    m_map.local_for_all(fn);
+  void local_for_all(Function &&fn) const {
+    m_map.local_for_all(std::forward<Function>(fn));
   }
 
   void local_clear() {  // What to do here

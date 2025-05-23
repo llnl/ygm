@@ -61,8 +61,8 @@ class tagged_bag {
   }
 
   template <typename Function>
-  void for_all(Function fn) {
-    return m_tagged_bag.for_all(fn);
+  void for_all(Function &&fn) {
+    return m_tagged_bag.for_all(std::forward<Function>(fn));
   }
 
   void clear() { return m_tagged_bag.clear(); }
@@ -91,9 +91,9 @@ class tagged_bag {
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const tag_type &tag, Function &fn,
+  void local_visit(const tag_type &tag, Function &&fn,
                    const VisitorArgs &...args) {
-    return m_tagged_bag.local_visit(tag, fn, args...);
+    return m_tagged_bag.local_visit(tag, std::forward<Function>(fn), args...);
   }
 
   void local_erase(const tag_type &tag) { m_tagged_bag.m_local_map.erase(tag); }
@@ -114,8 +114,8 @@ class tagged_bag {
     return m_tagged_bag.gather_keys(tags);
   }
   template <typename Function>
-  void local_for_all(Function fn) {
-    return m_tagged_bag.local_for_all(fn);
+  void local_for_all(Function &&fn) {
+    return m_tagged_bag.local_for_all(std::forward<Function>(fn));
   }
 
  private:

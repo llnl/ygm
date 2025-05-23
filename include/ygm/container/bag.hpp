@@ -138,12 +138,12 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   template <typename Function>
-  void local_for_all(Function fn) {
+  void local_for_all(Function &&fn) {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
   template <typename Function>
-  void local_for_all(Function fn) const {
+  void local_for_all(Function &&fn) const {
     std::for_each(m_local_bag.cbegin(), m_local_bag.cend(), fn);
   }
 
