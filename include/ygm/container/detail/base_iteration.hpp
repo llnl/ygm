@@ -32,17 +32,17 @@ struct base_iteration_value {
   using value_type = typename std::tuple_element<0, for_all_args>::type;
 
   template <typename Function>
-  void for_all(Function fn) {
+  void for_all(Function&& fn) {
     auto* derived_this = static_cast<derived_type*>(this);
     derived_this->comm().barrier();
-    derived_this->local_for_all(fn);
+    derived_this->local_for_all(std::forward<Function>(fn));
   }
 
   template <typename Function>
-  void for_all(Function fn) const {
+  void for_all(Function&& fn) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    derived_this->local_for_all(fn);
+    derived_this->local_for_all(std::forward<Function>(fn));
   }
 
   template <typename STLContainer>
@@ -170,12 +170,12 @@ struct base_iteration_value {
 
   template <typename TransformFunction>
   transform_proxy_value<derived_type, TransformFunction> transform(
-      TransformFunction ffn);
+      TransformFunction&& ffn);
 
   flatten_proxy_value<derived_type> flatten();
 
   template <typename FilterFunction>
-  filter_proxy_value<derived_type, FilterFunction> filter(FilterFunction ffn);
+  filter_proxy_value<derived_type, FilterFunction> filter(FilterFunction&& ffn);
 
  private:
   template <typename STLContainer, typename Value>
@@ -201,14 +201,14 @@ struct base_iteration_key_value {
   void for_all(Function fn) {
     auto* derived_this = static_cast<derived_type*>(this);
     derived_this->comm().barrier();
-    derived_this->local_for_all(fn);
+    derived_this->local_for_all(std::forward<Function>(fn));
   }
 
   template <typename Function>
-  void for_all(Function fn) const {
+  void for_all(Function&& fn) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    derived_this->local_for_all(fn);
+    derived_this->local_for_all(std::forward<Function>(fn));
   }
 
   template <typename STLContainer>
@@ -340,7 +340,7 @@ struct base_iteration_key_value {
 
   template <typename TransformFunction>
   transform_proxy_key_value<derived_type, TransformFunction> transform(
-      TransformFunction ffn);
+      TransformFunction&& ffn);
 
   auto keys() {
     return transform([](const key_type&    key,
@@ -358,7 +358,7 @@ struct base_iteration_key_value {
 
   template <typename FilterFunction>
   filter_proxy_key_value<derived_type, FilterFunction> filter(
-      FilterFunction ffn);
+      FilterFunction&& ffn);
 
  private:
   template <typename STLContainer, typename Value>
@@ -385,10 +385,10 @@ template <typename derived_type, SingleItemTuple for_all_args>
 template <typename TransformFunction>
 transform_proxy_value<derived_type, TransformFunction>
 base_iteration_value<derived_type, for_all_args>::transform(
-    TransformFunction ffn) {
+    TransformFunction&& ffn) {
   auto* derived_this = static_cast<derived_type*>(this);
-  return transform_proxy_value<derived_type, TransformFunction>(*derived_this,
-                                                                ffn);
+  return transform_proxy_value<derived_type, TransformFunction>(
+      *derived_this, std::forward<TransformFunction>(ffn));
 }
 
 template <typename derived_type, SingleItemTuple for_all_args>
@@ -403,19 +403,20 @@ base_iteration_value<derived_type, for_all_args>::flatten() {
 template <typename derived_type, SingleItemTuple for_all_args>
 template <typename FilterFunction>
 filter_proxy_value<derived_type, FilterFunction>
-base_iteration_value<derived_type, for_all_args>::filter(FilterFunction ffn) {
+base_iteration_value<derived_type, for_all_args>::filter(FilterFunction&& ffn) {
   auto* derived_this = static_cast<derived_type*>(this);
-  return filter_proxy_value<derived_type, FilterFunction>(*derived_this, ffn);
+  return filter_proxy_value<derived_type, FilterFunction>(
+      *derived_this, std::forward<FilterFunction>(ffn));
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename TransformFunction>
 transform_proxy_key_value<derived_type, TransformFunction>
 base_iteration_key_value<derived_type, for_all_args>::transform(
-    TransformFunction ffn) {
+    TransformFunction&& ffn) {
   auto* derived_this = static_cast<derived_type*>(this);
   return transform_proxy_key_value<derived_type, TransformFunction>(
-      *derived_this, ffn);
+      *derived_this, std::forward<TransformFunction>(ffn));
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
@@ -431,10 +432,10 @@ template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename FilterFunction>
 filter_proxy_key_value<derived_type, FilterFunction>
 base_iteration_key_value<derived_type, for_all_args>::filter(
-    FilterFunction ffn) {
+    FilterFunction&& ffn) {
   auto* derived_this = static_cast<derived_type*>(this);
-  return filter_proxy_key_value<derived_type, FilterFunction>(*derived_this,
-                                                              ffn);
+  return filter_proxy_key_value<derived_type, FilterFunction>(
+      *derived_this, std::forward<FilterFunction>(ffn));
 }
 
 }  // namespace ygm::container::detail

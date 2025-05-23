@@ -17,7 +17,7 @@ struct base_async_insert_contains {
   template <typename Function, typename... FuncArgs>
   void async_insert_contains(
       const typename std::tuple_element<0, for_all_args>::type& value,
-      Function fn, const FuncArgs&... args) {
+      Function&& fn, const FuncArgs&... args) {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
         Function, "ygm::container::async_insert_contains()");
 
@@ -35,7 +35,7 @@ struct base_async_insert_contains {
           }
 
           ygm::meta::apply_optional(
-              fn, std::make_tuple(pcont),
+              std::forward<Function>(fn), std::make_tuple(pcont),
               std::forward_as_tuple(contains, value, args...));
         };
 
