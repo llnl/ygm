@@ -37,14 +37,14 @@ jobs:
         uses: actions/cache@v4
         id: cache-boost
         with:
-          path: "~/boost_1_77_0"
-          key: ${{ runner.os }}-libboost1.77
+          path: "~/boost_1_81_0"
+          key: ${{ runner.os }}-libboost1.81
       - name: Install boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget --no-verbose https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
+          wget --no-verbose https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.bz2
+          tar -xjf boost_1_81_0.tar.bz2
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
@@ -61,7 +61,7 @@ jobs:
           ${{ matrix.compiler }} --version
           mkdir build
           cd build
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=ON
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DBOOST_ROOT=~/boost_1_81_0 -DYGM_INSTALL_PARQUET=ON
           make -j4
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
