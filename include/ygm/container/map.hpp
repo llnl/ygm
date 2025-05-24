@@ -6,7 +6,6 @@
 #pragma once
 
 #include <boost/unordered/unordered_flat_map.hpp>
-#include <unordered_map>
 #include <ygm/collective.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
@@ -388,6 +387,5 @@ class map
   mapped_type                      m_default_value;
   typename ygm::ygm_ptr<self_type> pthis;
 };
-
 
 }  // namespace ygm::container

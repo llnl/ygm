@@ -6,7 +6,6 @@
 #pragma once
 
 #include <boost/unordered/unordered_flat_set.hpp>
-#include <set>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
