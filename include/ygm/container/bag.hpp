@@ -16,6 +16,7 @@
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/round_robin_partitioner.hpp>
 #include <ygm/random.hpp>
+#include <boost/container/deque.hpp>
 
 namespace ygm::container {
 
@@ -230,7 +231,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   template <typename RandomFunc>
   void global_shuffle(RandomFunc &r) {
     m_comm.barrier();
-    std::vector<value_type> old_local_bag;
+    decltype(m_local_bag) old_local_bag;
     std::swap(old_local_bag, m_local_bag);
 
     auto send_item = [](auto bag, const value_type &item) {
@@ -269,7 +270,8 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   void local_swap(self_type &other) { m_local_bag.swap(other.m_local_bag); }
 
   ygm::comm                       &m_comm;
-  std::vector<value_type>          m_local_bag;
+  typedef boost::container::deque_options< boost::container::block_size<32*1024u> >::type block_32k_option_t;
+  boost::container::deque<value_type,void, block_32k_option_t>          m_local_bag;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 

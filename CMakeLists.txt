@@ -83,7 +83,7 @@ endif ()
 # Boost
 #
 if (NOT boost_POPULATED)
-    find_package(Boost 1.78)
+    find_package(Boost 1.81)
     if (Boost_FOUND)
         message(STATUS ${PROJECT_NAME} " found boost include dirs: "
                        ${Boost_INCLUDE_DIRS}
@@ -93,7 +93,7 @@ if (NOT boost_POPULATED)
             Boost
             URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
         )
-        set(BOOST_INCLUDE_LIBRARIES json)
+        set(BOOST_INCLUDE_LIBRARIES json unordered container)
         FetchContent_MakeAvailable(Boost)
     endif ()
 endif ()

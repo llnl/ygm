@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
@@ -300,8 +300,9 @@ class set
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
  private:
-  ygm::comm                       &m_comm;
-  std::set<value_type>             m_local_set;
+  ygm::comm &m_comm;
+  boost::unordered::unordered_flat_set<value_type, std::hash<value_type>>
+                                   m_local_set;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 

@@ -10,7 +10,7 @@ function (add_ygm_example example_name)
     set(example_source "${example_name}.cpp")
     set(example_exe "${example_name}")
     add_executable(${example_exe} ${example_source})
-    target_link_libraries(${example_exe} PUBLIC ygm::ygm)
+    target_link_libraries(${example_exe} PUBLIC ygm::ygm Boost::unordered Boost::json)
 endfunction ()
 
 add_ygm_example(howdy_world)
