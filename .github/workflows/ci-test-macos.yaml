@@ -32,7 +32,7 @@ jobs:
         run: |
           cd ~
           wget --no-verbose https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
-          tar -xzf boost_1_87_0-cmake.tar.gz
+          tar -xzf boost-1.87.0-cmake.tar.gz
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: brew install mpich
