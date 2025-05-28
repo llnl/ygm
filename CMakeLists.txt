@@ -132,7 +132,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::unordered Boost::container
 )
 
 if (YGM_DONT_USE_MREMAP)
@@ -156,7 +156,9 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 install(
-    TARGETS ${PROJECT_NAME} cereal
+    TARGETS ${PROJECT_NAME} cereal boost_unordered boost_container boost_assert boost_config boost_container_hash
+    boost_core boost_mp11 boost_predef boost_throw_exception boost_intrusive boost_move boost_describe
+    boost_static_assert
     EXPORT ${PROJECT_NAME}Targets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
