@@ -18,6 +18,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Set up compiler
+        run: |
+          if [ "${{ matrix.compiler }}" == "clang-18" ]; then
+            COMPILER="$(brew --prefix llvm@18)/bin/clang++"
+          else
+            COMPILER="${{ matrix.compiler }}"
+          fi
       - name: Update brew
         run: |
           brew update
@@ -39,16 +46,12 @@ jobs:
       - name: Install OpenMPI
         if: matrix.mpi-type == 'openmpi'
         run: |
-          brew install pmix hwloc
-          brew install --ignore-dependencies open-mpi 
+          #brew install pmix hwloc
+          #brew install --ignore-dependencies open-mpi 
+          brew install --cc=$COMPILER open-mpi
       - name: Make
         run: |
           echo Run 'make'
-          if [ "${{ matrix.compiler }}" == "clang-18" ]; then
-            COMPILER="$(brew --prefix llvm@18)/bin/clang++"
-          else
-            COMPILER="${{ matrix.compiler }}"
-          fi
           mpicc -show
           $COMPILER --version
           mkdir build
