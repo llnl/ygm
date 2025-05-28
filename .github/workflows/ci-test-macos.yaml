@@ -31,7 +31,7 @@ jobs:
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget --no-verbose https://archives.boost.io/release/1.87.0/source/boost_1_87_0-cmake.tar.bz2
+          wget --no-verbose https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
           tar -xjf boost_1_87_0-cmake.tar.bz2
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
