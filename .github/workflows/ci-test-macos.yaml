@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-15]
-        compiler: [g++-13, g++-14, clang-18]
+        compiler: [g++-13, clang-18]
         mpi-type: [openmpi]
         build-type: [Release, Debug]
     runs-on: ${{ matrix.os }}
