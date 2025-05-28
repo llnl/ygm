@@ -38,7 +38,9 @@ jobs:
         run: brew install mpich
       - name: Install OpenMPI
         if: matrix.mpi-type == 'openmpi'
-        run: brew install open-mpi
+        run: |
+          brew install pmix hwloc
+          brew install --ignore-dependencies open-mpi 
       - name: Make
         run: |
           echo Run 'make'
