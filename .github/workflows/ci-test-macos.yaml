@@ -25,14 +25,14 @@ jobs:
         uses: actions/cache@v4
         id: cache-boost
         with:
-          path: "~/boost_1_77_0"
-          key: ${{ runner.os }}-libboost1.77
+          path: "~/boost_1_81_0"
+          key: ${{ runner.os }}-libboost1.81
       - name: Install boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget --no-verbose https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
+          wget --no-verbose https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.bz2
+          tar -xjf boost_1_81_0.tar.bz2
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: brew install mpich
