@@ -256,6 +256,17 @@ inline int comm::rank() const { return m_layout.rank(); }
 inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
 
 /**
+ * @brief Asynchronous communicator barrier
+ *
+ * Only guarantees that all prior async's originating from calling rank have
+ * been completed.
+ */
+inline void comm::async_barrier() {
+  bool ret = priv_barrier(false);
+  YGM_ASSERT_RELEASE(ret == false);
+}
+
+/**
  * @brief Full communicator barrier
  *
  */
@@ -267,6 +278,28 @@ inline void comm::barrier() {
                                  m_send_remote_buffer_bytes);
   }
   log(log_level::debug, "Entering YGM barrier");
+
+  bool full_barrier = false;
+  while (!full_barrier) {
+    full_barrier = priv_barrier(true);
+  }
+  if (m_trace_ygm || m_trace_mpi) {
+    m_tracer.trace_barrier_end(m_tracer.get_next_message_id(), m_send_count,
+                               m_recv_count, m_pending_isend_bytes,
+                               m_send_local_buffer_bytes,
+                               m_send_remote_buffer_bytes);
+  }
+  log(log_level::debug, "Exiting YGM barrier");
+}
+
+/**
+ * @brief barrier logic for both a full barrier and an async_barrier
+ * 
+ * @param local_full is the local rank at a full global barrier
+ * @return true the barrier was a full global barrier
+ * @return false was not a full global barrier, at least one rank is at async_barrier
+ */
+inline bool comm::priv_barrier(bool local_full) {
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -283,15 +316,10 @@ inline void comm::barrier() {
   YGM_ASSERT_RELEASE(m_send_local_dest_queue.empty());
   YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
 
-  cf_barrier();
-
-  if (m_trace_ygm || m_trace_mpi) {
-    m_tracer.trace_barrier_end(m_tracer.get_next_message_id(), m_send_count,
-                               m_recv_count, m_pending_isend_bytes,
-                               m_send_local_buffer_bytes,
-                               m_send_remote_buffer_bytes);
-  }
-  log(log_level::debug, "Exiting YGM barrier");
+  bool to_return = false;
+  YGM_ASSERT_MPI(MPI_Allreduce(&local_full, &to_return, 1, MPI_C_BOOL, MPI_LAND,
+                               m_comm_barrier));
+  return to_return;
 }
 
 /**
@@ -930,7 +958,9 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  { packed.push_bytes(&lid, sizeof(lid)); }
+  {
+    packed.push_bytes(&lid, sizeof(lid));
+  }
 
   if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
     size_t size_before = packed.size();

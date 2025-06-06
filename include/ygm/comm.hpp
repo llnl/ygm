@@ -118,6 +118,10 @@ class comm {
 
   void barrier() const { const_cast<comm *>(this)->barrier(); }
 
+  void async_barrier();
+
+  void async_barrier() const { const_cast<comm *>(this)->async_barrier(); }
+
   void local_progress();
 
   bool local_process_incoming();
@@ -271,6 +275,8 @@ class comm {
                            const size_t buffer_size, const uint32_t from_rank);
 
   bool process_receive_queue();
+
+  bool priv_barrier(bool is_full);
 
   template <typename... Args>
   std::string outstr(Args &&...args) const;
