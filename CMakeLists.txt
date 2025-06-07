@@ -89,9 +89,11 @@ if (NOT boost_POPULATED)
                        ${Boost_INCLUDE_DIRS}
         )
     else ()
+        message(STATUS "Fetching Boost from source")
         FetchContent_Declare(
             Boost
             URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
+            DOWNLOAD_EXTRACT_TIMESTAMP ON
         )
         set(BOOST_INCLUDE_LIBRARIES json unordered container)
         FetchContent_MakeAvailable(Boost)
