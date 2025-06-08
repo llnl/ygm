@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include "ygm/detail/assert.hpp"
 #undef NDEBUG
 #include <algorithm>
 #include <string>
@@ -295,6 +296,11 @@ int main(int argc, char **argv) {
     imap.for_all([remove_size, &world](const auto &key, const auto &value) {
       YGM_ASSERT_RELEASE(key >= remove_size);
     });
+
+    //testing range based loop
+    for(auto& kv : imap) {
+      YGM_ASSERT_RELEASE(kv.first >= remove_size);
+    }
 
     YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
   }

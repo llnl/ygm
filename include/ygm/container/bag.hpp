@@ -7,16 +7,17 @@
 
 #include <fstream>
 
+#include <boost/container/deque.hpp>
 #include <cereal/archives/json.hpp>
 #include <initializer_list>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/round_robin_partitioner.hpp>
 #include <ygm/random.hpp>
-#include <boost/container/deque.hpp>
 
 namespace ygm::container {
 
@@ -24,8 +25,14 @@ template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
+            public detail::base_iterators<bag<Item>>,
             public detail::base_iteration_value<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
+
+  using block_32k_option_t = boost::container::deque_options<
+      boost::container::block_size<32 * 1024u>>::type;
+  using local_container_type =
+      boost::container::deque<Item, void, block_32k_option_t>;
 
  public:
   using self_type      = bag<Item>;
@@ -33,6 +40,8 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   using size_type      = size_t;
   using for_all_args   = std::tuple<Item>;
   using container_type = ygm::container::bag_tag;
+  using iterator       = typename local_container_type::iterator;
+  using const_iterator = typename local_container_type::const_iterator;
 
   bag(ygm::comm &comm) : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
@@ -107,6 +116,14 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     std::swap(m_local_bag, other.m_local_bag);
     return *this;
   }
+
+  iterator local_begin() { return m_local_bag.begin(); }
+  const_iterator local_begin() const { return m_local_bag.cbegin(); }
+  const_iterator local_cbegin() const { return m_local_bag.cbegin(); }
+
+  iterator local_end() { return m_local_bag.end(); }
+  const_iterator local_end() const { return m_local_bag.cend(); }
+  const_iterator local_cend() const { return m_local_bag.cend(); }
 
   using detail::base_async_insert_value<bag<Item>, for_all_args>::async_insert;
 
@@ -270,8 +287,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   void local_swap(self_type &other) { m_local_bag.swap(other.m_local_bag); }
 
   ygm::comm                       &m_comm;
-  typedef boost::container::deque_options< boost::container::block_size<32*1024u> >::type block_32k_option_t;
-  boost::container::deque<value_type,void, block_32k_option_t>          m_local_bag;
+  local_container_type             m_local_bag;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 

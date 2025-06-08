@@ -19,9 +19,12 @@ template <typename Key>
 class counting_set
     : public detail::base_count<counting_set<Key>, std::tuple<Key, size_t>>,
       public detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>,
+      public detail::base_iterators<counting_set<Key>>,
       public detail::base_iteration_key_value<counting_set<Key>,
                                               std::tuple<Key, size_t>> {
   friend class detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>;
+
+  using internal_container_type = map<Key, size_t>;
 
  public:
   using self_type      = counting_set<Key>;
@@ -30,6 +33,8 @@ class counting_set
   using size_type      = size_t;
   using for_all_args   = std::tuple<Key, size_t>;
   using container_type = ygm::container::counting_set_tag;
+  using iterator       = typename internal_container_type::iterator;
+  using const_iterator = typename internal_container_type::const_iterator;
 
   const size_type count_cache_size = 1024 * 1024;
 
@@ -120,6 +125,14 @@ class counting_set
     m_map = std::move(other.m_map);
     return *this;
   }
+
+  iterator       local_begin() { return m_map.begin(); }
+  const_iterator local_begin() const { return m_map.cbegin(); }
+  const_iterator local_cbegin() const { return m_map.cbegin(); }
+
+  iterator       local_end() { return m_map.end(); }
+  const_iterator local_end() const { return m_map.cend(); }
+  const_iterator local_cend() const { return m_map.cend(); }
 
   void async_insert(const key_type &key) { cache_insert(key); }
 
@@ -262,7 +275,7 @@ class counting_set
   ygm::comm                           &m_comm;
   std::vector<std::pair<Key, int32_t>> m_count_cache;
   bool                                 m_cache_empty = true;
-  map<Key, mapped_type>                m_map;
+  internal_container_type              m_map;
   typename ygm::ygm_ptr<self_type>     pthis;
 };
 

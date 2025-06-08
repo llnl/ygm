@@ -39,6 +39,10 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(bbag.count("apple") == 1);
     YGM_ASSERT_RELEASE(bbag.count("red") == 1);
     YGM_ASSERT_RELEASE(bbag.size() == 3);
+
+    for(auto& value : bbag) {
+      world.cout(value);
+    }
   }
 
   //

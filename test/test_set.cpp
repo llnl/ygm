@@ -169,6 +169,11 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(item >= remove_size);
     });
 
+    //test range based loop
+    for(auto& item : iset) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    }
+
     YGM_ASSERT_RELEASE(iset.size() == num_items - remove_size);
   }
 

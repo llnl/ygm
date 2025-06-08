@@ -16,6 +16,7 @@
 #include <ygm/container/detail/base_batch_erase.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
@@ -37,9 +38,13 @@ class map
       public detail::base_batch_erase_key_value<map<Key, Value>,
                                                 std::tuple<Key, Value>>,
       public detail::base_async_visit<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_iterators<map<Key, Value>>,
       public detail::base_iteration_key_value<map<Key, Value>,
                                               std::tuple<Key, Value>> {
   friend class detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
+
+  using local_container_type =
+      boost::unordered::unordered_flat_map<Key, Value, std::hash<Key>>;
 
  public:
   using self_type      = map<Key, Value>;
@@ -49,6 +54,8 @@ class map
   using size_type      = size_t;
   using for_all_args   = std::tuple<Key, Value>;
   using container_type = ygm::container::map_tag;
+  using iterator       = typename local_container_type::iterator;
+  using const_iterator = typename local_container_type::const_iterator;
 
   map() = delete;
 
@@ -146,6 +153,14 @@ class map
     std::swap(m_default_value, other.m_default_value);
     return *this;
   }
+
+  iterator       local_begin() { return m_local_map.begin(); }
+  const_iterator local_begin() const { return m_local_map.cbegin(); }
+  const_iterator local_cbegin() const { return m_local_map.cbegin(); }
+
+  iterator       local_end() { return m_local_map.end(); }
+  const_iterator local_end() const { return m_local_map.cend(); }
+  const_iterator local_cend() const { return m_local_map.cend(); }
 
   using detail::base_async_erase_key<map<Key, Value>,
                                      for_all_args>::async_erase;
@@ -380,10 +395,8 @@ class map
   void local_swap(self_type& other) { m_local_map.swap(other.m_local_map); }
 
  private:
-  ygm::comm& m_comm;
-  boost::unordered::unordered_flat_map<key_type, mapped_type,
-                                       std::hash<key_type>>
-                                   m_local_map;
+  ygm::comm&                       m_comm;
+  local_container_type             m_local_map;
   mapped_type                      m_default_value;
   typename ygm::ygm_ptr<self_type> pthis;
 };
