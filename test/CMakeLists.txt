@@ -68,6 +68,7 @@ add_ygm_test(test_gather_topk)
 add_ygm_test(test_reduce)
 add_ygm_test(test_transform)
 add_ygm_test(test_local_visit)
+add_ygm_test(test_progress_indicator)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
