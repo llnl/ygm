@@ -8,7 +8,6 @@
 #include <concepts>
 #include <random>
 
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
@@ -164,7 +163,7 @@ class array
       max_index = std::max<mapped_type>(std::get<0>(index_value), max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 
@@ -194,7 +193,7 @@ class array
       max_index = std::max<mapped_type>(index, max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 
@@ -246,7 +245,7 @@ class array
       max_index = std::max<key_type>(std::get<0>(index_value), max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 

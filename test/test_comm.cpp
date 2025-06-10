@@ -94,32 +94,32 @@ int main(int argc, char** argv) {
     //
     // Test reductions
     {
-      auto max = world.all_reduce_max(size_t(world.rank()));
+      auto max = ygm::max(size_t(world.rank()), world);
       YGM_ASSERT_RELEASE(max == (size_t)world.size() - 1);
 
-      auto min = world.all_reduce_min(size_t(world.rank()));
+      auto min = ygm::min(size_t(world.rank()), world);
       YGM_ASSERT_RELEASE(min == 0);
 
-      auto sum = world.all_reduce_sum(size_t(world.rank()));
+      auto sum = ygm::sum(size_t(world.rank()), world);
       YGM_ASSERT_RELEASE(sum ==
                      (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
 
       size_t id  = world.rank();
-      auto   red = world.all_reduce(id, [](size_t a, size_t b) {
+      auto   red = ygm::all_reduce(id, [](size_t a, size_t b) {
         if (a < b) {
           return a;
         } else {
           return b;
         }
-      });
+      }, world);
       YGM_ASSERT_RELEASE(red == 0);
-      auto red2 = world.all_reduce(id, [](size_t a, size_t b) {
+      auto red2 = ygm::all_reduce(id, [](size_t a, size_t b) {
         if (a > b) {
           return a;
         } else {
           return b;
         }
-      });
+      }, world);
       YGM_ASSERT_RELEASE(red2 == (size_t)world.size() - 1);
     }
 

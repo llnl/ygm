@@ -5,7 +5,6 @@
 
 #undef NDEBUG
 
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 
 int main(int argc, char** argv) {

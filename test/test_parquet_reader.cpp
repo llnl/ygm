@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
           YGM_ASSERT_RELEASE(bool_col == expected.bool_col);
           ++count_rows;
         });
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
+    YGM_ASSERT_RELEASE(ygm::sum(count_rows, world) == 10);
 
     // For all with column names
     count_rows = 0;
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 
           ++count_rows;
         });
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(count_rows) == 10);
+    YGM_ASSERT_RELEASE(ygm::sum(count_rows, world) == 10);
 
     // Test peek()
     {

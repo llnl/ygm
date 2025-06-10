@@ -55,8 +55,9 @@ int main(int argc, char **argv) {
       xor_write = std::hash<std::string>()(message);
       d.async_write_line(timestamp, message);
 
-      xor_write = world.all_reduce(
-          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_write = ygm::all_reduce(
+          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Read lines back
@@ -68,8 +69,9 @@ int main(int argc, char **argv) {
         xor_read ^= std::hash<std::string>()(line);
       });
 
-      xor_read = world.all_reduce(
-          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_read = ygm::all_reduce(
+          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Clean up files
@@ -110,8 +112,9 @@ int main(int argc, char **argv) {
       xor_write ^= std::hash<std::string>()(message);
       d.async_write_line(timestamp, message);
 
-      xor_write = world.all_reduce(
-          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_write = ygm::all_reduce(
+          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Read lines back
@@ -123,8 +126,9 @@ int main(int argc, char **argv) {
         xor_read ^= std::hash<std::string>()(line);
       });
 
-      xor_read = world.all_reduce(
-          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_read = ygm::all_reduce(
+          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Clean up files

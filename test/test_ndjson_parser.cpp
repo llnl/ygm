@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   jsonp.for_all([&world, &local_count](const auto& json) { ++local_count; });
 
   world.barrier();
-  YGM_ASSERT_RELEASE(world.all_reduce_sum(local_count) == 3);
+  YGM_ASSERT_RELEASE(ygm::sum(local_count, world) == 3);
 
   return 0;
 }

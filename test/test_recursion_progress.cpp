@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 
 static size_t counter = 0;

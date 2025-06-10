@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <ygm/detail/collective.hpp>
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/version.hpp>
 
 namespace ygm {
@@ -108,15 +110,15 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
        << "NAME                     = " << name << "\n"
        << "TIME                     = " << stats.get_elapsed_time() << "\n"
        << "GLOBAL_ASYNC_COUNT       = "
-       << all_reduce_sum(stats.get_async_count()) << "\n"
+       << ::ygm::sum(stats.get_async_count(), *this) << "\n"
        << "GLOBAL_ISEND_COUNT       = "
-       << all_reduce_sum(stats.get_isend_count()) << "\n"
+       << ::ygm::sum(stats.get_isend_count(), *this) << "\n"
        << "GLOBAL_ISEND_BYTES       = "
-       << all_reduce_sum(stats.get_isend_bytes()) << "\n"
+       << ::ygm::sum(stats.get_isend_bytes(), *this) << "\n"
        << "MAX_WAITSOME_ISEND_IRECV = "
-       << all_reduce_max(stats.get_waitsome_isend_irecv_time()) << "\n"
+       << ::ygm::max(stats.get_waitsome_isend_irecv_time(), *this) << "\n"
        << "MAX_WAITSOME_IALLREDUCE  = "
-       << all_reduce_max(stats.get_waitsome_iallreduce_time()) << "\n"
+       << ::ygm::max(stats.get_waitsome_iallreduce_time(), *this) << "\n"
        << "COUNT_IALLREDUCE         = " << stats.get_iallreduce_count() << "\n"
        << "======================================";
 
@@ -294,10 +296,11 @@ inline void comm::barrier() {
 
 /**
  * @brief barrier logic for both a full barrier and an async_barrier
- * 
+ *
  * @param local_full is the local rank at a full global barrier
  * @return true the barrier was a full global barrier
- * @return false was not a full global barrier, at least one rank is at async_barrier
+ * @return false was not a full global barrier, at least one rank is at
+ * async_barrier
  */
 inline bool comm::priv_barrier(bool local_full) {
   flush_all_local_and_process_incoming();

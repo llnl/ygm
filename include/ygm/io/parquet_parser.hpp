@@ -372,7 +372,7 @@ class parquet_parser {
         total_rows += get_num_rows(m_global_paths[i]);
       }
     }
-    m_num_rows = m_comm.all_reduce_sum(total_rows);
+    m_num_rows = ::ygm::sum(total_rows, m_comm);
   }
 
   /// Open a Parquet file and return a ParquetFileReader object.
@@ -405,7 +405,7 @@ class parquet_parser {
     const size_t gcnt = m_comm.rank0() ? m_global_paths.size() : 0;
     const size_t lcnt =
         m_comm.layout().local_id() == 0 ? m_nlocal_paths.size() : 0;
-    m_num_files = m_comm.all_reduce_sum(lcnt) + m_comm.all_reduce_sum(gcnt);
+    m_num_files = ::ygm::sum(lcnt, m_comm) + ::ygm::sum(gcnt, m_comm);
   }
 
   /// Check if the file is legit.
@@ -426,7 +426,7 @@ class parquet_parser {
 
     // Make sure the file is openable
     const bool rethrow_exception = false;
-    const bool openable       = open_file(p, rethrow_exception) != nullptr;
+    const bool openable          = open_file(p, rethrow_exception) != nullptr;
     return openable;
   }
 

@@ -7,7 +7,6 @@
 
 #include <tuple>
 #include <vector>
-#include <ygm/collective.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 
 namespace ygm::container::detail {
@@ -98,9 +97,10 @@ struct base_iteration_value {
 
     //
     // All reduce global top_k
-    auto to_return = mycomm.all_reduce(
-        local_topk, [comp, k](const std::vector<value_type>& va,
-                              const std::vector<value_type>& vb) {
+    auto to_return = ::ygm::all_reduce(
+        local_topk,
+        [comp, k](const std::vector<value_type>& va,
+                  const std::vector<value_type>& vb) {
           std::vector<value_type> out(va.begin(), va.end());
           out.insert(out.end(), vb.begin(), vb.end());
           std::sort(out.begin(), out.end(), comp);
@@ -108,7 +108,8 @@ struct base_iteration_value {
             out.pop_back();
           }
           return out;
-        });
+        },
+        mycomm);
     return to_return;
   }
 
@@ -267,8 +268,9 @@ struct base_iteration_key_value {
 
     //
     // All reduce global top_k
-    auto to_return = mycomm.all_reduce(
-        local_topk, [comp, k](const vec_type& va, const vec_type& vb) {
+    auto to_return = ::ygm::all_reduce(
+        local_topk,
+        [comp, k](const vec_type& va, const vec_type& vb) {
           vec_type out(va.begin(), va.end());
           out.insert(out.end(), vb.begin(), vb.end());
           std::sort(out.begin(), out.end(), comp);
@@ -276,7 +278,8 @@ struct base_iteration_key_value {
             out.pop_back();
           }
           return out;
-        });
+        },
+        mycomm);
     return to_return;
   }
 

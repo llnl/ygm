@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     };
     pr.for_all(agg_pr_lambda);
     world.barrier();
-    world.all_reduce_sum(agg_pr);
+    ygm::sum(agg_pr, world);
     std::cout << "Aggregated PR: " << agg_pr << "." << std::endl;
     agg_pr = 0.;
   }

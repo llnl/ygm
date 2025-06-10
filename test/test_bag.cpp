@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(bbag.count("red") == 1);
     YGM_ASSERT_RELEASE(bbag.size() == 3);
 
-    for(auto& value : bbag) {
+    for (auto& value : bbag) {
       world.cout(value);
     }
   }
@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
     }
     int count{0};
     bbag.for_all([&count](std::string& mstr) { ++count; });
-    int global_count = world.all_reduce_sum(count);
+    int global_count = ygm::sum(count, world);
     world.barrier();
     YGM_ASSERT_RELEASE(global_count == 3);
   }
@@ -258,7 +258,7 @@ int main(int argc, char** argv) {
     int count{0};
     pbag.for_all(
         [&count](std::pair<std::string, int>& mstr) { count += mstr.second; });
-    int global_count = world.all_reduce_sum(count);
+    int global_count = ygm::sum(count, world);
     world.barrier();
     YGM_ASSERT_RELEASE(global_count == 6);
   }
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
   //   int count{0};
   //   pbag.for_all(
   //       [&count](std::string& first, int& second) { count += second; });
-  //   int global_count = world.all_reduce_sum(count);
+  //   int global_count = ygm::sum(count, world);
   //   world.barrier();
   //   YGM_ASSERT_RELEASE(global_count == 6);
   // }

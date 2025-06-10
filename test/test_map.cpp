@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) ==
+  //   YGM_ASSERT_RELEASE(sum(dog_visit_counter, world) ==
   //   world.size());
 
   //   static int apple_visit_counter{0};
@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(apple_visit_counter) ==
+  //   YGM_ASSERT_RELEASE(sum(apple_visit_counter, world) ==
   //                  world.size() - 1);
 
   //   if (world.rank0()) {
@@ -297,8 +297,8 @@ int main(int argc, char **argv) {
       YGM_ASSERT_RELEASE(key >= remove_size);
     });
 
-    //testing range based loop
-    for(auto& kv : imap) {
+    // testing range based loop
+    for (auto &kv : imap) {
       YGM_ASSERT_RELEASE(kv.first >= remove_size);
     }
 

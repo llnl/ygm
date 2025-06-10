@@ -173,7 +173,7 @@ class counting_set
     mapped_type local_count{0};
     local_for_all(
         [&local_count](const auto &key, auto &value) { local_count += value; });
-    return ygm::sum(local_count, m_map.comm());
+    return ::ygm::sum(local_count, m_map.comm());
   }
 
   // bool is_mine(const key_type &key) const { return m_map.is_mine(key); }

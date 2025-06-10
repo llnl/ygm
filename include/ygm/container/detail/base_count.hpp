@@ -7,7 +7,6 @@
 
 #include <tuple>
 #include <utility>
-#include <ygm/collective.hpp>
 
 namespace ygm::container::detail {
 
@@ -17,7 +16,7 @@ struct base_count {
       const typename std::tuple_element<0, for_all_args>::type& value) const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    return ygm::sum(derived_this->local_count(value), derived_this->comm());
+    return ::ygm::sum(derived_this->local_count(value), derived_this->comm());
   }
 };
 

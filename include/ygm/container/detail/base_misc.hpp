@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <ygm/collective.hpp>
-
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
@@ -14,7 +12,7 @@ struct base_misc {
   size_t size() const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    return ygm::sum(derived_this->local_size(), derived_this->comm());
+    return ::ygm::sum(derived_this->local_size(), derived_this->comm());
   }
 
   void clear() {

@@ -194,7 +194,7 @@ void count_rows(const options_t& opt, ygm::comm& world) {
   if (opt.read_lines) {
     world.cout0() << "Actually read lines." << std::endl;
     parquetp.for_all([&num_rows](const auto& row) { ++num_rows; });
-    num_rows = world.all_reduce_sum(num_rows);
+    num_rows = ::ygm::sum(num_rows, world);
   } else {
     num_rows = parquetp.num_rows();
   }
@@ -282,7 +282,7 @@ void dump(const options_t& opt, ygm::comm& world) {
     ::MPI_Abort(world.get_mpi_comm(), EXIT_FAILURE);
   }
   const auto elapsed_time = timer.elapsed();
-  num_rows                = world.all_reduce_sum(num_rows);
+  num_rows                = ::ygm::sum(num_rows, world);
 
   world.cout0() << "Elapsed time: " << elapsed_time << " seconds" << std::endl;
   world.cout0() << "#of rows = " << num_rows << std::endl;

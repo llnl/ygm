@@ -6,7 +6,6 @@
 #undef NDEBUG
 #include <random>
 #include <vector>
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 
 static std::default_random_engine gen;
@@ -49,7 +48,8 @@ int main(int argc, char **argv) {
     }
 
     world.barrier();
-    YGM_ASSERT_RELEASE(ygm::sum(counter, world) == ((size_t(1) << max_hops) - 1));
+    YGM_ASSERT_RELEASE(ygm::sum(counter, world) ==
+                       ((size_t(1) << max_hops) - 1));
   }
 
   return 0;

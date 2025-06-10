@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
   // node sizes agree
   {
     int node_size(world.layout().node_size());
-    int min_node_size = world.all_reduce_min(node_size);
+    int min_node_size = ygm::min(node_size, world);
     world.barrier();
     YGM_ASSERT_RELEASE(min_node_size == node_size);
   }
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   // local sizes agree
   {
     int local_size(world.layout().local_size());
-    int min_local_size = world.all_reduce_min(local_size);
+    int min_local_size = ygm::min(local_size, world);
     world.barrier();
     YGM_ASSERT_RELEASE(min_local_size == local_size);
   }

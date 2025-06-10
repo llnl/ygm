@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     rn_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
     sample_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
 
-    int global_counter = world.all_reduce_sum(local_counter);
+    int global_counter = ygm::sum(local_counter, world);
 
     YGM_ASSERT_RELEASE(global_counter == world.size());
   }

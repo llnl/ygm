@@ -7,7 +7,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <vector>
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
@@ -685,7 +684,7 @@ class disjoint_set_impl {
 
   size_t size() {
     m_comm.barrier();
-    return m_comm.all_reduce_sum(m_local_item_map.size());
+    return ::ygm::sum(m_local_item_map.size(), m_comm);
   }
 
   size_type num_sets() {
@@ -696,8 +695,7 @@ class disjoint_set_impl {
         ++num_local_sets;
       }
     }
-    return m_comm.all_reduce_sum(num_local_sets);
-    return 0;
+    return ::ygm::sum(num_local_sets, m_comm);
   }
 
   int owner(const value_type &item) const {

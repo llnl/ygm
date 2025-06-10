@@ -22,9 +22,11 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/tracer.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
-#include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm {
+
+template <typename T>
+class ygm_ptr;
 
 namespace detail {
 class interrupt_mask;
@@ -141,15 +143,19 @@ class comm {
   void register_pre_barrier_callback(const std::function<void()> &fn);
 
   template <typename T>
+  [[deprecated("Use `ygm::sum` defined in ygm/detail/collective.hpp")]]
   T all_reduce_sum(const T &t) const;
 
   template <typename T>
+  [[deprecated("Use `ygm::min` defined in ygm/detail/collective.hpp")]]
   T all_reduce_min(const T &t) const;
 
   template <typename T>
+  [[deprecated("Use `ygm::max` defined in ygm/detail/collective.hpp")]]
   T all_reduce_max(const T &t) const;
 
   template <typename T, typename MergeFunction>
+  [[deprecated("Use `ygm::all_reduce` defined in ygm/detail/collective.hpp")]]
   inline T all_reduce(const T &t, MergeFunction merge) const;
 
   //

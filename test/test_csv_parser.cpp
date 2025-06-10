@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   });
 
   world.barrier();
-  YGM_ASSERT_RELEASE(world.all_reduce_sum(local_count) == 100);
+  YGM_ASSERT_RELEASE(ygm::sum(local_count, world) == 100);
 
   return 0;
 }

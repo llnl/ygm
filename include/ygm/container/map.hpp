@@ -6,7 +6,6 @@
 #pragma once
 
 #include <boost/unordered/unordered_flat_map.hpp>
-#include <ygm/collective.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
