@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   // Testing Barrier before Complete.   THIS IS NOT IDEAL USAGE
   {
     ygm::progress_indicator prog(world, {.message = "Test 3"});
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 1000 * (world.rank() + 100); ++i) {
       prog.async_inc();
       world.async_barrier();
     }

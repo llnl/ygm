@@ -83,7 +83,7 @@ class progress_indicator {
     if (m_mpi_comm == MPI_COMM_NULL) {
       return;
     }
-    // Must wait until all ranks has finished.
+    // Must wait until all ranks have finished.
     if (m_mpi_iar_request == MPI_REQUEST_NULL) {
       priv_post_iallreduce(true);
     }
@@ -124,7 +124,7 @@ class progress_indicator {
     double rate = double(m_global_pair[0]) / (MPI_Wtime() - m_start_time);
     if (m_comm.rank0()) {
       std::cout << m_options.message << ": " << m_global_pair[0] << "\t\t"
-                << rate << " per second";
+                << std::fixed << std::setprecision(3) << rate << "\tper second";
       if (completed) {
         std::cout << std::endl;
       } else {
