@@ -96,7 +96,7 @@ if (NOT boost_POPULATED)
             URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
             DOWNLOAD_EXTRACT_TIMESTAMP ON
         )
-        set(BOOST_INCLUDE_LIBRARIES json unordered container)
+        set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
         FetchContent_MakeAvailable(Boost)
     endif ()
 endif ()

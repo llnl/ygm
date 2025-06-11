@@ -34,7 +34,7 @@ class set
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
 
   using local_container_type =
-      boost::unordered::unordered_flat_set<Value, std::hash<Value>>;
+      boost::unordered::unordered_flat_set<Value, boost::hash<Value>>;
 
  public:
   using self_type      = set<Value>;
@@ -42,11 +42,13 @@ class set
   using size_type      = size_t;
   using for_all_args   = std::tuple<Value>;
   using container_type = ygm::container::set_tag;
-    using iterator       = typename local_container_type::iterator;
+  using iterator       = typename local_container_type::iterator;
   using const_iterator = typename local_container_type::const_iterator;
 
   set(ygm::comm &comm)
-      : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
+      : m_comm(comm),
+        pthis(this),
+        partitioner(comm, boost::hash<value_type>()) {
     m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
@@ -125,7 +127,7 @@ class set
     return *this;
   }
 
-    iterator       local_begin() { return m_local_set.begin(); }
+  iterator       local_begin() { return m_local_set.begin(); }
   const_iterator local_begin() const { return m_local_set.cbegin(); }
   const_iterator local_cbegin() const { return m_local_set.cbegin(); }
 
@@ -163,7 +165,7 @@ class set
 
   void deserialize(const std::string &fname) {}
 
-  detail::hash_partitioner<std::hash<value_type>> partitioner;
+  detail::hash_partitioner<boost::hash<value_type>> partitioner;
 
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
