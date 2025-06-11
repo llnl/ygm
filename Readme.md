@@ -44,6 +44,7 @@ that can be accepted by these two classes of functions follow different rules pe
    * `async_` calls cannot capture (most) variables in lambdas. Variables necessary for lambda execution must be
      provided as arguments to the `async_` call. In the event that the data for the lambda resides on the remote
      process the lambda will execute on, a `ygm::ygm_ptr` should be passed as an argument to the `async_`.
+        * `async_` operations can capture primitive types (e.g. `int` and `double`). Pointers cannot be captured.
    * `for_all` calls assume lambdas take only the arguments inherently provided by the YGM object being iterated over.
      All other necessary variables *must* be captured. The types of arguments provided to the lambda can be identified
      by the `for_all_args` type within the YGM object.
@@ -55,16 +56,24 @@ captured in the closure of a lambda. In the case of `for_all` operations, the ex
 [`std::for_each`](https://en.cppreference.com/w/cpp/algorithm/for_each) on entire collection of items held locally.
 
 ## Requirements
-* C++20 - GCC versions 11 and 12 are tested. Your mileage may vary with other compilers.
-* [Cereal](https://github.com/USCiLab/cereal) - C++ serialization library
+* C++20 - GCC versions 11, 12, 13, and 14 and Clang 18 are tested. Your mileage may vary with other compilers.
 * MPI
-* Optionally, Boost 1.77 to enable Boost.JSON support.  
+* [Cereal](https://github.com/USCiLab/cereal) - C++ serialization library
+    * will be installed from Github if not present
+* Boost 1.81
+    * will be installed from Github if not present
+* CMake
+* [spdlog](https://github.com/gabime/spdlog) - logging support
+    * will be installed from Github if not present
+
+Optional requirements
+* [Apache Arrow](https://arrow.apache.org/) for Parquet support
 
 ## Using YGM with CMake
 YGM is a header-only library that is easy to incorporate into a project through CMake. Adding the following to
 CMakeLists.txt will install YGM and its dependencies as part of your project:
 ```
-set(DESIRED_YGM_VERSION 0.6)
+set(DESIRED_YGM_VERSION 0.7)
 find_package(ygm ${DESIRED_YGM_VERSION} CONFIG)
 if (NOT ygm_FOUND)
     FetchContent_Declare(
@@ -72,20 +81,7 @@ if (NOT ygm_FOUND)
         GIT_REPOSITORY https://github.com/LLNL/ygm
         GIT_TAG v${DESIRED_YGM_VERSION}
     )
-    FetchContent_GetProperties(ygm)
-    if (ygm_POPULATED)
-        message(STATUS "Found already populated ygm dependency: "
-                       ${ygm_SOURCE_DIR}
-        )
-    else ()
-        set(JUST_INSTALL_YGM ON)
-        set(YGM_INSTALL ON)
-        FetchContent_Populate(ygm)
-        add_subdirectory(${ygm_SOURCE_DIR} ${ygm_BINARY_DIR})
-        message(STATUS "Cloned ygm dependency " ${ygm_SOURCE_DIR})
-    endif ()
-else ()
-    message(STATUS "Found installed ygm dependency " ${ygm_DIR})
+    FetchContent_MakeAvailable(ygm)
 endif ()
 ```
 
