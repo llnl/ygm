@@ -7,7 +7,7 @@
 
 #include <ygm/detail/mpi.hpp>
 
-namespace ygm {
+namespace ygm::utility {
 class timer {
  public:
   timer() { reset(); }
@@ -19,4 +19,4 @@ class timer {
  private:
   double m_start;
 };
-}  // namespace ygm
+}  // namespace ygm::utility
