@@ -461,21 +461,17 @@ inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
 }
 
 inline std::ostream &comm::cout0() const {
-  static std::ostringstream dummy;
-  dummy.clear();
   if (rank() == 0) {
     return std::cout;
   }
-  return dummy;
+  return detail::dummy_ostream();
 }
 
 inline std::ostream &comm::cerr0() const {
-  static std::ostringstream dummy;
-  dummy.clear();
   if (rank() == 0) {
     return std::cerr;
   }
-  return dummy;
+  return detail::dummy_ostream();
 }
 
 inline std::ostream &comm::cout() const {
@@ -490,40 +486,26 @@ inline std::ostream &comm::cerr() const {
 
 template <typename... Args>
 inline void comm::cout(Args &&...args) const {
-  std::cout << outstr(args...) << std::endl;
+  std::cout << detail::outstr(args...) << std::endl;
 }
 
 template <typename... Args>
 inline void comm::cerr(Args &&...args) const {
-  std::cerr << outstr(args...) << std::endl;
+  std::cerr << detail::outstr(args...) << std::endl;
 }
 
 template <typename... Args>
 inline void comm::cout0(Args &&...args) const {
   if (rank0()) {
-    std::cout << outstr0(args...) << std::endl;
+    std::cout << detail::outstr0(args...) << std::endl;
   }
 }
 
 template <typename... Args>
 inline void comm::cerr0(Args &&...args) const {
   if (rank0()) {
-    std::cerr << outstr0(args...) << std::endl;
+    std::cerr << detail::outstr0(args...) << std::endl;
   }
-}
-
-template <typename... Args>
-inline std::string comm::outstr0(Args &&...args) const {
-  std::stringstream ss;
-  (ss << ... << args);
-  return ss.str();
-}
-
-template <typename... Args>
-inline std::string comm::outstr(Args &&...args) const {
-  std::stringstream ss;
-  ((ss << rank() << ": ") << ... << args);
-  return ss.str();
 }
 
 inline size_t comm::pack_header(ygm::detail::byte_vector &packed,

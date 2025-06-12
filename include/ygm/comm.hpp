@@ -284,12 +284,6 @@ class comm {
 
   bool priv_barrier(bool is_full);
 
-  template <typename... Args>
-  std::string outstr(Args &&...args) const;
-
-  template <typename... Args>
-  std::string outstr0(Args &&...args) const;
-
   comm() = delete;
 
   comm(const comm &c) = delete;
