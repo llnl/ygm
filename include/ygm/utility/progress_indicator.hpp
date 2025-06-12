@@ -9,7 +9,7 @@
 #include <ygm/comm.hpp>
 #include "ygm/detail/assert.hpp"
 
-namespace ygm::detail {
+namespace ygm::utility {
 
 /**
  * @brief Simple progress indicator class
@@ -144,4 +144,4 @@ class progress_indicator {
   double      m_start_time;
 };
 
-}  // namespace ygm::detail
+}  // namespace ygm::utility
