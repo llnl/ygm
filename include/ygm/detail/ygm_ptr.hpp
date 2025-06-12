@@ -6,8 +6,8 @@
 #pragma once
 
 #include <vector>
-#include <ygm/detail/assert.hpp>
 #include <ygm/detail/collective.hpp>
+#include <ygm/utility/assert.hpp>
 
 namespace ygm {
 

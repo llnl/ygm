@@ -7,16 +7,16 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/map.hpp>
+#include <cereal/types/optional.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
-#include <cereal/types/optional.hpp>
 #include <cstring>
 #include <vector>
-#include <ygm/detail/assert.hpp>
 #include <ygm/detail/byte_vector.hpp>
+#include <ygm/utility/assert.hpp>
 
 namespace cereal {
 // ######################################################################

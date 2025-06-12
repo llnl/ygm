@@ -3,11 +3,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include "ygm/detail/assert.hpp"
 #undef NDEBUG
 
 #include <string>
-
 #include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
 #include <ygm/container/set.hpp>
@@ -169,8 +167,8 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(item >= remove_size);
     });
 
-    //test range based loop
-    for(auto& item : iset) {
+    // test range based loop
+    for (auto& item : iset) {
       YGM_ASSERT_RELEASE(item >= remove_size);
     }
 

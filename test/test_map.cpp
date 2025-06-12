@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include "ygm/detail/assert.hpp"
 #undef NDEBUG
 #include <algorithm>
 #include <string>

@@ -7,7 +7,7 @@
 
 #include <mpi.h>
 #include <ygm/comm.hpp>
-#include "ygm/detail/assert.hpp"
+#include <ygm/utility/assert.hpp>
 
 namespace ygm::utility {
 

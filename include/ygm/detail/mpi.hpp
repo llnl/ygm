@@ -6,8 +6,8 @@
 #pragma once
 
 #include <mpi.h>
-#include <ygm/detail/assert.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/utility/assert.hpp>
 
 namespace ygm::detail {
 class mpi_init_finalize {
