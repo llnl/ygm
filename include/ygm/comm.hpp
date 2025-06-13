@@ -22,6 +22,7 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/tracer.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/utility/world.hpp>
 
 namespace ygm {
 
