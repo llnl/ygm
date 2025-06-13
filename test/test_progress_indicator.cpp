@@ -8,13 +8,13 @@
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
-#include <ygm/progress_indicator.hpp>
+#include <ygm/utility/progress_indicator.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   {
-    ygm::progress_indicator prog(world, {.message = "Test 1"});
+    ygm::utility::progress_indicator prog(world, {.message = "Test 1"});
     for (size_t i = 0; i < 1000; ++i) {
       prog.async_inc();
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
   }
 
   {
-    ygm::progress_indicator prog(world, {.message = "Test 2"});
+    ygm::utility::progress_indicator prog(world, {.message = "Test 2"});
     for (size_t i = 0; i < 1000; ++i) {
       prog.async_inc();
       world.async_barrier();
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
   // Testing Barrier before Complete.   THIS IS NOT IDEAL USAGE
   {
-    ygm::progress_indicator prog(world, {.message = "Test 3"});
+    ygm::utility::progress_indicator prog(world, {.message = "Test 3"});
     for (size_t i = 0; i < 1000 * (world.rank() + 100); ++i) {
       prog.async_inc();
       world.async_barrier();

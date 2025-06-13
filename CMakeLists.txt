@@ -22,19 +22,32 @@ project(
     LANGUAGES CXX
 )
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 #
 # Configuration options for YGM
 #
 option(YGM_BUILD_TESTS "Build tests" OFF)
-option(YGM_BUILD_TOOLS "Build tools" OFF)
 option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
 option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
 option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
 option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
+
+#
+# FetchContent dependencies that can be overridden on the command line.
+#
+set(BOOST_FETCH_URL 
+    "https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz" 
+    CACHE STRING "URL to fetch Boost tarball")
+set(CEREAL_FETCH_GIT 
+    "https://github.com/USCiLab/cereal.git" 
+    CACHE STRING "GIT to fetch Cereal")
+set(SPDLOG_FETCH_GIT 
+    "https://github.com/gabime/spdlog.git" 
+    CACHE STRING "GIT to fetch Spdlog")
+
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #
 # Doxygen and Read the Docs (RTD) Documentation
@@ -63,6 +76,7 @@ find_package(Threads REQUIRED)
 
 # prepare to FetchContent
 include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
 
 #
 # Cereal
@@ -73,7 +87,7 @@ if (NOT cereal_POPULATED)
         set(JUST_INSTALL_CEREAL TRUE)
         FetchContent_Declare(
             cereal
-            GIT_REPOSITORY https://github.com/USCiLab/cereal.git
+            GIT_REPOSITORY ${CEREAL_FETCH_GIT}
             GIT_TAG v1.3.2
         )
         FetchContent_MakeAvailable(cereal)
@@ -93,7 +107,7 @@ if (NOT boost_POPULATED)
         message(STATUS "Fetching Boost from source")
         FetchContent_Declare(
             Boost
-            URL https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz
+            URL ${BOOST_FETCH_URL}
             DOWNLOAD_EXTRACT_TIMESTAMP ON
         )
         set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
@@ -108,7 +122,7 @@ if (NOT spdlog_POPULATED)
     set(SPDLOG_INSTALL On)
     FetchContent_Declare(
         spdlog
-        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_REPOSITORY ${SPDLOG_FETCH_GIT}
         GIT_TAG v1.14.1
     )
     FetchContent_MakeAvailable(spdlog)
@@ -200,7 +214,4 @@ if (YGM_BUILD_TESTS)
     option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
     enable_testing()
     add_subdirectory(test)
-endif ()
-if (YGM_BUILD_TOOLS)
-    add_subdirectory(tools)
 endif ()

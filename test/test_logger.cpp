@@ -1,7 +1,7 @@
 
 #include <filesystem>
-#include <ygm/detail/assert.hpp>
 #include <ygm/detail/logger.hpp>
+#include <ygm/utility/assert.hpp>
 
 class file_cleanup {
  public:

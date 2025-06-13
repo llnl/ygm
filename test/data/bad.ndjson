@@ -1,0 +1,6 @@
+{"id":0, "name":"first"}
+{"id":0, "name":"first"
+{"id":1, "name":"second", "foo":"barr", "special":1}
+{"id":1 "name":"second", "foo":"barr", "special":1}
+{"id":2, "name":"third", "extra":"value"}
+"id":2, "name":"third", "extra":"value"}
