@@ -53,7 +53,11 @@ class ndjson_parser : public ygm::container::detail::base_iteration_value<
   template <typename Function>
   void for_all(Function fn) {
     m_lp.for_all([fn](const std::string &line) {
-      fn(boost::json::parse(line).as_object());
+      try {
+        fn(boost::json::parse(line).as_object());
+      } catch (...) {
+        ++m_num_invalid_records;
+      }
     });
   }
 
@@ -61,8 +65,14 @@ class ndjson_parser : public ygm::container::detail::base_iteration_value<
 
   const ygm::comm &comm() const { return m_lp.comm(); }
 
+  size_t num_invalid_records() {
+    return ygm::sum(m_num_invalid_records, m_lp.comm());
+  }
+
  private:
   line_parser m_lp;
+
+  size_t m_num_invalid_records{0};
 };
 
 }  // namespace ygm::io
