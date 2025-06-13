@@ -52,7 +52,7 @@ class ndjson_parser : public ygm::container::detail::base_iteration_value<
    */
   template <typename Function>
   void for_all(Function fn) {
-    m_lp.for_all([fn](const std::string &line) {
+    m_lp.for_all([fn, this](const std::string &line) {
       try {
         fn(boost::json::parse(line).as_object());
       } catch (...) {
