@@ -63,6 +63,7 @@ find_package(Threads REQUIRED)
 
 # prepare to FetchContent
 include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
 
 #
 # Cereal

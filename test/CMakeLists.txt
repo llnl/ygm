@@ -10,7 +10,7 @@ function (add_ygm_seq_test test_name)
     set(test_source "${test_name}.cpp")
     set(test_exe "SEQ_${test_name}")
     add_executable(${test_exe} ${test_source})
-    target_link_libraries(${test_exe} PUBLIC ygm::ygm)
+    target_link_libraries(${test_exe} PUBLIC ygm::ygm Boost::json)
     add_test(${test_exe} "${CMAKE_CURRENT_BINARY_DIR}/${test_exe}")
 endfunction ()
 
@@ -21,7 +21,7 @@ function (add_ygm_test test_name)
     set(test_source "${test_name}.cpp")
     set(test_exe "MPI_${test_name}")
     add_executable(${test_exe} ${test_source})
-    target_link_libraries(${test_exe} PUBLIC ygm::ygm Boost::unordered Boost::container Boost::static_string)
+    target_link_libraries(${test_exe} PUBLIC ygm::ygm Boost::unordered Boost::container Boost::static_string Boost::json)
     if (${TEST_WITH_SLURM})
         add_test(${test_exe} "srun" "${CMAKE_CURRENT_BINARY_DIR}/${test_exe}")
     else ()
@@ -34,6 +34,8 @@ endfunction ()
 add_ygm_seq_test(test_cereal_archive)
 add_ygm_seq_test(test_byte_vector)
 add_ygm_seq_test(test_logger)
+add_ygm_seq_test(test_cereal_boost_json)
+add_ygm_seq_test(test_cereal_boost_container)
 
 add_ygm_test(test_comm)
 add_ygm_test(test_comm_2)
@@ -70,21 +72,8 @@ add_ygm_test(test_transform)
 add_ygm_test(test_local_visit)
 add_ygm_test(test_progress_indicator)
 add_ygm_test(test_boost_string)
+add_ygm_test(test_ndjson_parser)
 
-if (Boost_FOUND)
-    add_ygm_seq_test(test_cereal_boost_json)
-    add_ygm_seq_test(test_cereal_boost_container)
-    add_ygm_test(test_ndjson_parser)
-    target_include_directories(
-        SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS}
-    )
-    target_include_directories(
-            SEQ_test_cereal_boost_container PUBLIC ${Boost_INCLUDE_DIRS}
-    )
-    target_include_directories(
-        MPI_test_ndjson_parser PUBLIC ${Boost_INCLUDE_DIRS}
-    )
-endif ()
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_parquet_reader)

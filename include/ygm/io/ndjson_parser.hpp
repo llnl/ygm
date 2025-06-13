@@ -11,8 +11,8 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
-#include <ygm/detail/cereal_boost_json.hpp>
 #include <ygm/io/line_parser.hpp>
+#include <ygm/utility/boost_json.hpp>
 
 namespace ygm::io {
 std::size_t json_erase(boost::json::object            &obj,
