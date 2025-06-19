@@ -14,7 +14,6 @@
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <cstring>
-#include <vector>
 #include <ygm/detail/byte_vector.hpp>
 #include <ygm/utility/assert.hpp>
 

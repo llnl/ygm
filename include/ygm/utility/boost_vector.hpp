@@ -35,9 +35,8 @@
 
 #pragma once
 
-#include <cereal/cereal.hpp>
-
 #include <boost/container/vector.hpp>
+#include <cereal/cereal.hpp>
 
 namespace cereal {
 //! Serialization for boost::container::vectors of arithmetic (but not bool)

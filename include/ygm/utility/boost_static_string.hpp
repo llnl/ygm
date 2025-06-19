@@ -11,6 +11,7 @@
  */
 
 #include <boost/static_string/static_string.hpp>
+#include <cereal/cereal.hpp>
 
 namespace cereal {
 /// \brief Save function for boost::json::string,
