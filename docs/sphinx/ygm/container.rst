@@ -13,7 +13,7 @@ While insiration is taken from STL, the top priority is to provide expressive
 and performant tools within the YGM framework.
 
 Implemented Storage Containers
-======================
+------------------------------
 
 The currently implemented containers include a mix of distributed versions of familiar containers and
 distributed-specific containers:
@@ -40,13 +40,13 @@ distributed-specific containers:
      of set merges.
 
 Typical Container Operations
-============================
+----------------------------
 
 Most interaction with containers occurs in one of two classes of operations:
 :code:`for_all` and `async_`.
 
 :code:`for_all` Operations
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :code:`for_all`-class operations are barrier-inducing collectives that direct
 ranks to iteratively apply a user-provided function to all locally-held data.
@@ -56,7 +56,7 @@ However, these functions are stored and executed locally on each rank, and so
 can capture objects in rank-local scope.
 
 :code:`async_` Operations
--------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Operations prefixed with ``async_`` perform operations on containers that can be spawned from any process and
 execute on the correct process using YGM's asynchronous runtime. The most common `async` operations are:
@@ -88,13 +88,13 @@ capabilities of the container. Consult the documentation of individual container
    container/set
 
 YGM Container Example
-=====================
+---------------------
 
 .. literalinclude:: ../../../examples/container/map_visit.cpp
    :language: C++
 
 Container Transformation Objects
-================================
+--------------------------------
 
 ``ygm::container`` provides a number of transformation objects that can be applied to containers to alter the appearance
 of items passed to ``for_all`` operations without modifying the items within the container itself. The currently

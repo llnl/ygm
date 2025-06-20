@@ -4,7 +4,7 @@
 ==================================
 
 Communicator Overview
-=====================
+---------------------
 
 The communicator :code:`ygm::comm` is the central object in YGM.
 The communicator controls an interface to an MPI communicator, and its
@@ -18,7 +18,7 @@ Communicator Features:
      in the future, but YGM does not explicitly make the sender aware of this completion.
 
 Communicator Hello World
-========================
+------------------------
 
 Here we will walk through a basic "hello world" YGM program. The [examples directory](/examples/) contains several other
 examples, including many using YGM's storage containers.
