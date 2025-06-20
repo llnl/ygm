@@ -13,6 +13,8 @@ YGM library documentation
    getting_started
    ygm/comm
    ygm/container
+   ygm/io
+   ygm/utility
 
 Documents for YGM developers
 ---------
