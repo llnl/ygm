@@ -20,7 +20,7 @@ Communicator Features:
 Communicator Hello World
 ------------------------
 
-Here we will walk through a basic "hello world" YGM program. The [examples directory](/examples/) contains several other
+Here we will walk through a basic "hello world" YGM program. The `examples directory`_ in the `YGM tutorial`_ contains several other
 examples, including many using YGM's storage containers.
 
 To begin, headers for a YGM communicator are needed:
@@ -55,6 +55,8 @@ telling it to greet the world
 
 A full, compilable version of this example is found `here`_. 
 
+.. _examples directory: https://github.com/LLNL/ygm-tutorial/tree/main/examples
+.. _YGM tutorial: https://github.com/LLNL/ygm-tutorial
 .. _here: https://github.com/LLNL/ygm-tutorial/blob/main/examples/howdy_world.cpp
 
 .. toctree::

@@ -4,17 +4,17 @@
 :code:`ygm::io` module reference
 *********************************
 
-The `ygm::io` module provides parallel I/O functionality for use with YGM's communicator. This allows for simple
+The ``ygm::io`` module provides parallel I/O functionality for use with YGM's communicator. This allows for simple
 parallel reading of large (collections of) files where each line can be read independently of all others and writing of
 output to collections of files.
 
 Reading Input
 =============
 
-The reading functionality of YGM is built around the `ygm::io::line_parser` object. 
-The `for_all` method of the line parser takes a lambda that
-is executed on every line of text within the files. As an example, the following code will read through `file1.txt` and
-`file2.txt` and count the lines that contain more than 10 characters:
+The reading functionality of YGM is built around the ``ygm::io::line_parser`` object. 
+The ``for_all`` method of the line parser takes a lambda that
+is executed on every line of text within the files. As an example, the following code will read through ``file1.txt`` and
+``file2.txt`` and count the lines that contain more than 10 characters:
 
 .. code-block:: C++
 
@@ -33,15 +33,15 @@ to avoid partitioning files into unrealistically small pieces). This splitting i
 within files, with starting positions adjusted to the nearest newline. For this reason, it must be possible to process
 each line of the input files independently of all others, and there is not support for more complicated record parsing.
 
-YGM has parsers (often built on top of the `ygm::io::line_parser`) for when data is provided in specific formats. These
-function in much the same way as the `line_parser`, but do not require as much manual parsing of individual lines.
+YGM has parsers (often built on top of the ``ygm::io::line_parser``) for when data is provided in specific formats. These
+function in much the same way as the ``line_parser``, but do not require as much manual parsing of individual lines.
 
 CSV Parser
 ----------
 
-The `ygm::io::csv_parser` takes each line of input and parses it into a `csv_line` object before it is provided to the
-user's lambda in a `for_all` call. This parsing converts all comma-separated values within a line into positional
-arguments that can be accessed from the `csv_line` and converted into various types. As an example, the following code
+The ``ygm::io::csv_parser`` takes each line of input and parses it into a ``csv_line`` object before it is provided to the
+user's lambda in a ``for_all`` call. This parsing converts all comma-separated values within a line into positional
+arguments that can be accessed from the ``csv_line`` and converted into various types. As an example, the following code
 reads all values within a line, checks to make sure they are usable as doubles, converts them to doubles, adds them up, and prints the result.
 This example also sums up the final entry in each column:
 
@@ -62,7 +62,7 @@ This example also sums up the final entry in each column:
 
     final_sum = ygm::sum(final_sum, world);
 
-The entries within a parsed CSV line are stored as `csv_field` types. The following shows all of the available methods
+The entries within a parsed CSV line are stored as ``csv_field`` types. The following shows all of the available methods
 for checking the types of fields and converting them to primitive types:
 
 .. doxygenclass:: ygm::io::detail::csv_field
@@ -73,10 +73,10 @@ CSVs with Headers
 ^^^^^^^^^^^^^^^^^
 
 Many CSV files contain header lines that provide meaningful names to the columns of a file. For cases like these, the
-`ygm::io::csv_parser` has a `read_headers` method that reads the first line of the CSV files as a collection of column
-headers and provides named access to the columns in subsequent `for_all` calls. For example, we can sum values in
-`important_column1` and `important_column2` in CSV files containing columns named `important_column1`, `other_column`,
-and `important_column2` as follows:
+``ygm::io::csv_parser`` has a ``read_headers`` method that reads the first line of the CSV files as a collection of column
+headers and provides named access to the columns in subsequent ``for_all`` calls. For example, we can sum values in
+``important_column1`` and ``important_column2`` in CSV files containing columns named ``important_column1``, ``other_column``,
+and ``important_column2`` as follows:
 
 .. code-block:: C++
 
@@ -91,14 +91,14 @@ and `important_column2` as follows:
 
 When reading CSV files with headers, it is important to remember that
   * all CSV files provided must contain headers that are identical
-  * if a CSV file with headers is read without calling `read_headers()` the header line will be treated as a normal line with data
+  * if a CSV file with headers is read without calling ``read_headers()`` the header line will be treated as a normal line with data
 
 NDJSON Parser
 -------------
 
-The `ygm::io::ndjson_parser` handles lines of input that are provided as newline-delimited JSON (NDJSON), a.k.a. JSON
+The ``ygm::io::ndjson_parser`` handles lines of input that are provided as newline-delimited JSON (NDJSON), a.k.a. JSON
 lines data. JSON support is provided by `Boost JSON`_ and requires some knowledge of the associated syntax. To sum
-the `number` field in all JSON records as integers, we can do the following:
+the ``number`` field in all JSON records as integers, we can do the following:
 
 .. code-block:: C++
 
@@ -118,8 +118,8 @@ the `number` field in all JSON records as integers, we can do the following:
 Parquet Parser
 --------------
 
-YGM provides Parquet parsing through the use of `Apache Arrow`_ in its `ygm::io::parquet_parser`. Rows of data are
-provided to a `for_all` operation as `vector`s of data entries provided as a `variant`. Optionally, a `vector` of column names can be provided
+YGM provides Parquet parsing through the use of `Apache Arrow`_ in its ``ygm::io::parquet_parser``. A row of data is
+provided to a ``for_all`` operation as a ``vector`` of data entries provided as a ``variant``. Optionally, a ``vector`` of column names can be provided
 as to specify the set of columns needed by the lambda being executed on the rows. If no columns names are provided, the
 default behavior is to provide all columns to the lambda. To print the "string_column" and "float_column" columns of a
 Parquet dataset, use:
@@ -139,12 +139,12 @@ Writing Output
 
 When writing large amounts of output, there are two main ways of doing so in YGM. The simplest and most frequently
 encountered is where output is written in a manner that does not require organization. In these situations, it is
-easiest to have every rank open a separate file (using `std::ofstream`) that is distinct from files on all other ranks
+easiest to have every rank open a separate file (using ``std::ofstream``) that is distinct from files on all other ranks
 for writing its own local data.
 
 The second supported way of writing files is when output generated anywhere on the system has a natural filename that it
 must be found in. In this case, independent ranks cannot open all files and write to them safely. For such use cases,
-YGM provides the `ygm::io::multi_output`. This object takes a filename that a line of output must be written to and
+YGM provides the ``ygm::io::multi_output``. This object takes a filename that a line of output must be written to and
 communicates the line to a specific rank that is responsible for writing to that filename.
 
 An example of doing so is:
@@ -158,10 +158,10 @@ An example of doing so is:
   mo.async_write_line("file2", "this is some output");
 
 One use case of this functionality is when each line of output has a timestamp, and the output lines need to be
-organized by the day associated with their timestamp. This behavior is provided by the `ygm::io::daily_output`, which
-acts the same as the `multi_output`, but all calls to `async_write_line` take a timestamp as the number of seconds since
-the Unix epoch instead of a filename. Files are then written to in a directory format of `year/month/day` within the
-output directory passed to the `ygm::io::daily_output` constructor.
+organized by the day associated with their timestamp. This behavior is provided by the ``ygm::io::daily_output``, which
+acts the same as the `multi_output`, but all calls to ``async_write_line`` take a timestamp as the number of seconds since
+the Unix epoch instead of a filename. Files are then written to in a directory format of ``year/month/day`` within the
+output directory passed to the ``ygm::io::daily_output`` constructor.
 
 .. toctree::
    :maxdepth: 1

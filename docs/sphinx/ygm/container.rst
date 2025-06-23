@@ -46,10 +46,10 @@ iteration and ``async_``.
 Iterating over Containers
 -------------------------
 
-Elements within a container can be iterated over using calls to `for_all` methods or using standard C++ iterators. In
-their standard form, both iteration techniques make calls to a YGM `barrier` on the underlying communicator to ensure
-that all updates to the container have been processed before starting the iteration. `local_` variants for both exist
-that skip the call to `barrier`, allowing them to be called in a non-collective context.
+Elements within a container can be iterated over using calls to ``for_all`` methods or using standard C++ iterators. In
+their standard form, both iteration techniques make calls to a YGM ``barrier`` on the underlying communicator to ensure
+that all updates to the container have been processed before starting the iteration. ``local_`` variants for both exist
+that skip the call to ``barrier``, allowing them to be called in a non-collective context.
 
 Container :code:`for_all` Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,10 +58,10 @@ Container :code:`for_all` Methods
 ranks to iteratively apply a user-provided function to all locally-held data.
 Functions passed to the :code:`for_all` interface do not support additional
 variadic parameters. However, these functions are stored and executed locally on each rank, and so
-can capture objects in rank-local scope. The `local_for_all` variant has the same API as `for_all`, but skips the
-internal call to `barrier` at its beginning.
+can capture objects in rank-local scope. The ``local_for_all`` variant has the same API as ``for_all``, but skips the
+internal call to ``barrier`` at its beginning.
 
-The following example shows a `for_all` being used to double all values in a `ygm::container::bag<int>` called `my_bag`:
+The following example shows a `for_all` being used to double all values in a ``ygm::container::bag<int>`` called ``my_bag``:
 
 .. code-block:: C++
 
@@ -71,15 +71,15 @@ The following example shows a `for_all` being used to double all values in a `yg
     value = value * multiple;
     });
 
-The above example uses a capture of the `multiple` variable that can be used within the lambda executed on each value
+The above example uses a capture of the ``multiple`` variable that can be used within the lambda executed on each value
 within the bag.
 
 Container Iterators
 ^^^^^^^^^^^^^^^^^^^
 
-Iteration can also be performed using iterators. The `begin()` and `end()` methods return iterators to the local data
+Iteration can also be performed using iterators. The ``begin()`` and ``end()`` methods return iterators to the local data
 stored within a rank. This allows for range-based for loops that have more control over the flow of the loop. For
-instance, this example adds all values within a `ygm::container::bag<int>` named `my_bag` until the first odd value is
+instance, this example adds all values within a ``ygm::container::bag<int>`` named ``my_bag`` until the first odd value is
 encountered:
 
 .. code-block:: C++
@@ -94,10 +94,10 @@ encountered:
     even_sum += value;
    }
 
-When using iterators to YGM containers, it is important to remember that `begin()` and `end()` are collective calls that
-include a `barrier` to make sure all updates to the container have been processed. This can easily lead to deadlocks if
-not used carefully. The `local_begin()` and `local_end()` calls return the same iterators to the data within a rank as
-`begin()` and `end()` but do not call `barrier` at the beginning. These can be used to iterate locally within a single
+When using iterators to YGM containers, it is important to remember that ``begin()`` and ``end()`` are collective calls that
+include a ``barrier`` to make sure all updates to the container have been processed. This can easily lead to deadlocks if
+not used carefully. The ``local_begin()`` and ``local_end()`` calls return the same iterators to the data within a rank as
+``begin()`` and ``end()`` but do not call ``barrier`` at the beginning. These can be used to iterate locally within a single
 rank with the understanding that there may be messages queued that attempt to update values within the container which
 may need to be considered.
 
@@ -105,7 +105,7 @@ may need to be considered.
 -------------------------
 
 Operations prefixed with ``async_`` perform operations on containers that can be spawned from any process and
-execute on the correct process using YGM's asynchronous runtime. The most common `async` operations are:
+execute on the correct process using YGM's asynchronous runtime. The most common ``async`` operations are:
 
    * ``async_insert`` - Inserts an item or a key and value, depending on the container being used. The process responsible
      for storing the inserted object is determined using the container's partitioner. Depending on the container, this
