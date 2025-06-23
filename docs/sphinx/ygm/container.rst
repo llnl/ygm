@@ -40,7 +40,7 @@ Typical Container Operations
 ----------------------------
 
 Most interaction with containers occurs in one of two classes of operations:
-:code:`for_all` and `async_`.
+:code:`for_all` and ``async_``.
 
 :code:`for_all` Operations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -10,7 +10,7 @@ Their uses include tracking the performance of YGM, getting easy access to basic
 functionality can be safely included in user programs, but is often already included in other YGM headers because they
 can be used within YGM.
 
-`ygm::utility::timer`
+:code:`ygm::utility::timer`
 =====================
 
 The `ygm::utility::timer` class starts a very simple timer using `MPI_Wtime`. It includes `elapsed()` and `reset()`
@@ -27,7 +27,7 @@ Typical use of the `ygm::utility::timer` is:
   world.barrier();
   world.cout0("Time: ", t.elapsed());
 
-`ygm::utility::progress_indicator`
+``ygm::utility::progress_indicator``
 ==================================
 
 The `ygm::utility::progress_indicator` asynchronously tracks progress through a calculation across all processes, with
@@ -77,7 +77,7 @@ Asserts
 * `YGM_ASSERT_DEBUG` - same functionality as `assert`
 * `YGM_ASSERT_RELEASE` - assert statement that is triggered even if `NDEBUG` is defined
 
-Specialized Serialization Functionality
+Specialized Serialization Functions
 =======================================
 
 A number of headers are provided for serialization of datatypes for communication through YGM:
