@@ -1,7 +1,8 @@
 .. _ygm-container:
 
+****************************************
 :code:`ygm::container` module reference.
-========================================
+****************************************
 
 :code:`ygm::container` is a collection of distributed containers designed specifically
 to perform well within YGM's asynchronous runtime.
@@ -13,7 +14,7 @@ While insiration is taken from STL, the top priority is to provide expressive
 and performant tools within the YGM framework.
 
 Implemented Storage Containers
-------------------------------
+==============================
 
 The currently implemented containers include a mix of distributed versions of familiar containers and
 distributed-specific containers:
@@ -37,23 +38,71 @@ distributed-specific containers:
      of set merges.
 
 Typical Container Operations
-----------------------------
+============================
 
 Most interaction with containers occurs in one of two classes of operations:
-:code:`for_all` and ``async_``.
+iteration and ``async_``.
 
-:code:`for_all` Operations
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Iterating over Containers
+-------------------------
+
+Elements within a container can be iterated over using calls to `for_all` methods or using standard C++ iterators. In
+their standard form, both iteration techniques make calls to a YGM `barrier` on the underlying communicator to ensure
+that all updates to the container have been processed before starting the iteration. `local_` variants for both exist
+that skip the call to `barrier`, allowing them to be called in a non-collective context.
+
+Container :code:`for_all` Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :code:`for_all`-class operations are barrier-inducing collectives that direct
 ranks to iteratively apply a user-provided function to all locally-held data.
 Functions passed to the :code:`for_all` interface do not support additional
-variadic parameters.
-However, these functions are stored and executed locally on each rank, and so
-can capture objects in rank-local scope.
+variadic parameters. However, these functions are stored and executed locally on each rank, and so
+can capture objects in rank-local scope. The `local_for_all` variant has the same API as `for_all`, but skips the
+internal call to `barrier` at its beginning.
+
+The following example shows a `for_all` being used to double all values in a `ygm::container::bag<int>` called `my_bag`:
+
+.. code-block:: C++
+
+   int multiple{2};
+
+   my_bag.for_all([&multiple](int &value) {
+    value = value * multiple;
+    });
+
+The above example uses a capture of the `multiple` variable that can be used within the lambda executed on each value
+within the bag.
+
+Container Iterators
+^^^^^^^^^^^^^^^^^^^
+
+Iteration can also be performed using iterators. The `begin()` and `end()` methods return iterators to the local data
+stored within a rank. This allows for range-based for loops that have more control over the flow of the loop. For
+instance, this example adds all values within a `ygm::container::bag<int>` named `my_bag` until the first odd value is
+encountered:
+
+.. code-block:: C++
+
+   int even_sum{0};
+
+   for (const auto &value : my_bag) {
+    if (value % 2 == 1) {
+      break;
+    }
+
+    even_sum += value;
+   }
+
+When using iterators to YGM containers, it is important to remember that `begin()` and `end()` are collective calls that
+include a `barrier` to make sure all updates to the container have been processed. This can easily lead to deadlocks if
+not used carefully. The `local_begin()` and `local_end()` calls return the same iterators to the data within a rank as
+`begin()` and `end()` but do not call `barrier` at the beginning. These can be used to iterate locally within a single
+rank with the understanding that there may be messages queued that attempt to update values within the container which
+may need to be considered.
 
 :code:`async_` Operations
-^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------
 
 Operations prefixed with ``async_`` perform operations on containers that can be spawned from any process and
 execute on the correct process using YGM's asynchronous runtime. The most common `async` operations are:
@@ -83,13 +132,42 @@ capabilities of the container. Consult the documentation of individual container
    container/set
 
 YGM Container Example
----------------------
+=====================
 
-.. literalinclude:: ../../../examples/container/map_visit.cpp
-   :language: C++
+.. code-block:: C++
+
+  #include <ygm/comm.hpp>
+  #include <ygm/container/map.hpp>
+  
+  int main(int argc, char **argv) {
+    ygm::comm world(&argc, &argv);
+  
+    ygm::container::map<std::string, std::string> my_map(world);
+  
+    if (world.rank0()) {
+      my_map.async_insert("dog", "bark");
+      my_map.async_insert("cat", "meow");
+    }
+  
+    world.barrier();
+  
+    auto favorites_lambda = [](auto key, auto &value, const int favorite_num) {
+      std::cout << "My favorite animal is a " << key << ". It says '" << value
+                << "!' My favorite number is " << favorite_num << std::endl;
+    };
+  
+    // Send visitors to map
+    if (world.rank() % 2) {
+      my_map.async_visit("dog", favorites_lambda, world.rank());
+    } else {
+      my_map.async_visit("cat", favorites_lambda, world.rank() + 1000);
+    }
+  
+    return 0;
+  }
 
 Container Transformation Objects
---------------------------------
+================================
 
 ``ygm::container`` provides a number of transformation objects that can be applied to containers to alter the appearance
 of items passed to ``for_all`` operations without modifying the items within the container itself. The currently
