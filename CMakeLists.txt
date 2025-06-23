@@ -149,7 +149,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json
 )
 
 if (YGM_DONT_USE_MREMAP)
@@ -167,48 +167,6 @@ endif ()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(ygm INTERFACE stdc++fs)
 endif()
-
-# Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
-
-install(
-    TARGETS ${PROJECT_NAME} cereal
-    EXPORT ${PROJECT_NAME}Targets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-install(
-    EXPORT ${PROJECT_NAME}Targets
-    FILE ${PROJECT_NAME}Targets.cmake
-    NAMESPACE ${PROJECT_NAME}::
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-)
-
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-
-# create version file
-write_basic_package_version_file(
-    "${PROJECT_NAME}ConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY ExactVersion
-)
-
-# create config file
-configure_package_config_file(
-    "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-)
-
-install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-              "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-)
 
 if (YGM_BUILD_TESTS)
     option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
