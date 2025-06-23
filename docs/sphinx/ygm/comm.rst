@@ -53,9 +53,12 @@ telling it to greet the world
 	   world.async(1, hello_world_lambda, std::string("world"));
    }
 
-The full, compilable version of this example is found `here </examples/hello_world.cpp>`_. Running it prints a single
-"Hello world".
+A full, compilable version of this example is found `here`_. 
 
-.. doxygenclass:: ygm::comm
-  :members:
-  :undoc-members:
+.. _here: https://github.com/LLNL/ygm-tutorial/blob/main/examples/howdy_world.cpp
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Communicator API
+
+   comm/comm
