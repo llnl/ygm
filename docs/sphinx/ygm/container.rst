@@ -22,11 +22,8 @@ distributed-specific containers:
      iteration over all items with no capability for identifying or searching for an individual item within the bag.
    * ``ygm::container::set`` - Analogous to ``std::set``. An unordered collection of unique objects with the ability to iterate
      and search for individual items. Insertion and iteration are slower than a ``ygm::container::bag``.
-   * ``ygm::container::multiset`` - Analogous to ``std::multiset``. A set where multiple instances of the same object
-     may appear.
    * ``ygm::container::map`` - Analogous to ``std::map``. A collection of keys with assigned values. Keys and values can
      be inserted and looked up individually or iterated over collectively.
-   * ``ygm::container::multimap`` - Analogous to ``std::multimap``. A map where keys may appear with multiple values.
    * ``ygm::container::array`` - A collection of items indexed by an integer type. Items can be inserted and looked up
      by their index values independently or iterated over collectively. Differs from a ``std::array`` in that sizes do
      not need to known at compile-time, and a ``ygm::container::array`` can be dynamically resized through a
@@ -75,7 +72,7 @@ Specific containers may have additional ``async_`` operations (or may be missing
 capabilities of the container. Consult the documentation of individual containers for more details.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Container Classes:
 
    container/array
@@ -83,8 +80,6 @@ capabilities of the container. Consult the documentation of individual container
    container/counting_set
    container/disjoint_set
    container/map
-   container/multimap
-   container/multiset
    container/set
 
 YGM Container Example
