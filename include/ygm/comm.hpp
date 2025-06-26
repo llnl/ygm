@@ -106,23 +106,21 @@ class comm {
   // Collective operations across all ranks.  Cannot be called inside OpenMP
   // region.
 
-  /**
-   * @brief Control Flow Barrier
-   * Only blocks the control flow until all processes in the communicator have
-   * called it. See:  MPI_Barrier()
-   */
   void cf_barrier() const;
 
-  /**
-   * @brief Full communicator barrier
-   *
-   */
   void barrier();
 
+  /**
+   * @brief Full communicator barrier that can be called on const comm objects
+   */
   void barrier() const { const_cast<comm *>(this)->barrier(); }
 
   void async_barrier();
 
+  /**
+   * @brief Asynchronous communicator barrier that can be called on const comm
+   * objects
+   */
   void async_barrier() const { const_cast<comm *>(this)->async_barrier(); }
 
   void local_progress();
@@ -135,12 +133,6 @@ class comm {
   template <typename T>
   ygm_ptr<T> make_ygm_ptr(T &t);
 
-  /**
-   * @brief Registers a callback that will be executed prior to the barrier
-   * completion
-   *
-   * @param fn callback function
-   */
   void register_pre_barrier_callback(const std::function<void()> &fn);
 
   template <typename T>
@@ -171,11 +163,24 @@ class comm {
 
   const detail::comm_router &router() const;
 
+  /**
+   * @brief Checks if current rank is rank 0
+   *
+   * @return bool indicating whether current rank is rank 0
+   */
   bool rank0() const { return rank() == 0; }
 
   template <typename T>
   void mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const;
 
+  /**
+   * @brief Send an MPI message over an unspecified MPI communicator
+   *
+   * @tparam T datatype being sent (must be serializable with cereal)
+   * @param data Message contents to send
+   * @param dest Rank to send data to
+   * @param tag MPI tag to assign to message
+   */
   template <typename T>
   void mpi_send(const T &data, int dest, int tag) const {
     mpi_send(data, dest, tag, m_comm_other);
@@ -184,6 +189,14 @@ class comm {
   template <typename T>
   T mpi_recv(int source, int tag, MPI_Comm comm) const;
 
+  /**
+   * @brief Receive an MPI message over an unspecified MPI communicator
+   *
+   * @tparam T datatype being received (must be serializable with cereal)
+   * @param source Rank sending message
+   * @param tag MPI tag to assign to message
+   * @return Received message
+   */
   template <typename T>
   T mpi_recv(int source, int tag) const {
     return mpi_recv<T>(source, tag, m_comm_other);
@@ -192,6 +205,14 @@ class comm {
   template <typename T>
   T mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const;
 
+  /**
+   * @brief Broadcast an MPI message over an unspecified MPI communicator
+   *
+   * @tparam Datatype to broadcast (must be serializable)
+   * @param to_bcast Data being broadcast
+   * @param root Rank message is being broadcast from
+   * @return Data received from root
+   */
   template <typename T>
   T mpi_bcast(const T &to_bcast, int root) const {
     return mpi_bcast(to_bcast, root, m_comm_other);
@@ -225,10 +246,31 @@ class comm {
   bool is_ygm_tracing_enabled() const;
 
   bool is_mpi_tracing_enabled() const;
+
+  /**
+   * @brief Set the log level to use in YGM
+   *
+   * @param level Log level to use. Possible values in order of increasing
+   * verbosity are ygm::log_level::off, ygm::log_level::critical,
+   * ygm::log_level::error, ygm::log_level::warn, ygm::log_level::info,
+   * ygm::log_level::debug
+   */
   void set_log_level(const ygm::log_level level) {
     m_logger.set_log_level(level);
   }
 
+  /**
+   * @brief Add a message to the YGM logs
+   *
+   * @tparam Args... Variadic types to add to log
+   * @param Minimum log level for logging message
+   * @args Variadic arguments add to log
+   *
+   * \code{cpp}
+   *    int var = 6;
+   *    world.log(ygm::log_level::info, "This is my var: ", var);
+   * \endcode
+   */
   template <typename... Args>
   void log(const ygm::log_level level, Args &&...args) const {
     m_logger.log(level, args...);
