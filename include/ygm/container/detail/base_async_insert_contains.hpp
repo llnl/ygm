@@ -12,8 +12,37 @@
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_insert_contains operation
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_contains {
+  /**
+   * @brief Asynchronously insert into a container if value is not already
+   * present and execute a user-provided function that is told whether the value
+   * was already present
+   *
+   * @tparam
+   * @param value Value to attempt to insert
+   * @param fn Function to execute after attempted insertion
+   * @param argx... Variadic arguments to pass to fn
+   * @details Insertion only occurs if value is not already present. If the
+   * container is associative, this means the (key, value) pair will not be
+   * reset to the value's default.
+   *
+   * \code{cpp}
+   * ygm::container::map<int, int> my_map(world);
+   * my_bag.async_insert_contains(10, [](bool contains, auto &value) {
+   *    if (contains) {
+   *      wcout() << "my_map already contained " << value << std::endl;
+   *    } else {
+   *      wcout() << "my_map did not already contain " << value << " but now it
+   * does" << std::endl;
+   *    }
+   *  });
+   *  \endcode
+   */
   template <typename Function, typename... FuncArgs>
   void async_insert_contains(
       const typename std::tuple_element<0, for_all_args>::type& value,

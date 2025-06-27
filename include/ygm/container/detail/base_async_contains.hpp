@@ -12,8 +12,26 @@
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_contains operation
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_contains {
+  /**
+   * @brief Asynchronously execute a function with knowledge of if the container
+   * contains the given value
+   *
+   * @tparam Function Type of user function
+   * @tparam FuncArgs... Variadic types of user-provided arguments to function
+   * @param value Value to check for existence of in container
+   * @param fn User-provided function to execute
+   * @param args... Variadic arguments to user-provided function
+   * @details The user-provided function is provided with (1) an optional
+   * pointer to the container, (2) a boolean indicating whether the desired
+   * value was found, (3) the value searched for, and (4) any additional
+   * arguments passed to async_contains by the user
+   */
   template <typename Function, typename... FuncArgs>
   void async_contains(
       const typename std::tuple_element<0, for_all_args>::type& value,

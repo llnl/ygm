@@ -13,8 +13,34 @@
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_visit operation to associative containers
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_visit {
+  /**
+   * @brief Asynchronously visit key within a container and execute a
+   * user-provided function
+   *
+   * @tparam Visitor Type of user-provided function
+   * @tparam VisitorArgs... Variadic argument types to give to user function
+   * @param key Key to visit in container
+   * @param visitor User-provided function to execute at key
+   * @param args... Variadic arguments to pass to user-provided function
+   *
+   * \code{cpp}
+   * ygm::container::map<std::string, int> my_map(world);
+   * my_map.async_insert("one", 1);
+   * world.barrier();
+   * my_map.async_visit("one", [](const auto &key, auto &val, int &to_add) {
+   *    val += to_add;
+   *    }, world.size())
+   * world.barrier();
+   * \endcode
+   * will result in a value of `world.size() * world.size() + 1` associated to
+   * the key `"one"`.
+   */
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(
       const typename std::tuple_element<0, for_all_args>::type& key,
@@ -41,6 +67,19 @@ struct base_async_visit {
                                args...);
   }
 
+  /**
+   * @brief Asynchronously visit key within a container and execute a
+   * user-provided function only if the key already exists
+   *
+   * @tparam Visitor Type of user-provided function
+   * @tparam VisitorArgs... Variadic argument types to give to user function
+   * @param key Key to visit in container
+   * @param visitor User-provided function to execute at key
+   * @param args... Variadic arguments to pass to user-provided function
+   * @details This function differs from `async_visit` in that it will not
+   * default construct a value within the container prior to visiting a key that
+   * does not already exist.
+   */
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
       const typename std::tuple_element<0, for_all_args>::type& key,
@@ -68,6 +107,10 @@ struct base_async_visit {
                                args...);
   }
 
+  /**
+   * @brief Version of `async_visit_if_contains` that works on `const` objects
+   * and provides `const` arguments to the user-provided lambda
+   */
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_contains(
       const typename std::tuple_element<0, for_all_args>::type& key,

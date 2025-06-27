@@ -26,10 +26,25 @@ class flatten_proxy_value;
 template <typename derived_type>
 class flatten_proxy_key_value;
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * for_all, gather, gather_topk, reduce, collect, reduce_by_key, transform,
+ * flatten, and filter operations to non-associative YGM containers
+ */
 template <typename derived_type, SingleItemTuple for_all_args>
 struct base_iteration_value {
   using value_type = typename std::tuple_element<0, for_all_args>::type;
 
+  /**
+   * @brief Iterates over all items in a container and executes a user-provided
+   * function object on each.
+   *
+   * @tparam Function Type of user-provided function
+   * @param fn User-provided function
+   * @details The user-provided function is expected to take a single argument
+   * that is an item within the container. If the user provides a lambda as
+   * their function object, the lambda is allowed to capture.
+   */
   template <typename Function>
   void for_all(Function&& fn) {
     auto* derived_this = static_cast<derived_type*>(this);
@@ -37,6 +52,16 @@ struct base_iteration_value {
     derived_this->local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Const version of for_all that iterates over all items and passes
+   * them to the user function as const
+   * *
+   * @tparam Function Type of user-provided function
+   * @param fn User-provided function
+   * @details The user-provided function is expected to take a single argument
+   * that is an item within the container. If the user provides a lambda as
+   * their function object, the lambda is allowed to capture.
+   */
   template <typename Function>
   void for_all(Function&& fn) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -44,6 +69,13 @@ struct base_iteration_value {
     derived_this->local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Gather all values in an STL container
+   *
+   * @tparam STLContainer Type of STL container to gather to
+   * @param gto Container to store results in
+   * @param rank Rank to tather results on. Use -1 to gather to all ranks
+   */
   template <typename STLContainer>
   void gather(STLContainer& gto, int rank) const {
     static_assert(
@@ -71,11 +103,27 @@ struct base_iteration_value {
     derived_this->comm().barrier();
   }
 
+  /**
+   * @brief Gather all values in an STL container on all ranks
+   *
+   * @tparam STLContainer Type of STL container to gather to
+   * @param gto Container to store results in
+   * @details Equivalent to `gather(gto, -1)`
+   */
   template <typename STLContainer>
   void gather(STLContainer& gto) const {
     gather(gto, -1);
   }
 
+  /**
+   * @brief Gather the k "largest" values according to provided comparison
+   * function
+   *
+   * @tparam Compare Type of comparison operator
+   * @param k Number of values to gather
+   * @param comp Comparison function for identifying elements to gather
+   * @return vector of largest values
+   */
   template <typename Compare = std::greater<value_type>>
   std::vector<value_type> gather_topk(
       size_t k, Compare comp = std::greater<value_type>()) const
@@ -113,6 +161,16 @@ struct base_iteration_value {
     return to_return;
   }
 
+  /**
+   * @brief Perform a reduction over all items in container
+   *
+   * @tparam MergeFunction Merge functor type
+   * @param merge Functor to combine pairs of items
+   * @return Value from all reductions
+   * @details `reduce` only makes sense to use with commutative and associative
+   * functors defining merges. Otherwise, ranks will not receive the same
+   * result.
+   */
   template <typename MergeFunction>
   value_type reduce(MergeFunction merge) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -145,6 +203,12 @@ struct base_iteration_value {
     return to_return.value();
   }
 
+  /**
+   * @brief Collects all items in a new YGM container
+   *
+   * @tparam YGMContainer Container type
+   * @param c Container to collect into
+   */
   template <typename YGMContainer>
   void collect(YGMContainer& c) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -152,6 +216,14 @@ struct base_iteration_value {
     derived_this->for_all(clambda);
   }
 
+  /**
+   * @brief Reduces all values in key-value pairs with matching keys
+   *
+   * @tparam MapType Result YGM container type
+   * @tparam ReductionOp Functor type
+   * @param map YGM container to hold result
+   * @param reducer Functor for combining values
+   */
   template <typename MapType, typename ReductionOp>
   void reduce_by_key(MapType& map, ReductionOp reducer) const {
     // TODO:  static_assert MapType is ygm::container::map
@@ -179,12 +251,30 @@ struct base_iteration_value {
   filter_proxy_value<derived_type, FilterFunction> filter(FilterFunction&& ffn);
 
  private:
+  /**
+   * @brief Generic function for insertion into STL containers, specialized for
+   * using `push_back`
+   *
+   * @tparam STLContainer Container type
+   * @tparam Value Type of value
+   * @param stc STL container to insert into
+   * @param v Value to insert
+   */
   template <typename STLContainer, typename Value>
     requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
+  /**
+   * @brief Generic function for insertion into STL containers, specialized for
+   * using `inseert`
+   *
+   * @tparam STLContainer Container type
+   * @tparam Value Type of value
+   * @param stc STL container to insert into
+   * @param v Value to insert
+   */
   template <typename STLContainer, typename Value>
     requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
@@ -192,12 +282,29 @@ struct base_iteration_value {
   }
 };
 
-// For Associative Containers
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * for_all, gather, gather_topk, reduce, collect, reduce_by_key, transform,
+ * flatten, and filter operations to associative YGM containers
+ *
+ * @details Requires `for_all_args` to be a `tuple` of two items
+ */
 template <typename derived_type, DoubleItemTuple for_all_args>
 struct base_iteration_key_value {
   using key_type    = typename std::tuple_element<0, for_all_args>::type;
   using mapped_type = typename std::tuple_element<1, for_all_args>::type;
 
+  /**
+   * @brief Iterates over all items in a container and executes a user-provided
+   * function object on each.
+   *
+   * @tparam Function Type of user-provided function
+   * @param fn User-provided function
+   * @details The user-provided function is expected to take a single key and
+   * value as separate arguments that make a (key, value) pair within the
+   * container. If the user provides a lambda as their function object, the
+   * lambda is allowed to capture.
+   */
   template <typename Function>
   void for_all(Function fn) {
     auto* derived_this = static_cast<derived_type*>(this);
@@ -205,6 +312,17 @@ struct base_iteration_key_value {
     derived_this->local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Const version of for_all that iterates over all items and passes
+   * them to the user function as const
+   * *
+   * @tparam Function Type of user-provided function
+   * @param fn User-provided function
+   * @details The user-provided function is expected to take a single key and
+   * value as separate arguments that make a (key, value) pair within the
+   * container. If the user provides a lambda as their function object, the
+   * lambda is allowed to capture.
+   */
   template <typename Function>
   void for_all(Function&& fn) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -212,6 +330,15 @@ struct base_iteration_key_value {
     derived_this->local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Gather all values in an STL container
+   *
+   * @tparam STLContainer Type of STL container to gather to
+   * @param gto Container to store results in
+   * @param rank Rank to tather results on. Use -1 to gather to all ranks
+   * @details Requires STL container to have a `value_type` that is (key, value)
+   * pairs from the YGM container
+   */
   template <typename STLContainer>
   void gather(STLContainer& gto, int rank) const {
     static_assert(std::is_same_v<typename STLContainer::value_type,
@@ -242,11 +369,27 @@ struct base_iteration_key_value {
     derived_this->comm().barrier();
   }
 
+  /**
+   * @brief Gather all values in an STL container on all ranks
+   *
+   * @tparam STLContainer Type of STL container to gather to
+   * @param gto Container to store results in
+   * @details Equivalent to `gather(gto, -1)`
+   */
   template <typename STLContainer>
   void gather(STLContainer& gto) const {
     gather(gto, -1);
   }
 
+  /**
+   * @brief Gather the k "largest" key-value pairs according to provided
+   * comparison function
+   *
+   * @tparam Compare Type of comparison operator
+   * @param k Number of key-value pairs to gather
+   * @param comp Comparison function for identifying elements to gather
+   * @return vector of largest key-value pairs
+   */
   template <typename Compare = std::greater<std::pair<key_type, mapped_type>>>
   std::vector<std::pair<key_type, mapped_type>> gather_topk(
       size_t k, Compare comp = Compare()) const {
@@ -317,6 +460,12 @@ struct base_iteration_key_value {
   }
   */
 
+  /**
+   * @brief Collects all items in a new YGM container
+   *
+   * @tparam YGMContainer Container type
+   * @param c Container to collect into
+   */
   template <typename YGMContainer>
   void collect(YGMContainer& c) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -326,6 +475,14 @@ struct base_iteration_key_value {
     derived_this->for_all(clambda);
   }
 
+  /**
+   * @brief Reduces all values in key-value pairs with matching keys
+   *
+   * @tparam MapType Result YGM container type
+   * @tparam ReductionOp Functor type
+   * @param map YGM container to hold result
+   * @param reducer Functor for combining values
+   */
   template <typename MapType, typename ReductionOp>
   void reduce_by_key(MapType& map, ReductionOp reducer) const {
     const auto* derived_this = static_cast<const derived_type*>(this);
@@ -345,11 +502,21 @@ struct base_iteration_key_value {
   transform_proxy_key_value<derived_type, TransformFunction> transform(
       TransformFunction&& ffn);
 
+  /**
+   * @brief Access to container presenting only keys
+   *
+   * @return Transform object that returns only keys to user
+   */
   auto keys() {
     return transform([](const key_type&    key,
                         const mapped_type& value) -> key_type { return key; });
   }
 
+  /**
+   * @brief Access to container presenting only values
+   *
+   * @return Transform object that returns only values to user
+   */
   auto values() {
     return transform(
         [](const key_type& key, const mapped_type& value) -> mapped_type {
@@ -364,12 +531,30 @@ struct base_iteration_key_value {
       FilterFunction&& ffn);
 
  private:
+  /**
+   * @brief Generic function for insertion into STL containers, specialized for
+   * using `push_back`
+   *
+   * @tparam STLContainer Container type
+   * @tparam Value Type of value
+   * @param stc STL container to insert into
+   * @param v Value to insert
+   */
   template <typename STLContainer, typename Value>
     requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
+  /**
+   * @brief Generic function for insertion into STL containers, specialized for
+   * using `inseert`
+   *
+   * @tparam STLContainer Container type
+   * @tparam Value Type of value
+   * @param stc STL container to insert into
+   * @param v Value to insert
+   */
   template <typename STLContainer, typename Value>
     requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
@@ -384,6 +569,27 @@ struct base_iteration_key_value {
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Creates proxy that transforms items in container that are presented to
+ * user `for_all` calls
+ *
+ * @tparam TransformFunction functor type
+ * @param ffn Function to transform items in container
+ * @details The underlying items within the container are not modified.
+ *
+ * \code{cpp}
+ * ygm::container::bag<int> my_bag(world);
+ * my_bag.async_insert(2);
+ * my_bag.barrier();
+ *
+ * my_bag.transform([](auto &val) { return 2*val; }).for_all([](const auto
+ * &transformed_val) { YGM_ASSERT_RELEASE(val == 4);
+ * });
+ *
+ * my_bag.for_all([](const auto &val) { YGM_ASSERT_RELEASE(val == 2); });
+ * \endcode
+ * will complete successfully.
+ */
 template <typename derived_type, SingleItemTuple for_all_args>
 template <typename TransformFunction>
 transform_proxy_value<derived_type, TransformFunction>
@@ -394,6 +600,26 @@ base_iteration_value<derived_type, for_all_args>::transform(
       *derived_this, std::forward<TransformFunction>(ffn));
 }
 
+/**
+ * @brief Flattens STL containers of values to allow a function to be called on
+ * inner items individually
+ *
+ * @details Underlying container is not modified.
+ *
+ * \code{cpp}
+ * ygm::container::bag<std::vector<int>> my_bag(world, {{1, 2, 3}});
+ *
+ * my_bag.flatten().for_all([](const int &nested_val) {
+ * std::cout << "Nested value: " << nested_val << std::cout;
+ * });
+ * \endcode
+ * will print
+ * ```
+ * Nested value: 1
+ * Nested value: 2
+ * Nested value: 3
+ * ```
+ */
 template <typename derived_type, SingleItemTuple for_all_args>
 inline flatten_proxy_value<derived_type>
 base_iteration_value<derived_type, for_all_args>::flatten() {
@@ -403,6 +629,22 @@ base_iteration_value<derived_type, for_all_args>::flatten() {
   return flatten_proxy_value<derived_type>(*derived_this);
 }
 
+/**
+ * @brief Filters items in a container so only allow `for_all` to execute on
+ * those that satisfy a given predicate function.
+ *
+ * @tparam FilterFunction Functor type
+ * @param ffn Function used to filter items in container.
+ * @details Filtered items are not removed from underlying container.
+ *
+ * \code{cpp}
+ * ygm::container::bag<int> my_bag(world, {1, 2, 3, 4});
+ * my_bag.filter([](const auto &val) { return (val % 2) == 0;
+ * }).for_all([](const auto &filtered_val) { YGM_ASSERT_RELEASE((filtered_val %
+ * 2) == 0);
+ * });
+ * \endcode
+ */
 template <typename derived_type, SingleItemTuple for_all_args>
 template <typename FilterFunction>
 filter_proxy_value<derived_type, FilterFunction>
@@ -412,6 +654,15 @@ base_iteration_value<derived_type, for_all_args>::filter(FilterFunction&& ffn) {
       *derived_this, std::forward<FilterFunction>(ffn));
 }
 
+/**
+ * @brief Creates proxy that transforms key-value pairs in an associative
+ * container that are presented to user `for_all` calls
+ *
+ * @tparam TransformFunction functor type
+ * @param ffn Function to transform items in container
+ * @details The underlying items within the container are not modified.
+ *
+ */
 template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename TransformFunction>
 transform_proxy_key_value<derived_type, TransformFunction>
@@ -422,6 +673,12 @@ base_iteration_key_value<derived_type, for_all_args>::transform(
       *derived_this, std::forward<TransformFunction>(ffn));
 }
 
+/**
+ * @brief Flattens STL containers of values to allow a function to be called on
+ * inner items individually
+ *
+ * @details Underlying container is not modified.
+ */
 template <typename derived_type, DoubleItemTuple for_all_args>
 inline flatten_proxy_key_value<derived_type>
 base_iteration_key_value<derived_type, for_all_args>::flatten() {
@@ -431,6 +688,14 @@ base_iteration_key_value<derived_type, for_all_args>::flatten() {
   return flatten_proxy_key_value<derived_type>(*derived_this);
 }
 
+/**
+ * @brief Filters items in a container so only allow `for_all` to execute on
+ * those that satisfy a given predicate function.
+ *
+ * @tparam FilterFunction Functor type
+ * @param ffn Function used to filter items in container.
+ * @details Filtered items are not removed from underlying container.
+ */
 template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename FilterFunction>
 filter_proxy_key_value<derived_type, FilterFunction>

@@ -11,10 +11,24 @@
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_erase operation for containers that searches for keys to erase in
+ * associative containers or values in non-associative containers.
+ *
+ * @details Requires for_all_args to be a tuple with at least one item
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_erase_key {
-  void async_erase(const typename std::tuple_element<0, for_all_args>::type&
-                       key) requires AtLeastOneItemTuple<for_all_args>
+  /**
+   * @brief Asynchronously erases a key from a container
+   *
+   * @param key Key to erase (key, value) pair of in associative containers or
+   * value to erase in non-associative containers
+   */
+  void async_erase(
+      const typename std::tuple_element<0, for_all_args>::type& key)
+    requires AtLeastOneItemTuple<for_all_args>
 
   {
     derived_type* derived_this = static_cast<derived_type*>(this);
@@ -31,12 +45,28 @@ struct base_async_erase_key {
   }
 };
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_erase operation for containers that searches for key and associated
+ * values to erase in associative containers
+ *
+ * @details Requires for_all_args to be a tuple with two items
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_erase_key_value {
+  /**
+   * @brief Asynchronously erases key and value from an associative container
+   *
+   * @param key Key to find in container
+   * @param value Value to find associated to key
+   *
+   * @details Does nothing if (key, value) pair is not found.
+   */
   void async_erase(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      const typename std::tuple_element<1, for_all_args>::type& value) requires
-      DoubleItemTuple<for_all_args> {
+      const typename std::tuple_element<1, for_all_args>::type& value)
+    requires DoubleItemTuple<for_all_args>
+  {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);

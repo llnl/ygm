@@ -12,8 +12,33 @@
 
 namespace ygm::container::detail {
 
+/**
+ * @brief Curiously-recurring template parameter struct that provides
+ * async_reduce operation
+ */
 template <typename derived_type, typename for_all_args>
 struct base_async_reduce {
+  /**
+   * @brief Combines existing `mapped_type` item with `value` using a
+   * user-provided binary operation if `key` is found in container. Inserts
+   * default `mapped_type` prior to reduction if `key` does not already exist in
+   * container.
+   *
+   * @tparam ReductionOp Type of function provided by usert to perform reduction
+   * @param key Key to search for within container
+   * @param value Provided value to combine with existing value in container
+   *
+   * \code{cpp}
+   * ygm::container::map<std::string, int> my_map(world);
+   * my_map.async_insert("one", 1);
+   * if (world.rank0()) {
+   *    my_map.async_reduce("one", 2, std::plus<int>());
+   *    my_map.async_reduce("two", 2, std::plus<int>());
+   * }
+   * world.barrier()
+   * \endcode
+   * will result in `my_map` containing the pairs `("one", 3)` and `("two", 2)`.
+   */
   template <typename ReductionOp>
   void async_reduce(
       const typename std::tuple_element<0, for_all_args>::type& key,
