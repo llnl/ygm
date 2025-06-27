@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-// #include <bit>
 #include <functional>
+#include <ygm/container/detail/hash.hpp>
 
 namespace ygm::container::detail {
 
@@ -22,7 +22,7 @@ struct old_hash_partitioner {
 
 template <typename Hash>
 struct hash_partitioner {
-  hash_partitioner(ygm::comm &comm, Hash hash = Hash())
+  hash_partitioner(ygm::comm &comm, Hash hash = Hash{})
       : m_comm_size(comm.size()), m_hasher(hash) {}
   template <typename Key>
   int owner(const Key &key) const {

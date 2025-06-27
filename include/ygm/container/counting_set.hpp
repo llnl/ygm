@@ -199,11 +199,11 @@ class counting_set
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
-  detail::hash_partitioner<boost::hash<key_type>> partitioner;
+  detail::hash_partitioner<detail::hash<key_type>> partitioner;
 
  private:
   void cache_erase(const key_type &key) {
-    size_t slot = boost::hash<key_type>{}(key) % count_cache_size;
+    size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second != -1 && m_count_cache[slot].first == key) {
       // Key was cached, clear cache
       m_count_cache[slot].second = -1;
@@ -218,7 +218,7 @@ class counting_set
       m_map.comm().register_pre_barrier_callback(
           [this]() { this->count_cache_flush_all(); });
     }
-    size_t slot = boost::hash<key_type>{}(key) % count_cache_size;
+    size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second == -1) {
       m_count_cache[slot].first  = key;
       m_count_cache[slot].second = 1;

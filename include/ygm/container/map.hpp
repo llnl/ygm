@@ -43,7 +43,7 @@ class map
   friend class detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
 
   using local_container_type =
-      boost::unordered::unordered_flat_map<Key, Value, boost::hash<Key>>;
+      boost::unordered::unordered_flat_map<Key, Value, detail::hash<Key>>;
 
  public:
   using self_type      = map<Key, Value>;
@@ -389,7 +389,7 @@ class map
   //   return m_impl.topk(k, cfn);
   // }
 
-  detail::hash_partitioner<boost::hash<key_type>> partitioner;
+  detail::hash_partitioner<detail::hash<key_type>> partitioner;
 
   void local_swap(self_type& other) { m_local_map.swap(other.m_local_map); }
 

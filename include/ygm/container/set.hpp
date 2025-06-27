@@ -34,7 +34,7 @@ class set
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
 
   using local_container_type =
-      boost::unordered::unordered_flat_set<Value, boost::hash<Value>>;
+      boost::unordered::unordered_flat_set<Value, detail::hash<Value>>;
 
  public:
   using self_type      = set<Value>;
@@ -48,7 +48,7 @@ class set
   set(ygm::comm &comm)
       : m_comm(comm),
         pthis(this),
-        partitioner(comm, boost::hash<value_type>()) {
+        partitioner(comm, detail::hash<value_type>()) {
     m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
@@ -165,7 +165,7 @@ class set
 
   void deserialize(const std::string &fname) {}
 
-  detail::hash_partitioner<boost::hash<value_type>> partitioner;
+  detail::hash_partitioner<detail::hash<value_type>> partitioner;
 
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
