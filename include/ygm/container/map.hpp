@@ -58,12 +58,23 @@ class map
 
   map() = delete;
 
+  /**
+   * @brief Map constructor
+   *
+   * @param comm Communicator to use for communication
+   */
   map(ygm::comm& comm)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
   }
 
+  /**
+   * @brief Map constructor taking default value
+   *
+   * @param comm Communicator to use for communication
+   * @param default_value Value to initialize all stored items with
+   */
   map(ygm::comm& comm, const mapped_type& default_value)
       : m_comm(comm),
         pthis(this),
@@ -73,6 +84,13 @@ class map
     pthis.check(m_comm);
   }
 
+  /**
+   * @brief Map constructor from std::initializer_list of values
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of key-value pairs to put in map
+   * @details Initializer list is assumed to be replicated on all ranks.
+   */
   map(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
@@ -84,6 +102,13 @@ class map
     }
   }
 
+  /**
+   * @brief Construct map from existing STL container
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t STL container containing key-value pairs to put in map
+   */
   template <typename STLContainer>
   map(ygm::comm& comm, const STLContainer& cont)
     requires detail::STLContainer<STLContainer> &&
@@ -99,6 +124,14 @@ class map
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct map from existing YGM container of key-value pairs
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t YGM container of key-value pairs to put in map.
+   * @details This version works from non-associative containers.
+   */
   template <typename YGMContainer>
   map(ygm::comm& comm, const YGMContainer& yc)
     requires detail::HasForAll<YGMContainer> &&
@@ -153,12 +186,52 @@ class map
     return *this;
   }
 
-  iterator       local_begin() { return m_local_map.begin(); }
+  /**
+   * @brief Access to begin iterator of locally-held items
+   *
+   * @return Local iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_begin() { return m_local_map.begin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const map
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_begin() const { return m_local_map.cbegin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const map
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cbegin() const { return m_local_map.cbegin(); }
 
-  iterator       local_end() { return m_local_map.end(); }
+  /**
+   * @brief Access to end iterator of locally-held items
+   *
+   * @return Local iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_end() { return m_local_map.end(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const map
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_end() const { return m_local_map.cend(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const map
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cend() const { return m_local_map.cend(); }
 
   using detail::base_async_erase_key<map<Key, Value>,
@@ -168,10 +241,27 @@ class map
   using detail::base_batch_erase_key_value<map<Key, Value>,
                                            for_all_args>::erase;
 
+  /**
+   * @brief Insert a key and default value into local storage.
+   *
+   * @param key Local index to store default value at
+   */
   void local_insert(const key_type& key) { local_insert(key, m_default_value); }
 
+  /**
+   * @brief Erase local entry for given key
+   *
+   * @param key Key to erase from local storage
+   */
   void local_erase(const key_type& key) { m_local_map.erase(key); }
 
+  /**
+   * @brief Erase local entry for given key and value
+   *
+   * @param key Key to erase from local storage
+   * @param value Vale to erase if associated to key
+   * @details Does not erase the entry if key is found with a different value
+   */
   void local_erase(const key_type& key, const key_type& value) {
     auto itr = m_local_map.find(key);
     if (itr != m_local_map.end() && itr->second == value) {
@@ -179,16 +269,41 @@ class map
     }
   }
 
+  /**
+   * @brief Insert a key and value into local storage.
+   *
+   * @param key Local index to store value at
+   * @param value Vale to store
+   */
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_map.insert({key, value});
   }
 
+  /**
+   * @brief Insert a key and value into local storage or assign value to key if
+   * key is already present
+   *
+   * @param key Local index to store value at
+   * @param value Vale to store
+   */
   void local_insert_or_assign(const key_type& key, const mapped_type& value) {
     m_local_map.insert_or_assign(key, value);
   }
 
+  /**
+   * @brief Clear local storage
+   */
   void local_clear() { m_local_map.clear(); }
 
+  /**
+   * @brief Update a locally stored element by performing a binary operation
+   * between it and a provided value
+   *
+   * @tparam ReductionOp functor type
+   * @param key Key to perform binary operation at.
+   * @param value Value to combine with the currently-held value
+   * @param reducer Binary operation to perform
+   */
   template <typename ReductionOp>
   void local_reduce(const key_type& key, const mapped_type& value,
                     ReductionOp reducer) {
@@ -199,14 +314,40 @@ class map
     }
   }
 
+  /**
+   * @brief Get the number of elements stored on the local process.
+   *
+   * @return Local size of map
+   */
   size_t local_size() const { return m_local_map.size(); }
 
+  /**
+   * @brief Retrieve value for given key.
+   *
+   * @param key Key to look up value for
+   * @details Throws an exception if key is not found in local storage
+   */
   mapped_type& local_at(const key_type& key) { return m_local_map.at(key); }
 
+  /**
+   * @brief Retrieve const reference to value for given key.
+   *
+   * @param key Key to look up value for
+   * @details Throws an exception if key is not found in local storage
+   */
   const mapped_type& local_at(const key_type& key) const {
     return m_local_map.at(key);
   }
 
+  /**
+   * @brief Visit a key-value pair stored locally
+   *
+   * @tparam Function functor type
+   * @tparam VisitorArgs... Variadic argument types
+   * @param key Key to visit
+   * @param fn User-provided function to execute at item
+   * @param args... Arguments to pass to user functor
+   */
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type& key, Function&& fn,
                    const VisitorArgs&... args) {
@@ -214,6 +355,17 @@ class map
     local_visit_if_contains(key, std::forward<Function>(fn), args...);
   }
 
+  /**
+   * @brief Visit a key-value pair stored locally if the key is found
+   *
+   * @tparam Function functor type
+   * @tparam VisitorArgs... Variadic argument types
+   * @param key Key to visit
+   * @param fn User-provided function to execute at item
+   * @param args... Arguments to pass to user functor
+   * @details Does not create an entry if `key` is not already found in local
+   * map
+   */
   template <typename Function, typename... VisitorArgs>
   void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) {
@@ -236,6 +388,17 @@ class map
     }
   }
 
+  /**
+   * @brief `local_visit_if_contains` for `const` containers
+   *
+   * @tparam Function functor type
+   * @tparam VisitorArgs... Variadic argument types
+   * @param key Key to visit
+   * @param fn User-provided function to execute at item
+   * @param args... Arguments to pass to user functor
+   * @details Does not create an entry if `key` is not already found in local
+   * map. `fn` is given a `const` key and value for execution.
+   */
   template <typename Function, typename... VisitorArgs>
   void local_visit_if_contains(const key_type& key, Function&& fn,
                                const VisitorArgs&... args) const {
@@ -258,6 +421,13 @@ class map
     }
   }
 
+  /**
+   * @brief Collective operation to look up item counts from each rank
+   *
+   * @tparam
+   * @param keys Keys local rank wants to collect counts for
+   * @return `std::map` of provided keys and their counts
+   */
   template <typename STLKeyContainer>
   std::map<key_type, mapped_type> gather_keys(const STLKeyContainer& keys) {
     std::map<key_type, mapped_type>         to_return;
@@ -283,6 +453,15 @@ class map
     return to_return;
   }
 
+  /**
+   * @brief Retrieve all values associated to a given key
+   *
+   * @tparam
+   * @param key Key to retrieve values for
+   * @return Vector of values associated to key
+   * @details Currently, `ygm::container::map` is not a multi-map, so there can
+   * be at most one value associated to each key.
+   */
   std::vector<mapped_type> local_get(const key_type& key) const {
     std::vector<mapped_type> to_return;
 
@@ -294,6 +473,12 @@ class map
     return to_return;
   }
 
+  /**
+   * @brief Execute a functor on every locally-held key and value
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on keys and values
+   */
   template <typename Function>
   void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
@@ -308,6 +493,13 @@ class map
     }
   }
 
+  /**
+   * @brief `local_for_all` for `const` containers
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on keys and values
+   * @details `const` references to key and value are provided to `fn`
+   */
   template <typename Function>
   void local_for_all(Function&& fn) const {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
@@ -362,6 +554,11 @@ class map
   //   m_impl.for_all(fn);
   // }
 
+  /**
+   * @brief Count the number of times a given key is found locally
+   *
+   * @return Number of times `key` is found locally
+   */
   size_t local_count(const key_type& key) const {
     return m_local_map.count(key);
   }
@@ -391,6 +588,11 @@ class map
 
   detail::hash_partitioner<boost::hash<key_type>> partitioner;
 
+  /**
+   * @brief Swap the local contents of a map.
+   *
+   * @param other The map to swap local contents with
+   */
   void local_swap(self_type& other) { m_local_map.swap(other.m_local_map); }
 
  private:

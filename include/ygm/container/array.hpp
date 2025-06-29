@@ -403,7 +403,6 @@ class array
   /**
    * @brief Insert a key and value into local storage.
    *
-   * @tparam
    * @param key Local index to store value at
    * @param value Vale to store
    * @details Assumes key (index) has already been converted to a local index.
@@ -417,6 +416,7 @@ class array
    *
    * @tparam Function functor type
    * @tparam VisitorArgs... Variadic argument types
+   * @param index Index to visit
    * @param fn User-provided function to execute at item
    * @param args... Arguments to pass to user functor
    */
