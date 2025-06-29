@@ -506,35 +506,73 @@ class array
   }
 
   /**
-   * @brief Apply logical or to update stored value
+   * @brief Apply logical and to update stored value
    *
    * @param index Index to perform update at
-   * @param value Value to "or" with current value
+   * @param value Value to "and" with current value
    */
   void async_logical_and(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::logical_and<mapped_type>());
   }
 
+  /**
+   * @brief Apply logical or to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "or" with current value
+   */
   void async_logical_or(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::logical_or<mapped_type>());
   }
 
+  /**
+   * @brief Apply multiplication to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to multiply with current value
+   */
   void async_multiplies(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::multiplies<mapped_type>());
   }
 
+  /**
+   * @brief Apply division to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to divide current value by
+   */
   void async_divides(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::divides<mapped_type>());
   }
 
+  /**
+   * @brief Apply addition to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to add to current value
+   */
   void async_plus(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::plus<mapped_type>());
   }
 
+  /**
+   * @brief Apply subtraction to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to subtract from current value
+   */
   void async_minus(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::minus<mapped_type>());
   }
 
+  /**
+   * @brief Apply a unary operation to the value already
+   * stored at a given index to update the stored value
+   *
+   * @tparam UnaryOp functor type
+   * @param index Index to apply update at
+   * @param u Unary operation to apply
+   */
   template <typename UnaryOp>
   void async_unary_op_update_value(const key_type index, const UnaryOp& u) {
     YGM_ASSERT_RELEASE(index < m_global_size);
@@ -546,11 +584,21 @@ class array
     async_visit(index, updater);
   }
 
+  /**
+   * @brief Increment stored value
+   *
+   * @param index Index to perform update at
+   */
   void async_increment(const key_type index) {
     async_unary_op_update_value(index,
                                 [](const mapped_type& v) { return v + 1; });
   }
 
+  /**
+   * @brief Decrement stored value
+   *
+   * @param index Index to perform update at
+   */
   void async_decrement(const key_type index) {
     async_unary_op_update_value(index,
                                 [](const mapped_type& v) { return v - 1; });
@@ -558,6 +606,15 @@ class array
 
   const mapped_type& default_value() const;
 
+  /**
+   * @brief Set new global size for array
+   *
+   * @param size New global size
+   * @param fill_value Value to initialize new values to (when expanding an
+   * array)
+   * @details This operation requires repartitioning the data already stored in
+   * a container, which is a `O(old_size)` operation.
+   */
   void resize(const size_type size, const mapped_type& fill_value) {
     m_comm.barrier();
 
@@ -587,17 +644,44 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Set new global size for array with a default fill value
+   *
+   * @param size New global size
+   * @details Equivalent to `resize(size, m_default_value)`
+   */
   void resize(const size_type size) { resize(size, m_default_value); }
 
+  /**
+   * @brief Get the number of elements stored on the local process.
+   *
+   * @return Local size of array
+   */
   size_t local_size() { return partitioner.local_size(); }
 
+  /**
+   * @brief Get the global size of the array
+   *
+   * @return Array's global size
+   */
   size_t size() const {
     m_comm.barrier();
     return m_global_size;
   }
 
+  /**
+   * @brief Clear the local contents of the array and set size to 0
+   *
+   * @details Setting the local size to 0 cannot be performed independently of
+   * other ranks. This operation needs to be called collectively for the array.
+   */
   void local_clear() { resize(0); }
 
+  /**
+   * @brief Swap the local contents of an array.
+   *
+   * @param other The array to swap local contents with
+   */
   void local_swap(self_type& other) {
     m_local_vec.swap(other.m_local_vec);
     std::swap(m_global_size, other.m_global_size);
@@ -605,6 +689,14 @@ class array
     std::swap(partitioner, other.partitioner);
   }
 
+  /**
+   * @brief Apply a lambda to all local elements
+   *
+   * @tparam Function functor type
+   * @param fn Functor object to apply to all elements locally stored in the
+   * array
+   * @details This operation can be called non-collectively.
+   */
   template <typename Function>
   void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
@@ -625,6 +717,16 @@ class array
     }
   }
 
+  /**
+   * @brief Update a locally stored element by performing a binary operation
+   * between it and a provided value
+   *
+   * @tparam ReductionOp functor type
+   * @param index Global index to perform binary operation at. Must be found on
+   * the local process.
+   * @param value Value to combine with the currently-held value
+   * @param reducer Binary operation to perform
+   */
   template <typename ReductionOp>
   void local_reduce(const key_type index, const mapped_type& value,
                     ReductionOp reducer) {
@@ -632,6 +734,13 @@ class array
         reducer(value, m_local_vec[partitioner.local_index(index)]);
   }
 
+  /**
+   * @brief Globally sort values in array in increasing order
+   *
+   * @details Partitions data using sampled pivots to approximately balance
+   * values on ranks. Then use `std::sort` locally on values before reinserting
+   * into the array.
+   */
   void sort() {
     const key_type samples_per_pivot = std::max<key_type>(
         std::min<key_type>(20, m_global_size / m_comm.size()), 1);
