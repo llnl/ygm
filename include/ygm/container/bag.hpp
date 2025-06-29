@@ -43,11 +43,23 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   using iterator       = typename local_container_type::iterator;
   using const_iterator = typename local_container_type::const_iterator;
 
+  /**
+   * @brief Bag construction from ygm::comm
+   *
+   * @param comm Communicator to use for communication
+   */
   bag(ygm::comm &comm) : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
   }
 
+  /**
+   * @brief Bag constructor from std::initializer_list of values
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of values to put in array
+   * @details Initializer list is assumed to be replicated on all ranks.
+   */
   bag(ygm::comm &comm, std::initializer_list<Item> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
@@ -60,6 +72,13 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct bag from existing STL container
+   *
+   * @tparam STLContainer Existing container type
+   * @param comm Communicator to use for communication
+   * @param cont STL container containing values to put in bag
+   */
   template <typename STLContainer>
   bag(ygm::comm &comm, const STLContainer &cont)
     requires detail::STLContainer<STLContainer> &&
@@ -74,6 +93,14 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct bag from existing YGM container
+   *
+   * @tparam YGMContainer Existing container type
+   * @param comm Communicator to use for communication
+   * @param yc YGM container of values to put in bag
+   * @details This version works from non-associative containers.
+   */
   template <typename YGMContainer>
   bag(ygm::comm &comm, const YGMContainer &yc)
     requires detail::HasForAll<YGMContainer> &&
@@ -117,16 +144,62 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     return *this;
   }
 
+  /**
+   * @brief Access to begin iterator of locally-held items
+   *
+   * @return Local iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   iterator local_begin() { return m_local_bag.begin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const bag
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_begin() const { return m_local_bag.cbegin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const bag
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cbegin() const { return m_local_bag.cbegin(); }
 
+  /**
+   * @brief Access to end iterator of locally-held items
+   *
+   * @return Local iterator to end of items held by process.
+   * @details Does not call `barrier()`.
+   */
   iterator local_end() { return m_local_bag.end(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const bag
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_end() const { return m_local_bag.cend(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const bag
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cend() const { return m_local_bag.cend(); }
 
   using detail::base_async_insert_value<bag<Item>, for_all_args>::async_insert;
 
+  /**
+   * @brief Asynchronously insert an item on a specific rank
+   *
+   * @param value Value to insert in bag
+   * @param dest Rank to insert item at
+   */
   void async_insert(const Item &value, int dest) {
     auto inserter = [](auto pcont, const value_type &item) {
       pcont->local_insert(item);
@@ -135,6 +208,12 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.async(dest, inserter, this->get_ygm_ptr(), value);
   }
 
+  /**
+   * @brief Asynchronously insert multiple items on a specific rank
+   *
+   * @param values Vector of values to insert in bag
+   * @param dest Rank to insert items at
+   */
   void async_insert(const std::vector<Item> &values, int dest) {
     auto inserter = [](auto pcont, const std::vector<Item> &values) {
       for (const auto &v : values) {
@@ -145,26 +224,62 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.async(dest, inserter, this->get_ygm_ptr(), values);
   }
 
+  /**
+   * @brief Insert an item into local storage
+   *
+   * @param val Value to insert locally
+   */
   void local_insert(const Item &val) { m_local_bag.push_back(val); }
 
+  /**
+   * @brief Clear the local storage of the bag
+   */
   void local_clear() { m_local_bag.clear(); }
 
+  /**
+   * @brief Get the number of items held locally
+   *
+   * @return Number of locally-held items
+   */
   size_t local_size() const { return m_local_bag.size(); }
 
+  /**
+   * @brief Count the number of items held locally that match a query item
+   *
+   * @param val Value to search for locally
+   * @return Number of locally-held copies of val
+   */
   size_t local_count(const value_type &val) const {
     return std::count(m_local_bag.begin(), m_local_bag.end(), val);
   }
 
+  /**
+   * @brief Execute a functor on every locally-held item
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on items
+   */
   template <typename Function>
   void local_for_all(Function &&fn) {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
+  /**
+   * @brief Execute a functor on a `const` version of every locally-held item
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on items
+   */
   template <typename Function>
   void local_for_all(Function &&fn) const {
     std::for_each(m_local_bag.cbegin(), m_local_bag.cend(), fn);
   }
 
+  /**
+   * @brief Serialize a bag to a collection of files to be read back in later
+   *
+   * @param fname Filename prefix to create filename used by every rank from
+   */
   void serialize(const std::string &fname) {
     m_comm.barrier();
     std::string   rank_fname = fname + std::to_string(m_comm.rank());
@@ -174,6 +289,13 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     oarchive(m_local_bag, m_comm.size());
   }
 
+  /**
+   * @brief Deserialize a bag from files
+   *
+   * @param fname Filename prefix to create filename used by every rank from
+   * @details Currently requires the number of ranks deserializing a bag to be
+   * the same as was used for serialization.
+   */
   void deserialize(const std::string &fname) {
     m_comm.barrier();
 
@@ -192,6 +314,10 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     }
   }
 
+  /**
+   * @brief Repartition data to hold approximately equal numbers of items on
+   * every rank
+   */
   void rebalance() {
     auto global_size = this->size();  // includes barrier
 
@@ -234,17 +360,32 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     m_comm.barrier();
   }
 
+  /**
+   * @brief Shuffle elements held locally
+   *
+   * @tparam RandomFunc Random number generator type
+   * @param r Random number generator
+   */
   template <typename RandomFunc>
   void local_shuffle(RandomFunc &r) {
     m_comm.barrier();
     std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
   }
 
+  /**
+   * @brief Shuffle elements held locally with a default random number generator
+   */
   void local_shuffle() {
     ygm::default_random_engine<> r(m_comm, std::random_device()());
     local_shuffle(r);
   }
 
+  /**
+   * @brief Shuffle elements of bag across ranks
+   *
+   * @tparam RandomFunc Random number generator type
+   * @param r Random number generator
+   */
   template <typename RandomFunc>
   void global_shuffle(RandomFunc &r) {
     m_comm.barrier();
@@ -261,6 +402,10 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     }
   }
 
+  /**
+   * @brief Shuffle elements of bag across ranks with a default random number
+   * generator
+   */
   void global_shuffle() {
     ygm::default_random_engine<> r(m_comm, std::random_device()());
     global_shuffle(r);
@@ -284,6 +429,11 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     return ret;
   }
 
+  /**
+   * @brief Swap elements held locally between bags
+   *
+   * @param other Bag to swap elements with
+   */
   void local_swap(self_type &other) { m_local_bag.swap(other.m_local_bag); }
 
   ygm::comm                       &m_comm;

@@ -240,7 +240,7 @@ class array
    *
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
-   * @param t YGM container of key-value pairs to put in array.
+   * @param t YGM container of key-value pairs to put in array
    * @details This version works from associative containers. Array size is
    * determined by finding the largest index across all ranks.
    */
