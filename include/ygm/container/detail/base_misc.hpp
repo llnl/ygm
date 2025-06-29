@@ -56,8 +56,6 @@ struct base_misc {
   /**
    * @brief Access to the ygm_ptr used by the container
    *
-   * @tparam
-   * @param
    * @return `ygm_ptr` used by the container when identifying itself in `async`
    * calls on the `ygm::comm`
    */

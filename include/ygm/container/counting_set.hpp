@@ -15,6 +15,13 @@
 
 namespace ygm::container {
 
+/**
+ * @brief `ygm::container::map` that is specialized for counting occurrences of
+ * items in a stream.
+ *
+ * @details Adds a local cache of objects to reduce sends of
+ * frequently-occurring items
+ */
 template <typename Key>
 class counting_set
     : public detail::base_count<counting_set<Key>, std::tuple<Key, size_t>>,
@@ -38,6 +45,11 @@ class counting_set
 
   const size_type count_cache_size = 1024 * 1024;
 
+  /**
+   * @brief counting_set constructor
+   *
+   * @param comm Communicator to use for communication
+   */
   counting_set(ygm::comm &comm)
       : m_map(comm), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
@@ -47,6 +59,13 @@ class counting_set
 
   counting_set() = delete;
 
+  /**
+   * @brief counting_set constructor from std::initializer_list of values
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of values to put in counting_set
+   * @details Initializer list is assumed to be replicated on all ranks.
+   */
   counting_set(ygm::comm &comm, std::initializer_list<Key> l)
       : m_map(comm), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
@@ -60,6 +79,13 @@ class counting_set
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct counting_set by counting items in existing STL container
+   *
+   * @tparam STLContainer Existing container type
+   * @param comm Communicator to use for communication
+   * @param cont STL container containing values to count
+   */
   template <typename STLContainer>
   counting_set(ygm::comm &comm, const STLContainer &cont)
     requires detail::STLContainer<STLContainer> &&
@@ -74,6 +100,13 @@ class counting_set
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct counting_set by counting items in existing YGM container
+   *
+   * @tparam YGMContainer Existing container type
+   * @param comm Communicator to use for communication
+   * @param cont YGM container containing values to count
+   */
   template <typename YGMContainer>
   counting_set(ygm::comm &comm, const YGMContainer &yc)
     requires detail::HasForAll<YGMContainer> &&
@@ -126,26 +159,93 @@ class counting_set
     return *this;
   }
 
-  iterator       local_begin() { return m_map.begin(); }
+  /**
+   * @brief Access to begin iterator of locally-held items
+   *
+   * @return Local iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_begin() { return m_map.begin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const
+   * counting_set
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_begin() const { return m_map.cbegin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const
+   * counting_set
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cbegin() const { return m_map.cbegin(); }
 
-  iterator       local_end() { return m_map.end(); }
+  /**
+   * @brief Access to end iterator of locally-held items
+   *
+   * @return Local iterator to end of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_end() { return m_map.end(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const
+   * counting_set
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_end() const { return m_map.cend(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const
+   * counting_set
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
   const_iterator local_cend() const { return m_map.cend(); }
 
+  /**
+   * @brief Asynchronously insert an item for counting
+   *
+   * @param key Item to count
+   * @details Inserts item into local cache before sending count to remote
+   * location
+   */
   void async_insert(const key_type &key) { cache_insert(key); }
 
+  /**
+   * @brief Execute a functor on every locally-held item and count
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on items and counts
+   */
   template <typename Function>
   void local_for_all(Function &&fn) {
     m_map.local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Execute a functor on every locally-held item and count for a const
+   * container
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on items and counts
+   */
   template <typename Function>
   void local_for_all(Function &&fn) const {
     m_map.local_for_all(std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Clear the local storage of the counting_set
+   */
   void local_clear() {  // What to do here
     m_map.local_clear();
     clear_cache();
@@ -153,13 +253,30 @@ class counting_set
 
   using detail::base_misc<counting_set<Key>, for_all_args>::clear;
 
+  /**
+   * @brief Clear the global storage of the counting_set
+   */
   void clear() {
     local_clear();
     m_comm.barrier();
   }
 
+  /**
+   * @brief Get the number of items held locally
+   *
+   * @return Number of locally-held items
+   */
   size_t local_size() const { return m_map.local_size(); }
 
+  /**
+   * @brief Get the total number of times a locally-held item has been counted
+   * so far
+   *
+   * @return Number of times a locally-held item has been counted
+   * @details Counts can be inaccurate before a `barrier()` due to items still
+   * being cached on other processes or waiting to be sent in `ygm::comm`
+   * buffers.
+   */
   mapped_type local_count(const key_type &key) const {
     auto        vals = m_map.local_get(key);
     mapped_type local_count{0};
@@ -169,6 +286,11 @@ class counting_set
     return local_count;
   }
 
+  /**
+   * @brief Count the total number of items counted
+   *
+   * @return Sum of all item counts
+   */
   mapped_type count_all() {
     mapped_type local_count{0};
     local_for_all(
@@ -178,6 +300,15 @@ class counting_set
 
   // bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
+  /**
+   * @brief Gather the k "largest" item-count pairs according to provided
+   * comparison function
+   *
+   * @tparam Compare Type of comparison operator
+   * @param k Number of item-count pairs to gather
+   * @param comp Comparison function for identifying elements to gather
+   * @return vector of largest item-count pairs
+   */
   template <typename CompareFunction>
   std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
                                                      CompareFunction cfn) {
@@ -189,19 +320,51 @@ class counting_set
   //   return m_map.all_gather(keys);
   // }
 
+  /**
+   * @brief Collective operation to look up item counts from each rank
+   *
+   * @tparam
+   * @param keys Keys local rank wants to collect counts for
+   * @return `std::map` of provided keys and their counts
+   */
   std::map<key_type, mapped_type> gather_keys(
       const std::vector<key_type> &keys) {
     return m_map.gather_keys(keys);
   }
 
+  /**
+   * @brief Access to the ygm_ptr used by the container
+   *
+   * @return `ygm_ptr` used by the container when identifying itself in `async`
+   * calls on the `ygm::comm`
+   */
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
+  /**
+   * @brief Serialize counting set contents to collection of files
+   *
+   * @param fname Filename prefix to create names for files used by each rank
+   */
   void serialize(const std::string &fname) { m_map.serialize(fname); }
+
+  /**
+   * @brief Deserialize counting set contents from collection of files
+   *
+   * @param fname Filename prefix to create names for files used by each rank
+   */
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
   detail::hash_partitioner<boost::hash<key_type>> partitioner;
 
  private:
+  /**
+   * @brief Remove key from local cache and distributed map
+   *
+   * @param key Key to erase from cache
+   * @details This function erases the key from the underlying
+   * `ygm::container::map` and the local cache, but the key may still be found
+   * in caches on other ranks.
+   */
   void cache_erase(const key_type &key) {
     size_t slot = boost::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second != -1 && m_count_cache[slot].first == key) {
@@ -212,6 +375,15 @@ class counting_set
     m_map.async_erase(key);
   }
 
+  /**
+   * @brief Insert key into local cache. If key already exists, increment count
+   * in local cache. If other key exists in desired cache slot, flush cached
+   * value by sending to count to distributed `ygm::container::map`.
+   *
+   * @tparam
+   * @param
+   * @return
+   */
   void cache_insert(const key_type &key) {
     if (m_cache_empty) {
       m_cache_empty = false;
@@ -239,6 +411,12 @@ class counting_set
     }
   }
 
+  /**
+   * @brief Flush a slot in the local cache to the underlying
+   * `ygm::container::map`
+   *
+   * @param slot Cache slot to flush
+   */
   void count_cache_flush(size_t slot) {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
@@ -253,6 +431,9 @@ class counting_set
     m_count_cache[slot].second = -1;
   }
 
+  /**
+   * @brief Flush all cached counts
+   */
   void count_cache_flush_all() {
     if (!m_cache_empty) {
       for (size_t i = 0; i < m_count_cache.size(); ++i) {
@@ -264,6 +445,9 @@ class counting_set
     }
   }
 
+  /**
+   * @brief Clear all local cache contents
+   */
   void clear_cache() {
     for (size_t i = 0; i < m_count_cache.size(); ++i) {
       m_count_cache[i].first  = key_type();

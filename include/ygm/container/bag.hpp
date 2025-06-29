@@ -21,6 +21,11 @@
 
 namespace ygm::container {
 
+/**
+ * @brief Container that partitions elements across ranks for iteration.
+ *
+ * @details Assigns items in a cyclic distribution from every rank independently
+ */
 template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
@@ -57,7 +62,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
    * @brief Bag constructor from std::initializer_list of values
    *
    * @param comm Communicator to use for communication
-   * @param l Initializer list of values to put in array
+   * @param l Initializer list of values to put in bag
    * @details Initializer list is assumed to be replicated on all ranks.
    */
   bag(ygm::comm &comm, std::initializer_list<Item> l)
