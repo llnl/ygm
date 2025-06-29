@@ -85,7 +85,7 @@ class map
   }
 
   /**
-   * @brief Map constructor from std::initializer_list of values
+   * @brief Map constructor from std::initializer_list of key-value pairs
    *
    * @param comm Communicator to use for communication
    * @param l Initializer list of key-value pairs to put in map
@@ -107,7 +107,7 @@ class map
    *
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
-   * @param t STL container containing key-value pairs to put in map
+   * @param cont STL container containing key-value pairs to put in map
    */
   template <typename STLContainer>
   map(ygm::comm& comm, const STLContainer& cont)
@@ -129,7 +129,7 @@ class map
    *
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
-   * @param t YGM container of key-value pairs to put in map.
+   * @param yc YGM container of key-value pairs to put in map.
    * @details This version works from non-associative containers.
    */
   template <typename YGMContainer>
@@ -259,7 +259,7 @@ class map
    * @brief Erase local entry for given key and value
    *
    * @param key Key to erase from local storage
-   * @param value Vale to erase if associated to key
+   * @param value Value to erase if associated to key
    * @details Does not erase the entry if key is found with a different value
    */
   void local_erase(const key_type& key, const key_type& value) {
@@ -273,7 +273,7 @@ class map
    * @brief Insert a key and value into local storage.
    *
    * @param key Local index to store value at
-   * @param value Vale to store
+   * @param value Value to store
    */
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_map.insert({key, value});
@@ -284,7 +284,7 @@ class map
    * key is already present
    *
    * @param key Local index to store value at
-   * @param value Vale to store
+   * @param value Value to store
    */
   void local_insert_or_assign(const key_type& key, const mapped_type& value) {
     m_local_map.insert_or_assign(key, value);
