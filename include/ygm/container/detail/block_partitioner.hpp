@@ -113,8 +113,6 @@ struct block_partitioner {
   /**
    * @brief Number of items stored locally
    *
-   * @tparam
-   * @param
    * @return Number of items stored on this rank
    */
   index_type local_size() { return m_local_size; }

@@ -110,10 +110,10 @@ class map
    * @param cont STL container containing key-value pairs to put in map
    */
   template <typename STLContainer>
-  map(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  map(ygm::comm&          comm,
+      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type,
+                          std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
@@ -133,9 +133,9 @@ class map
    * @details This version works from non-associative containers.
    */
   template <typename YGMContainer>
-  map(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  map(ygm::comm&          comm,
+      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
@@ -424,7 +424,6 @@ class map
   /**
    * @brief Collective operation to look up item counts from each rank
    *
-   * @tparam
    * @param keys Keys local rank wants to collect counts for
    * @return `std::map` of provided keys and their counts
    */
@@ -456,7 +455,6 @@ class map
   /**
    * @brief Retrieve all values associated to a given key
    *
-   * @tparam
    * @param key Key to retrieve values for
    * @return Vector of values associated to key
    * @details Currently, `ygm::container::map` is not a multi-map, so there can

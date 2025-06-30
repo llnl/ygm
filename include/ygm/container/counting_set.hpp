@@ -87,9 +87,9 @@ class counting_set
    * @param cont STL container containing values to count
    */
   template <typename STLContainer>
-  counting_set(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Key>
+  counting_set(ygm::comm &comm, const STLContainer &cont) requires
+      detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Key>
       : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
@@ -108,9 +108,9 @@ class counting_set
    * @param cont YGM container containing values to count
    */
   template <typename YGMContainer>
-  counting_set(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  counting_set(ygm::comm &comm, const YGMContainer &yc) requires
+      detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
@@ -323,7 +323,6 @@ class counting_set
   /**
    * @brief Collective operation to look up item counts from each rank
    *
-   * @tparam
    * @param keys Keys local rank wants to collect counts for
    * @return `std::map` of provided keys and their counts
    */
@@ -379,10 +378,6 @@ class counting_set
    * @brief Insert key into local cache. If key already exists, increment count
    * in local cache. If other key exists in desired cache slot, flush cached
    * value by sending to count to distributed `ygm::container::map`.
-   *
-   * @tparam
-   * @param
-   * @return
    */
   void cache_insert(const key_type &key) {
     if (m_cache_empty) {

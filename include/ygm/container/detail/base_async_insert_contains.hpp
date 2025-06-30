@@ -23,7 +23,6 @@ struct base_async_insert_contains {
    * present and execute a user-provided function that is told whether the value
    * was already present
    *
-   * @tparam
    * @param value Value to attempt to insert
    * @param fn Function to execute after attempted insertion
    * @param argx... Variadic arguments to pass to fn

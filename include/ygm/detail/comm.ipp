@@ -21,7 +21,6 @@ struct comm::header_t {
 /**
  * @brief YGM communicator constructor
  *
- * @tparam
  * @param argc Pointer to number of arguments given to command line
  * @param argv Pointer to array of command line arguments
  * @return Constructed ygm::comm object using MPI_COMM_WORLD for communication
@@ -733,7 +732,6 @@ inline void comm::cerr(Args &&...args) const {
 /**
  * @brief Serializes routing headers
  *
- * @tparam
  * @param packed Serialized messages to append header for next message to
  * @param dest Destination rank to place in header
  * @param size Number of bytes in message associated with header
@@ -1278,9 +1276,7 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  {
-    packed.push_bytes(&lid, sizeof(lid));
-  }
+  { packed.push_bytes(&lid, sizeof(lid)); }
 
   if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
     size_t size_before = packed.size();
@@ -1353,7 +1349,6 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector &packed,
 /**
  * @brief Deserializes and processes messages in a buffer of received messages
  *
- * @tparam
  * @param buffer Shared pointer to buffer of received messages
  * @param buffer_size Size of received message buffer
  * @param from_rank Rank that sent buffer
