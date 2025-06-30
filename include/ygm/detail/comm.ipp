@@ -479,6 +479,9 @@ inline void comm::register_pre_barrier_callback(
   m_pre_barrier_callbacks.push_back(fn);
 }
 
+/**
+ * @warning Deprecated
+ */
 template <typename T>
 inline T comm::all_reduce_sum(const T &t) const {
   T to_return;
@@ -487,6 +490,9 @@ inline T comm::all_reduce_sum(const T &t) const {
   return to_return;
 }
 
+/**
+ * @warning Deprecated
+ */
 template <typename T>
 inline T comm::all_reduce_min(const T &t) const {
   T to_return;
@@ -495,6 +501,9 @@ inline T comm::all_reduce_min(const T &t) const {
   return to_return;
 }
 
+/**
+ * @warning Deprecated
+ */
 template <typename T>
 inline T comm::all_reduce_max(const T &t) const {
   T to_return;
@@ -504,13 +513,7 @@ inline T comm::all_reduce_max(const T &t) const {
 }
 
 /**
- * @brief Tree based reduction, could be optimized significantly
- *
- * @tparam T
- * @tparam MergeFunction
- * @param in
- * @param merge
- * @return T
+ * @warning Deprecated
  */
 template <typename T, typename MergeFunction>
 inline T comm::all_reduce(const T &in, MergeFunction merge) const {
@@ -965,7 +968,7 @@ inline void comm::local_progress() {
 /**
  * @brief Waits until provided condition function returns true.
  *
- * @tparam Function
+ * @tparam Function functor type
  * @param fn Wait condition function, must match []() -> bool
  *
  * This is useful when applications can determine locally that their part of a

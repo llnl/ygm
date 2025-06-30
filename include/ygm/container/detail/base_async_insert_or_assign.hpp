@@ -13,7 +13,7 @@ namespace ygm::container::detail {
 
 /**
  * @brief Curiously-recurring template parameter struct that provides
- * async_insert_or_assign operation for associative containers
+ * async_insert_or_assign operation for containers with keys and values.
  */
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_or_assign {
@@ -28,9 +28,8 @@ struct base_async_insert_or_assign {
    */
   void async_insert_or_assign(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      const typename std::tuple_element<1, for_all_args>::type& value)
-    requires DoubleItemTuple<for_all_args>
-  {
+      const typename std::tuple_element<1, for_all_args>::type& value) requires
+      DoubleItemTuple<for_all_args> {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);
@@ -56,9 +55,8 @@ struct base_async_insert_or_assign {
    */
   void async_insert_or_assign(
       const std::pair<typename std::tuple_element<0, for_all_args>::type,
-                      typename std::tuple_element<1, for_all_args>::type>& kvp)
-    requires DoubleItemTuple<for_all_args>
-  {
+                      typename std::tuple_element<1, for_all_args>::type>&
+          kvp) requires DoubleItemTuple<for_all_args> {
     async_insert_or_assign(kvp.first, kvp.second);
   }
 };

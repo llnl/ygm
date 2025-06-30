@@ -130,7 +130,8 @@ class map
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
    * @param yc YGM container of key-value pairs to put in map.
-   * @details This version works from non-associative containers.
+   * @details Requires input container `for_all_args` to be a single item that
+   * is itself a key-value pair.
    */
   template <typename YGMContainer>
   map(ygm::comm&          comm,

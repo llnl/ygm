@@ -21,8 +21,8 @@
 namespace ygm::container {
 
 /**
- * @brief Associative container with keys that are contiguous indices in the
- * range [0, size()-1]
+ * @brief Container for key-value pairs with keys that are contiguous indices in
+ * the range [0, size()-1]
  *
  * @details Assigns ranks contiguous chunks of indices using block_partitioner
  * object. Resizing array is an expensive operation as it requires reassigning
@@ -173,10 +173,9 @@ class array
    * existing container and constructed array.
    */
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> &&
+      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -198,23 +197,22 @@ class array
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
    * @param t YGM container of key-value pairs to put in array.
-   * @details This version works from non-associative containers. Array size is
-   * determined by finding the largest index across all ranks.
+   * @details Requires input container `for_all_args` to be a single item tuple
+   * that is itself a key-value pair (e.g. works from a `ygm::container::bag`).
+   * Array size is determined by finding the largest index across all ranks.
    */
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 detail::DoubleItemTuple<
-                     std::tuple_element_t<0, typename T::for_all_args>> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         0, std::tuple_element_t<0, typename T::for_all_args>>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         1, std::tuple_element_t<0, typename T::for_all_args>>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> && detail::
+          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              0, std::tuple_element_t<0, typename T::for_all_args>>,
+          key_type> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              1, std::tuple_element_t<0, typename T::for_all_args>>,
+          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -241,19 +239,16 @@ class array
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
    * @param t YGM container of key-value pairs to put in array
-   * @details This version works from associative containers. Array size is
+   * @details Requires input container's `for_all_args` to be a tuple containing
+   * keys and values (e.g. works from a `ygm::container::map`). Array size is
    * determined by finding the largest index across all ranks.
    */
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::DoubleItemTuple<typename T::for_all_args> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
+          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
+      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -286,10 +281,9 @@ class array
    * constructed array.
    */
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 (not detail::SingleItemTuple<typename T::value_type>) &&
-                 std::convertible_to<typename T::value_type, mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      (not detail::SingleItemTuple<typename T::value_type>)&&std::
+          convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
@@ -313,19 +307,16 @@ class array
    * @tparam T Existing container type
    * @param comm Communicator to use for communication
    * @param t STL container of key-value pairs to put in array.
-   * @details This version works from associative containers. Array size is
-   * determined by finding the largest index across all ranks.
+   * @details Requires existing container to have a `value_type` that contains
+   * keys and values. Array size is determined by finding the largest index
+   * across all ranks.
    */
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 detail::DoubleItemTuple<typename T::value_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::value_type>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<1, typename T::value_type>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
+          std::tuple_element_t<0, typename T::value_type>, key_type> &&
+      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);

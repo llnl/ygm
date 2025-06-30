@@ -13,7 +13,7 @@ namespace ygm::container::detail {
 
 /**
  * @brief Curiously-recurring template parameter struct that provides
- * async_insert operation for non-associative containers
+ * async_insert operation for containers that only contain values
  */
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_value {
@@ -27,10 +27,8 @@ struct base_async_insert_value {
    * my_bag.async_insert(world.rank());
    * \endcode
    */
-  void async_insert(
-      const typename std::tuple_element<0, for_all_args>::type& value)
-    requires SingleItemTuple<for_all_args>
-  {
+  void async_insert(const typename std::tuple_element<0, for_all_args>::type&
+                        value) requires SingleItemTuple<for_all_args> {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(value);
@@ -48,7 +46,7 @@ struct base_async_insert_value {
 
 /**
  * @brief Curiously-recurring template parameter struct that provides
- * async_insert operation for associative containers
+ * async_insert operation for containers that contain keys and values
  */
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_key_value {
@@ -67,9 +65,8 @@ struct base_async_insert_key_value {
    */
   void async_insert(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      const typename std::tuple_element<1, for_all_args>::type& value)
-    requires DoubleItemTuple<for_all_args>
-  {
+      const typename std::tuple_element<1, for_all_args>::type& value) requires
+      DoubleItemTuple<for_all_args> {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);
@@ -93,9 +90,8 @@ struct base_async_insert_key_value {
    */
   void async_insert(
       const std::pair<const typename std::tuple_element<0, for_all_args>::type,
-                      typename std::tuple_element<1, for_all_args>::type>& kvp)
-    requires DoubleItemTuple<for_all_args>
-  {
+                      typename std::tuple_element<1, for_all_args>::type>&
+          kvp) requires DoubleItemTuple<for_all_args> {
     async_insert(kvp.first, kvp.second);
   }
 };

@@ -20,7 +20,7 @@ struct base_count {
    * @brief Counts all occurrences of a value within a container.
    *
    * @param value Value to search for within container (key in the case of
-   * associative containers)
+   * containers with keys)
    * @return Count of times `value` is seen in container
    */
   size_t count(

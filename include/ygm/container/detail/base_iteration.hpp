@@ -29,7 +29,7 @@ class flatten_proxy_key_value;
 /**
  * @brief Curiously-recurring template parameter struct that provides
  * for_all, gather, gather_topk, reduce, collect, reduce_by_key, transform,
- * flatten, and filter operations to non-associative YGM containers
+ * flatten, and filter operations to YGM containers without keys
  */
 template <typename derived_type, SingleItemTuple for_all_args>
 struct base_iteration_value {
@@ -125,10 +125,9 @@ struct base_iteration_value {
    * @return vector of largest values
    */
   template <typename Compare = std::greater<value_type>>
-  std::vector<value_type> gather_topk(
-      size_t k, Compare comp = std::greater<value_type>()) const
-    requires SingleItemTuple<for_all_args>
-  {
+  std::vector<value_type> gather_topk(size_t  k,
+                                      Compare comp = std::greater<value_type>())
+      const requires SingleItemTuple<for_all_args> {
     const auto*      derived_this = static_cast<const derived_type*>(this);
     const ygm::comm& mycomm       = derived_this->comm();
     std::vector<value_type> local_topk;
@@ -261,7 +260,7 @@ struct base_iteration_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
@@ -276,7 +275,7 @@ struct base_iteration_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
@@ -285,7 +284,7 @@ struct base_iteration_value {
 /**
  * @brief Curiously-recurring template parameter struct that provides
  * for_all, gather, gather_topk, reduce, collect, reduce_by_key, transform,
- * flatten, and filter operations to associative YGM containers
+ * flatten, and filter operations to YGM containers with keys and values
  *
  * @details Requires `for_all_args` to be a `tuple` of two items
  */
@@ -541,7 +540,7 @@ struct base_iteration_key_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
@@ -556,7 +555,7 @@ struct base_iteration_key_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
@@ -655,7 +654,7 @@ base_iteration_value<derived_type, for_all_args>::filter(FilterFunction&& ffn) {
 }
 
 /**
- * @brief Creates proxy that transforms key-value pairs in an associative
+ * @brief Creates proxy that transforms key-value pairs in a
  * container that are presented to user `for_all` calls
  *
  * @tparam TransformFunction functor type

@@ -85,9 +85,9 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
    * @param cont STL container containing values to put in bag
    */
   template <typename STLContainer>
-  bag(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Item>
+  bag(ygm::comm          &comm,
+      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Item>
       : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
@@ -104,12 +104,13 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
    * @tparam YGMContainer Existing container type
    * @param comm Communicator to use for communication
    * @param yc YGM container of values to put in bag
-   * @details This version works from non-associative containers.
+   * @details Requires container's `for_all_args` to be a single item tuple to
+   * put in the bag
    */
   template <typename YGMContainer>
-  bag(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  bag(ygm::comm          &comm,
+      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);

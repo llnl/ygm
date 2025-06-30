@@ -26,9 +26,8 @@ struct base_async_insert_contains {
    * @param value Value to attempt to insert
    * @param fn Function to execute after attempted insertion
    * @param argx... Variadic arguments to pass to fn
-   * @details Insertion only occurs if value is not already present. If the
-   * container is associative, this means the (key, value) pair will not be
-   * reset to the value's default.
+   * @details Insertion only occurs if value is not already present. Containers
+   * with keys and values will not have values reset to the value's default.
    *
    * \code{cpp}
    * ygm::container::map<int, int> my_map(world);
