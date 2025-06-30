@@ -8,12 +8,24 @@
 #include <ygm/detail/mpi.hpp>
 
 namespace ygm::utility {
+
+/**
+ * @brief Simple timer class using `MPI_Wtime()`
+ */
 class timer {
  public:
   timer() { reset(); }
 
+  /**
+   * @brief Get time since timer creation or last `reset()`
+   *
+   * @return Elapsed time
+   */
   double elapsed() { return MPI_Wtime() - m_start; }
 
+  /**
+   * @brief Restart timer
+   */
   void reset() { m_start = MPI_Wtime(); }
 
  private:

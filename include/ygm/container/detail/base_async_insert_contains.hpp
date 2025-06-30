@@ -25,7 +25,7 @@ struct base_async_insert_contains {
    *
    * @param value Value to attempt to insert
    * @param fn Function to execute after attempted insertion
-   * @param argx... Variadic arguments to pass to fn
+   * @param args... Variadic arguments to pass to fn
    * @details Insertion only occurs if value is not already present. Containers
    * with keys and values will not have values reset to the value's default.
    *
