@@ -105,7 +105,7 @@ class counting_set
    *
    * @tparam YGMContainer Existing container type
    * @param comm Communicator to use for communication
-   * @param cont YGM container containing values to count
+   * @param yc YGM container containing values to count
    */
   template <typename YGMContainer>
   counting_set(ygm::comm &comm, const YGMContainer &yc) requires

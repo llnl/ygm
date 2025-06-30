@@ -120,17 +120,6 @@ execute on the correct process using YGM's asynchronous runtime. The most common
 Specific containers may have additional ``async_`` operations (or may be missing some of the above) based on the
 capabilities of the container. Consult the documentation of individual containers for more details.
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Container Classes:
-
-   container/array
-   container/bag
-   container/counting_set
-   container/disjoint_set
-   container/map
-   container/set
-
 YGM Container Example
 =====================
 
@@ -177,3 +166,18 @@ supported transformation objects are:
      boolean function.
    * ``flatten`` - Extract the elements from tuple-like objects before passing to the user's ``for_all`` function.
    * ``map`` - Apply a generic function to the container's items before passing to the user's ``for_all`` function.
+
+Container Class Documentation
+=============================
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Container Classes:
+
+   container/array
+   container/bag
+   container/counting_set
+   container/disjoint_set
+   container/map
+   container/set
+
