@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -20,14 +20,28 @@ namespace ygm::io {
 
 namespace fs = std::filesystem;
 
+/**
+ * @brief Class for writing output to multiple named files in distributed memory
+ *
+ * @tparam Partitioner Type used to assign filenames to ranks for writing
+ */
 template <typename Partitioner =
               ygm::container::detail::old_hash_partitioner<std::string>>
 class multi_output {
  public:
   using self_type = multi_output<Partitioner>;
 
-  // filename_prefix is assumed to be a directory name and has a "/" appended if
-  // not already present to force it to be a directory
+  /**
+   * @brief Construct a multi_output object
+   *
+   * @param comm Communicator to use for communication
+   * @param filename_prefix Prefix used when creating filenames
+   * @param buffer_length Length of buffers to use before writing
+   * @param append If false, existing files are overwritten. Otherwise, output
+   * is appended to existing files.
+   * @details filename_prefix is assumed to be a directory name and has a "/"
+   * appended if not already present to force it to be a directory
+   */
   multi_output(ygm::comm &comm, std::string filename_prefix,
                size_t buffer_length = 1024 * 1024, bool append = false)
       : m_comm(comm),
@@ -58,6 +72,14 @@ class multi_output {
     flush_all_buffers();
   }
 
+  /**
+   * @brief Write a line of output
+   *
+   * @tparam Args... Variadic types of output
+   * @param subpath Filename to append to filename_prefix mutli_output is
+   * created with when creating full output path
+   * @param args... Variadic arguments to write to output file
+   */
   template <typename... Args>
   void async_write_line(const std::string &subpath, Args &&...args) {
     std::string s = pack_stream(args...);
@@ -114,17 +136,34 @@ class multi_output {
     size_t                         buffer_length;
   };
 
+  /**
+   * @brief Flush all buffered output to files
+   */
   void flush_all_buffers() {
     for (auto &filename_buffer_pair : m_map_file_pointers) {
       filename_buffer_pair.second.flush_buffer();
     }
   }
 
+  /**
+   * @brief Calculate owner of file based on subpath
+   *
+   * @param subpath Part of filename to append to filename_prefix multi_output
+   * was constructed with
+   * @return Rank responsible for writing to given file
+   */
   int owner(const std::string &subpath) {
     auto [owner, bank] = partitioner(subpath, m_comm.size(), 1024);
     return owner;
   }
 
+  /**
+   * @brief Concatenate arguments into a single string
+   *
+   * @tparam Args... Variadic types of input
+   * @param args... Variadic arguments to pack into a string
+   * @return Input arguments packed into a single string
+   */
   template <typename... Args>
   std::string pack_stream(Args &&...args) const {
     std::stringstream ss;
@@ -132,6 +171,11 @@ class multi_output {
     return ss.str();
   }
 
+  /**
+   * @brief Create all directories necessary to contain input path
+   *
+   * @param p Path to file
+   */
   void make_directories(const fs::path &p) {
     std::vector<fs::path> directory_stack;
     fs::path              curr_path = p.parent_path();
@@ -148,6 +192,12 @@ class multi_output {
     }
   }
 
+  /**
+   * @brief Create a buffer for given filename
+   *
+   * @param p Path to file that is being buffered
+   * @return Buffer to use with file
+   */
   buffered_ofstream make_buffered_ofstream(const fs::path &p) {
     make_directories(p);
 
@@ -161,6 +211,15 @@ class multi_output {
     return buffered_ofstream(p, mode, m_buffer_length);
   }
 
+  /**
+   * @brief Checks validity of prefix for multi_output
+   *
+   * @param p Path to use as a prefix
+   * @return Boolean indicating whether prefix is appropriate for use by
+   * multi_output
+   * @details The multi_output cannot use the name of an existing file as a
+   * prefix.
+   */
   void check_prefix(const fs::path &p) {
     std::string tmp_string = p.string();
     if (tmp_string.back() == '/') {

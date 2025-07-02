@@ -1,11 +1,10 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
 
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 
 int main(int argc, char** argv) {
@@ -62,12 +61,16 @@ int main(int argc, char** argv) {
     string_set.insert("Aggs");
   }
 
-  YGM_ASSERT_RELEASE(not is_same(string_set, world));
+  if (world.size() > 1) {
+    YGM_ASSERT_RELEASE(not is_same(string_set, world));
+  }
   string_set.insert("Howdy");
   string_set.insert("Aggs");
   YGM_ASSERT_RELEASE(is_same(string_set, world));
 
-  YGM_ASSERT_RELEASE(not is_same(world.rank(), world));
+  if (world.size() > 1) {
+    YGM_ASSERT_RELEASE(not is_same(world.rank(), world));
+  }
 
   return 0;
 }

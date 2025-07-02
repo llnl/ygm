@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -6,6 +6,7 @@
 #include <ygm/container/array.hpp>
 #include <ygm/container/bag.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
+#include <ygm/container/detail/reducing_adapter.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/container/set.hpp>
 
@@ -49,29 +50,36 @@ int main(int argc, char **argv) {
     static_assert(not HasForAll<std::vector<int>>);
   }
 
-  /*
-  // Test IsSame
+  // Test HasAsyncReduce
   {
-    static_assert(IsSame<int, int>);
-    static_assert(IsSame<int, int &>);
-    static_assert(IsSame<int, const int &>);
-    static_assert(not IsSame<int, int *>);
-    static_assert(not IsSame<int, float>);
-  }
-  */
+    static_assert(not HasAsyncReduce<ygm::container::bag<int>>);
+    static_assert(not HasAsyncReduce<ygm::container::set<int>>);
+    static_assert(HasAsyncReduce<ygm::container::map<int, float>>);
+    static_assert(HasAsyncReduce<ygm::container::array<float>>);
+    static_assert(HasAsyncReduce<ygm::container::detail::reducing_adapter<
+                      ygm::container::array<float>, std::plus<float>>>);
 
-  /*
-  // Test IsInvocable
-  {
-    auto lambda1 = [](int) {};
-    auto lambda2 = [](int, float) {};
+    static_assert(not HasAsyncReduceWithReductionOp<ygm::container::bag<int>>);
+    static_assert(not HasAsyncReduceWithReductionOp<ygm::container::set<int>>);
+    static_assert(
+        HasAsyncReduceWithReductionOp<ygm::container::map<int, float>>);
+    static_assert(HasAsyncReduceWithReductionOp<ygm::container::array<float>>);
+    static_assert(not HasAsyncReduceWithReductionOp<
+                  ygm::container::detail::reducing_adapter<
+                      ygm::container::array<float>, std::plus<float>>>);
 
-    static_assert(IsInvocable<decltype(lambda1), int>);
-    static_assert(not IsInvocable<decltype(lambda1), int, float>);
-    static_assert(not IsInvocable<decltype(lambda2), int>);
-    static_assert(IsInvocable<decltype(lambda2), int, float>);
+    static_assert(
+        not HasAsyncReduceWithoutReductionOp<ygm::container::bag<int>>);
+    static_assert(
+        not HasAsyncReduceWithoutReductionOp<ygm::container::set<int>>);
+    static_assert(
+        not HasAsyncReduceWithoutReductionOp<ygm::container::map<int, float>>);
+    static_assert(
+        not HasAsyncReduceWithoutReductionOp<ygm::container::array<float>>);
+    static_assert(HasAsyncReduceWithoutReductionOp<
+                  ygm::container::detail::reducing_adapter<
+                      ygm::container::array<float>, std::plus<float>>>);
   }
-  */
 
   return 0;
 }

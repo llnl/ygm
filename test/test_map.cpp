@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -90,6 +90,30 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_visit with functor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+    smap.async_insert("apple", "orange");
+
+    world.barrier();
+
+    smap.async_insert("dog", "dog");
+    smap.async_insert("red", "green");
+
+    world.barrier();
+
+    struct dog_check {
+      void operator()(const std::string &key, std::string &value) {
+        YGM_ASSERT_RELEASE(value == "cat");
+      }
+    };
+
+    smap.async_visit("dog", dog_check());
+  }
+
+  //
   // Test all ranks default & async_visit_if_contains
   {
     ygm::container::map<std::string, std::string> smap(world);
@@ -122,6 +146,27 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap.size() == 0);
   }
 
+  //
+  // Test default value
+  {
+    ygm::container::map<std::string, std::string> smap(world, "NOT FOUND");
+
+    smap.async_insert("dog", "cat");
+
+    world.barrier();
+
+    if (world.rank0()) {
+      smap.async_visit("dog", [](const auto &k, const auto &v) {
+        YGM_ASSERT_RELEASE(v == "cat");
+      });
+      smap.async_visit("not inserted", [](const auto &k, const auto &v) {
+        YGM_ASSERT_RELEASE(v == "NOT FOUND");
+      });
+    }
+
+    YGM_ASSERT_RELEASE(smap.size() == 2);
+  }
+
   // //
   // // Test async_insert_else_visit
   // {
@@ -141,7 +186,7 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) ==
+  //   YGM_ASSERT_RELEASE(sum(dog_visit_counter, world) ==
   //   world.size());
 
   //   static int apple_visit_counter{0};
@@ -154,7 +199,7 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(apple_visit_counter) ==
+  //   YGM_ASSERT_RELEASE(sum(apple_visit_counter, world) ==
   //                  world.size() - 1);
 
   //   if (world.rank0()) {
@@ -250,6 +295,11 @@ int main(int argc, char **argv) {
     imap.for_all([remove_size, &world](const auto &key, const auto &value) {
       YGM_ASSERT_RELEASE(key >= remove_size);
     });
+
+    // testing range based loop
+    for (auto &kv : imap) {
+      YGM_ASSERT_RELEASE(kv.first >= remove_size);
+    }
 
     YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
   }
@@ -441,6 +491,137 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap2.count("dog") == 1);
     YGM_ASSERT_RELEASE(smap2.count("apple") == 1);
     YGM_ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
+  //
+  // Test gather
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+    smap.async_insert("apple", "orange");
+    smap.async_insert("red", "green");
+
+    {
+      std::map<std::string, std::string> local_map;
+      smap.gather(local_map, 0);
+      if (world.rank0()) {
+        YGM_ASSERT_RELEASE(local_map.size() == 3);
+        YGM_ASSERT_RELEASE(local_map["dog"] == "cat");
+        YGM_ASSERT_RELEASE(local_map["apple"] == "orange");
+        YGM_ASSERT_RELEASE(local_map["red"] == "green");
+      }
+    }
+    {
+      std::map<std::string, std::string> local_map;
+      smap.gather(local_map);
+      YGM_ASSERT_RELEASE(local_map.size() == 3);
+      YGM_ASSERT_RELEASE(local_map["dog"] == "cat");
+      YGM_ASSERT_RELEASE(local_map["apple"] == "orange");
+      YGM_ASSERT_RELEASE(local_map["red"] == "green");
+    }
+  }
+
+  // Test copy constructor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(smap);
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test copy assignment operator
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(world);
+    smap2 = smap;
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test move constructor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(std::move(smap));
+
+    YGM_ASSERT_RELEASE(smap.size() ==
+                       0);  // I don't think this is guaranteed for a move. smap
+                            // will be in some undefined state
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 0);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
+  }
+
+  // Test move assignment operator
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+    if (world.rank0()) {
+      smap.async_insert("dog", "cat");
+      smap.async_insert("apple", "orange");
+      smap.async_insert("red", "green");
+    }
+    world.barrier();
+
+    ygm::container::map<std::string, std::string> smap2(world);
+    smap2 = std::move(smap);
+
+    YGM_ASSERT_RELEASE(smap.size() ==
+                       0);  // I don't think this is guaranteed for a move. smap
+                            // will be in some undefined state
+    YGM_ASSERT_RELEASE(smap2.size() == 3);
+
+    if (world.rank0()) {
+      smap2.async_insert("up", "down");
+    }
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(smap.size() == 0);
+    YGM_ASSERT_RELEASE(smap2.size() == 4);
   }
 
   return 0;

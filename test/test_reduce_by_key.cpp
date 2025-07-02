@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -6,8 +6,8 @@
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
-#include <ygm/container/reduce_by_key.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/container/reduce_by_key.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -22,7 +22,8 @@ int main(int argc, char** argv) {
 
     YGM_ASSERT_RELEASE(test.size() == 1);
     test.async_visit(
-        0, [](int key, int value, int size) { YGM_ASSERT_RELEASE(value == size); },
+        0,
+        [](int key, int value, int size) { YGM_ASSERT_RELEASE(value == size); },
         world.size());
   }
 
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
         YGM_ASSERT_RELEASE(false);
       }
     });
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(found) == 2);
+    YGM_ASSERT_RELEASE(ygm::sum(found, world) == 2);
   }
 
   return 0;

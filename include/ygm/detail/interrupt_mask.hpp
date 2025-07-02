@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -19,6 +19,7 @@ class interrupt_mask {
 
   ~interrupt_mask() {
     m_comm.m_enable_interrupts = true;
+    m_comm.check_if_production_halt_required();
     // m_comm.process_receive_queue();  //causes recursion into
     // process_receive_queue
   }

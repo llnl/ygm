@@ -1,0 +1,69 @@
+name: CI Test macOS
+
+on:
+  pull_request:
+    branches: [ master, '**-dev' ]
+  push:
+    branches: [ 'feature/**', 'hotfix/**']
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15]
+        compiler: [clang-18]
+        mpi-type: [openmpi]
+        build-type: [Release, Debug]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update brew
+        run: |
+          brew update
+      - name: Cache boost
+        uses: actions/cache@v4
+        id: cache-boost
+        with:
+          path: "~/boost_1_81_0"
+          key: ${{ runner.os }}-libboost1.81
+      - name: Install boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          cd ~
+          wget --no-verbose https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.bz2
+          tar -xjf boost_1_81_0.tar.bz2
+      - name: Install mpich
+        if: matrix.mpi-type == 'mpich'
+        run: brew install mpich
+      - name: Install OpenMPI
+        if: matrix.mpi-type == 'openmpi'
+        run: brew install open-mpi
+      - name: Make
+        run: |
+          echo Run 'make'
+          if [ "${{ matrix.compiler }}" == "clang-18" ]; then
+            COMPILER="$(brew --prefix llvm@18)/bin/clang++"
+          else
+            COMPILER="${{ matrix.compiler }}"
+          fi
+          mpicc -show
+          $COMPILER --version
+          mkdir build
+          cd build
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=$COMPILER -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=OFF
+          make -j3
+      - name: Make test (mpich)
+        if: matrix.mpi-type == 'mpich'
+        run: |
+          echo Run 'make test' with mpich, ${{ matrix.compiler }}
+          cd build
+          ctest -VV -C ${{ matrix.build-type }}
+      - name: Make test (OpenMPI)
+        if: matrix.mpi-type == 'openmpi'
+        run: |
+          echo Run 'make test' with OpenMPI, ${{ matrix.compiler }}
+          cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
+          export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
+          ctest -VV -C ${{ matrix.build-type }}

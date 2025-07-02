@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -25,8 +25,6 @@ int main(int argc, char** argv) {
     static_assert(std::is_same_v<decltype(bbag)::for_all_args,
                                  std::tuple<decltype(bbag)::value_type>>);
   }
-  
-
 
   //
   // Test Rank 0 async_insert
@@ -41,30 +39,59 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(bbag.count("apple") == 1);
     YGM_ASSERT_RELEASE(bbag.count("red") == 1);
     YGM_ASSERT_RELEASE(bbag.size() == 3);
+
+    for (auto& value : bbag) {
+      world.cout(value);
+    }
   }
 
   //
   // Test copy constructor
   {
-    // ygm::container::bag<std::string> bbag(world);
-    // if (world.rank0()) {
-    //   bbag.async_insert("dog");
-    //   bbag.async_insert("apple");
-    //   bbag.async_insert("red");
-    // }
-    // world.barrier();
-    // YGM_ASSERT_RELEASE(bbag.size() == 3);
-    // ygm::container::bag<std::string> bbag2(bbag);
+    ygm::container::bag<std::string> bbag(world);
+    if (world.rank0()) {
+      bbag.async_insert("dog");
+      bbag.async_insert("apple");
+      bbag.async_insert("red");
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    ygm::container::bag<std::string> bbag2(bbag);
 
-    // YGM_ASSERT_RELEASE(bbag.size() == 3);
-    // YGM_ASSERT_RELEASE(bbag2.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag2.size() == 3);
 
-    // if (world.rank0()) {
-    //   bbag2.async_insert("car");
-    // }
-    // world.barrier();
-    // YGM_ASSERT_RELEASE(bbag.size() == 3);
-    // YGM_ASSERT_RELEASE(bbag2.size() == 4);
+    if (world.rank0()) {
+      bbag2.async_insert("car");
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag2.size() == 4);
+  }
+
+  //
+  // Test copy assignment operator
+  {
+    ygm::container::bag<std::string> bbag(world);
+    if (world.rank0()) {
+      bbag.async_insert("dog");
+      bbag.async_insert("apple");
+      bbag.async_insert("red");
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    ygm::container::bag<std::string> bbag2(world);
+    bbag2 = bbag;
+
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag2.size() == 3);
+
+    if (world.rank0()) {
+      bbag2.async_insert("car");
+    }
+    world.barrier();
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag2.size() == 4);
   }
 
   //
@@ -116,10 +143,8 @@ int main(int argc, char** argv) {
 
     ygm::container::bag<std::string> bbag3 = std::move(bbag);
     YGM_ASSERT_RELEASE(bbag.size() == 0);
-    YGM_ASSERT_RELEASE(bbag3.size() == 3);  
+    YGM_ASSERT_RELEASE(bbag3.size() == 3);
   }
-
-
 
   //
   // Test all ranks async_insert
@@ -146,6 +171,16 @@ int main(int argc, char** argv) {
       if (world.rank0()) {
         YGM_ASSERT_RELEASE(all_data.size() == 3);
       }
+    }
+    {
+      std::vector<std::string> all_data;
+      bbag.gather(all_data);
+      YGM_ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
+    }
+    {
+      std::set<std::string> all_data;
+      bbag.gather(all_data);
+      YGM_ASSERT_RELEASE(all_data.size() == 3);
     }
   }
 
@@ -206,7 +241,7 @@ int main(int argc, char** argv) {
     }
     int count{0};
     bbag.for_all([&count](std::string& mstr) { ++count; });
-    int global_count = world.all_reduce_sum(count);
+    int global_count = ygm::sum(count, world);
     world.barrier();
     YGM_ASSERT_RELEASE(global_count == 3);
   }
@@ -223,7 +258,7 @@ int main(int argc, char** argv) {
     int count{0};
     pbag.for_all(
         [&count](std::pair<std::string, int>& mstr) { count += mstr.second; });
-    int global_count = world.all_reduce_sum(count);
+    int global_count = ygm::sum(count, world);
     world.barrier();
     YGM_ASSERT_RELEASE(global_count == 6);
   }
@@ -240,7 +275,7 @@ int main(int argc, char** argv) {
   //   int count{0};
   //   pbag.for_all(
   //       [&count](std::string& first, int& second) { count += second; });
-  //   int global_count = world.all_reduce_sum(count);
+  //   int global_count = ygm::sum(count, world);
   //   world.barrier();
   //   YGM_ASSERT_RELEASE(global_count == 6);
   // }
@@ -295,10 +330,10 @@ int main(int argc, char** argv) {
     bbag.gather(value_set, 0);
     if (world.rank0()) {
       YGM_ASSERT_RELEASE(value_set.size() == 200);
-      YGM_ASSERT_RELEASE(*std::min_element(value_set.begin(), value_set.end()) ==
-                     0);
-      YGM_ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) ==
-                     199);
+      YGM_ASSERT_RELEASE(
+          *std::min_element(value_set.begin(), value_set.end()) == 0);
+      YGM_ASSERT_RELEASE(
+          *std::max_element(value_set.begin(), value_set.end()) == 199);
     }
   }
 
@@ -349,6 +384,4 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(vec_bags[bag_index].size() == world.size() * 2);
     }
   }
-
-
 }

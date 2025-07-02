@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -11,23 +11,44 @@
 namespace ygm::container::detail {
 
 template <typename T>
-concept SingleItemTuple = requires(T v) {
-  requires std::tuple_size<T>::value == 1;
+concept SingleItemTuple =
+    requires(T v) { requires std::tuple_size<T>::value == 1; };
+
+template <typename T>
+concept DoubleItemTuple =
+    requires(T v) { requires std::tuple_size<T>::value == 2; };
+
+template <typename T>
+concept AtLeastOneItemTuple =
+    requires(T v) { requires std::tuple_size<T>::value >= 1; };
+
+template <typename T>
+concept HasForAll = requires(T v) { typename T::for_all_args; };
+
+template <typename T>
+concept HasAsyncReduceWithReductionOp = requires(T v) {
+  {
+    std::declval<T>().async_reduce(
+        std::declval<typename T::key_type>(),
+        std::declval<typename T::mapped_type>(),
+        [](const typename T::mapped_type a, const typename T::mapped_type b) {
+          return a;
+        })
+  } -> std::same_as<void>;
 };
 
 template <typename T>
-concept DoubleItemTuple = requires(T v) {
-  requires std::tuple_size<T>::value == 2;
+concept HasAsyncReduceWithoutReductionOp = requires(T v) {
+  {
+    std::declval<T>().async_reduce(std::declval<typename T::key_type>(),
+                                   std::declval<typename T::mapped_type>())
+  } -> std::same_as<void>;
 };
 
 template <typename T>
-concept AtLeastOneItemTuple = requires(T v) {
-  requires std::tuple_size<T>::value >= 1;
-};
-
-template <typename T>
-concept HasForAll = requires(T v) {
-  typename T::for_all_args;
+concept HasAsyncReduce = requires(T v) {
+  requires HasAsyncReduceWithReductionOp<T> or
+               HasAsyncReduceWithoutReductionOp<T>;
 };
 
 // Copied solution for an STL container concept from
@@ -61,5 +82,4 @@ concept STLContainer = requires(ContainerType a, const ContainerType b) {
   { a.max_size() } -> std::same_as<typename ContainerType::size_type>;
   { a.empty() } -> std::same_as<bool>;
 };
-
 }  // namespace ygm::container::detail

@@ -1,11 +1,11 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
 
 #pragma once
 
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
@@ -14,151 +14,27 @@
 #include <ygm/container/detail/base_batch_erase.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
 namespace ygm::container {
 
 template <typename Value>
-class multiset
-    : public detail::base_async_insert_value<multiset<Value>,
-                                             std::tuple<Value>>,
-      public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
-      public detail::base_batch_erase<multiset<Value>, std::tuple<Value>>,
-      public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
-      public detail::base_async_insert_contains<multiset<Value>,
-                                                std::tuple<Value>>,
-      public detail::base_count<multiset<Value>, std::tuple<Value>>,
-      public detail::base_misc<multiset<Value>, std::tuple<Value>>,
-      public detail::base_iteration<multiset<Value>, std::tuple<Value>> {
-  friend class detail::base_misc<multiset<Value>, std::tuple<Value>>;
-
- public:
-  using self_type      = multiset<Value>;
-  using value_type     = Value;
-  using size_type      = size_t;
-  using for_all_args   = std::tuple<Value>;
-  using container_type = ygm::container::set_tag;
-
-  multiset(ygm::comm &comm)
-      : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
-    pthis.check(m_comm);
-  }
-
-  multiset(const self_type &other)
-      : m_comm(other.comm()),
-        pthis(this),
-        partitioner(other.comm, other.partitioner) {
-    pthis.check(m_comm);
-  }
-
-  multiset(self_type &&other) noexcept
-      : m_comm(other.comm()),
-        pthis(this),
-        partitioner(other.partitioner),
-        m_local_set(std::move(other.m_local_set)) {
-    pthis.check(m_comm);
-  }
-
-  multiset(ygm::comm &comm, std::initializer_list<Value> l)
-      : m_comm(comm), pthis(this), partitioner(comm) {
-    pthis.check(m_comm);
-    if (m_comm.rank0()) {
-      for (const Value &i : l) {
-        async_insert(i);
-      }
-    }
-
-    m_comm.barrier();
-  }
-
-  template <typename STLContainer>
-  multiset(ygm::comm &comm, const STLContainer &cont) requires
-      detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Value>
-      : m_comm(comm), pthis(this), partitioner(comm) {
-    pthis.check(m_comm);
-
-    for (const Value &i : cont) {
-      this->async_insert(i);
-    }
-
-    m_comm.barrier();
-  }
-
-  template <typename YGMContainer>
-  multiset(ygm::comm          &comm,
-           const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
-      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
-      : m_comm(comm), pthis(this), partitioner(comm) {
-    pthis.check(m_comm);
-
-    yc.for_all([this](const Value &value) { this->async_insert(value); });
-
-    m_comm.barrier();
-  }
-
-  ~multiset() { m_comm.barrier(); }
-
-  multiset() = delete;
-
-  multiset &operator=(const self_type &other) {
-    return *this = multiset(other);
-  }
-
-  multiset &operator=(self_type &&other) noexcept {
-    std::swap(m_local_set, other.m_local_set);
-    return *this;
-  }
-
-  void local_insert(const value_type &val) { m_local_set.insert(val); }
-
-  void local_erase(const value_type &val) { m_local_set.erase(val); }
-
-  void local_clear() { m_local_set.clear(); }
-
-  size_t local_count(const value_type &val) const {
-    return m_local_set.count(val);
-  }
-
-  size_t local_size() const { return m_local_set.size(); }
-
-  template <typename Function>
-  void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
-  }
-
-  template <typename Function>
-  void local_for_all(Function fn) const {
-    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
-  }
-
-  void serialize(const std::string &fname) {}
-
-  void deserialize(const std::string &fname) {}
-
-  detail::hash_partitioner<std::hash<value_type>> partitioner;
-
- private:
-  void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
-
-  ygm::comm                       &m_comm;
-  std::multiset<value_type>        m_local_set;
-  typename ygm::ygm_ptr<self_type> pthis;
-};
-
-template <typename Value>
 class set
     : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
       public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
-      public detail::base_batch_erase<set<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase_key<set<Value>, std::tuple<Value>>,
       public detail::base_async_contains<set<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
       public detail::base_count<set<Value>, std::tuple<Value>>,
       public detail::base_misc<set<Value>, std::tuple<Value>>,
-      public detail::base_iteration<set<Value>, std::tuple<Value>> {
+      public detail::base_iterators<set<Value>>,
+      public detail::base_iteration_value<set<Value>, std::tuple<Value>> {
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
+
+  using local_container_type =
+      boost::unordered::unordered_flat_set<Value, detail::hash<Value>>;
 
  public:
   using self_type      = set<Value>;
@@ -166,29 +42,32 @@ class set
   using size_type      = size_t;
   using for_all_args   = std::tuple<Value>;
   using container_type = ygm::container::set_tag;
+  using iterator       = typename local_container_type::iterator;
+  using const_iterator = typename local_container_type::const_iterator;
 
+  /**
+   * @brief Set constructor
+   *
+   * @param comm Communicator to use for communication
+   */
   set(ygm::comm &comm)
-      : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
-    pthis.check(m_comm);
-  }
-
-  set(const self_type &other)
-      : m_comm(other.comm()),
+      : m_comm(comm),
         pthis(this),
-        partitioner(other.comm, other.partitioner) {
+        partitioner(comm, detail::hash<value_type>()) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
   }
 
-  set(self_type &&other) noexcept
-      : m_comm(other.comm()),
-        pthis(this),
-        partitioner(other.partitioner),
-        m_local_set(std::move(other.m_local_set)) {
-    pthis.check(m_comm);
-  }
-
+  /**
+   * @brief Set constructor from std::initializer_list of sets
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of values to put in set
+   * @details Initializer list is assumed to be replicated on all ranks.
+   */
   set(ygm::comm &comm, std::initializer_list<Value> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Value &i : l) {
@@ -198,11 +77,19 @@ class set
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct set from existing STL container
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param cont STL container containing values to put in set
+   */
   template <typename STLContainer>
-  set(ygm::comm          &comm,
-      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Value>
+  set(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Value>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
 
     for (const Value &i : cont) {
@@ -211,12 +98,19 @@ class set
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct set from existing YGM container of values
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param yc YGM container of values to put in set.
+   */
   template <typename YGMContainer>
-  set(ygm::comm          &comm,
-      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
-      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
+  set(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
 
     yc.for_all([this](const Value &value) { this->async_insert(value); });
@@ -224,9 +118,30 @@ class set
     m_comm.barrier();
   }
 
-  ~set() { m_comm.barrier(); }
+  ~set() {
+    m_comm.log(log_level::info, "Destroying ygm::container::set");
+    m_comm.barrier();
+  }
 
   set() = delete;
+
+  set(const self_type &other)
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm()),
+        m_local_set(other.m_local_set) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
+    pthis.check(m_comm);
+  }
+
+  set(self_type &&other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.partitioner),
+        m_local_set(std::move(other.m_local_set)) {
+    m_comm.log(log_level::info, "Creating ygm::container::set");
+    pthis.check(m_comm);
+  }
 
   set &operator=(const self_type &other) { return *this = set(other); }
 
@@ -235,39 +150,144 @@ class set
     return *this;
   }
 
+  /**
+   * @brief Access to begin iterator of locally-held items
+   *
+   * @return Local iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_begin() { return m_local_set.begin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const set
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_begin() const { return m_local_set.cbegin(); }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const set
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_cbegin() const { return m_local_set.cbegin(); }
+
+  /**
+   * @brief Access to end iterator of locally-held items
+   *
+   * @return Local iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_end() { return m_local_set.end(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const set
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_end() const { return m_local_set.cend(); }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const set
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_cend() const { return m_local_set.cend(); }
+
+  using detail::base_batch_erase_key<set<Value>, for_all_args>::erase;
+
+  /**
+   * @brief Insert a value into local storage
+   *
+   * @param val Value to store
+   */
   void local_insert(const value_type &val) { m_local_set.insert(val); }
 
+  /**
+   * @brief Erase value from local storage
+   *
+   * @param val Value to erase from local storage
+   */
   void local_erase(const value_type &val) { m_local_set.erase(val); }
 
+  /**
+   * @brief Clear local storage
+   */
   void local_clear() { m_local_set.clear(); }
 
+  /**
+   * @brief Count the number of times a value is found locally
+   *
+   * @return Number of local occurrences of `val`
+   */
   size_t local_count(const value_type &val) const {
     return m_local_set.count(val);
   }
 
+  /**
+   * @brief Get the number of elements stored on the local process.
+   *
+   * @return Local size of set
+   */
   size_t local_size() const { return m_local_set.size(); }
 
+  /**
+   * @brief Execute a functor on every locally-held value
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on values
+   */
   template <typename Function>
-  void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  void local_for_all(Function &&fn) {
+    std::for_each(m_local_set.begin(), m_local_set.end(),
+                  std::forward<Function>(fn));
   }
 
+  /**
+   * @brief `local_for_all` for `const` containers
+   *
+   * @tparam Function functor type
+   * @param fn Functor to execute on values
+   * @details `const` references to values are provided to `fn`
+   */
   template <typename Function>
-  void local_for_all(Function fn) const {
-    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
+  void local_for_all(Function &&fn) const {
+    std::for_each(m_local_set.cbegin(), m_local_set.cend(),
+                  std::forward<Function>(fn));
   }
 
+  /**
+   * @brief Serialize a set to a collection of files to be read back in later
+   *
+   * @param fname Filename prefix to create filename used by every rank from
+   */
   void serialize(const std::string &fname) {}
 
+  /**
+   * @brief Deserialize a set from files
+   *
+   * @param fname Filename prefix to create filename used by every rank from
+   * @details Currently requires the number of ranks deserializing a bag to be
+   * the same as was used for serialization.
+   */
   void deserialize(const std::string &fname) {}
 
-  detail::hash_partitioner<std::hash<value_type>> partitioner;
+  detail::hash_partitioner<detail::hash<value_type>> partitioner;
 
- private:
+  /**
+   * @brief Swap elements held locally between sets
+   *
+   * @param other Set to swap elements with
+   */
   void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
+ private:
   ygm::comm                       &m_comm;
-  std::set<value_type>             m_local_set;
+  local_container_type             m_local_set;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 

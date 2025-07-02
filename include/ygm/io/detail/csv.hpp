@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -81,7 +81,7 @@ class csv_line {
   using const_reverse_iterator = vector_type::const_reverse_iterator;
 
   csv_line(const std::map<std::string, int> &header_map)
-      : m_header_map_ref(header_map){};
+      : m_header_map_ref(header_map) {};
 
   void push_back(const csv_field &f) { m_csv_fields.push_back(f); }
 
@@ -113,12 +113,12 @@ class csv_line {
   const std::map<std::string, int> &m_header_map_ref;
 };
 
-std::ostream &operator<<(std::ostream &os, const csv_field &f) {
+inline std::ostream &operator<<(std::ostream &os, const csv_field &f) {
   return os << f.as_string();
 }
 
-csv_line parse_csv_line(const std::string                 line,
-                        const std::map<std::string, int> &header_map_ref) {
+inline csv_line parse_csv_line(
+    const std::string line, const std::map<std::string, int> &header_map_ref) {
   csv_line line_fields(header_map_ref);
   if (line.empty() || line[0] == '#') {
     return line_fields;
@@ -142,7 +142,8 @@ csv_line parse_csv_line(const std::string                 line,
   return line_fields;
 }
 
-std::map<std::string, int> parse_csv_headers(const std::string header_line) {
+inline std::map<std::string, int> parse_csv_headers(
+    const std::string header_line) {
   std::map<std::string, int> header_map;
 
   std::stringstream ssline(header_line);
@@ -166,7 +167,8 @@ std::map<std::string, int> parse_csv_headers(const std::string header_line) {
   return header_map;
 }
 
-std::string convert_type_string(const std::vector<csv_field> &line_fields) {
+inline std::string convert_type_string(
+    const std::vector<csv_field> &line_fields) {
   std::stringstream ss;
   for (const auto &f : line_fields) {
     if (f.is_integer()) {

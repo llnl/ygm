@@ -1,8 +1,7 @@
-// Copyright 2019-2024 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
-
 
 #undef NDEBUG
 
@@ -10,17 +9,18 @@
 
 #include <boost/container/vector.hpp>
 
-#include <ygm/detail/assert.hpp>
-#include <ygm/detail/cereal_boost_container.hpp>
+#include <ygm/detail/byte_vector.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/utility/assert.hpp>
+#include <ygm/utility/boost_vector.hpp>
 
 int main() {
   // Currently, we only support boost::container::vector
 
   boost::container::vector<int> original_value = {1, 2, 3, 4, 5};
-  std::vector<std::byte> cereal_buffer;
+  ygm::detail::byte_vector      cereal_buffer;
   {
-    cereal::YGMOutputArchive      archive(cereal_buffer);
+    cereal::YGMOutputArchive archive(cereal_buffer);
     archive(original_value);
   }
 

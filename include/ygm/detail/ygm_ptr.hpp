@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -6,16 +6,15 @@
 #pragma once
 
 #include <vector>
-#include <ygm/detail/assert.hpp>
+#include <ygm/detail/collective.hpp>
+#include <ygm/utility/assert.hpp>
 
 namespace ygm {
-
-class comm;
 
 template <typename T>
 class ygm_ptr {
  public:
-  ygm_ptr(){};
+  ygm_ptr() {};
 
   T       *operator->() { return sptrs[idx]; }
   T *const operator->() const { return sptrs[idx]; }
@@ -42,10 +41,7 @@ class ygm_ptr {
 
   uint32_t index() const { return idx; }
 
-  template <typename Comm>
-  void check(Comm &c) const {
-    YGM_ASSERT_RELEASE(idx == c.all_reduce_min(idx));
-  }
+  void check(comm &c) const { YGM_ASSERT_RELEASE(idx == ::ygm::min(idx, c)); }
 
   template <class Archive>
   void serialize(Archive &archive) {

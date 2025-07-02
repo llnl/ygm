@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -166,6 +166,164 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("bird") == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset2.count("red") == 0);
     YGM_ASSERT_RELEASE(cset2.size() == 3);
+  }
+
+  //
+  // Test copy constructor
+  {
+    ygm::container::counting_set<std::string> cset(world);
+    if (world.rank() == 0) {
+      cset.async_insert("dog");
+      cset.async_insert("apple");
+      cset.async_insert("red");
+    }
+
+    ygm::container::counting_set<std::string> cset2(cset);
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
+
+    if (world.rank0()) {
+      cset2.async_insert("dog");
+      cset2.async_insert("apple");
+      cset2.async_insert("red");
+    }
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 2);
+    YGM_ASSERT_RELEASE(cset2.size() == 6);
+  }
+
+  //
+  // Test copy assignment operator
+  {
+    ygm::container::counting_set<std::string> cset(world);
+    if (world.rank() == 0) {
+      cset.async_insert("dog");
+      cset.async_insert("apple");
+      cset.async_insert("red");
+    }
+
+    ygm::container::counting_set<std::string> cset2(world);
+    cset2 = cset;
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
+
+    if (world.rank0()) {
+      cset2.async_insert("dog");
+      cset2.async_insert("apple");
+      cset2.async_insert("red");
+    }
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 2);
+    YGM_ASSERT_RELEASE(cset2.size() == 6);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::counting_set<std::string> cset(world);
+    if (world.rank() == 0) {
+      cset.async_insert("dog");
+      cset.async_insert("apple");
+      cset.async_insert("red");
+    }
+
+    ygm::container::counting_set<std::string> cset2(std::move(cset));
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 0);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 0);
+    YGM_ASSERT_RELEASE(cset.count("red") == 0);
+    YGM_ASSERT_RELEASE(cset.size() == 0);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
+
+    if (world.rank0()) {
+      cset2.async_insert("dog");
+      cset2.async_insert("apple");
+      cset2.async_insert("red");
+    }
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 0);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 0);
+    YGM_ASSERT_RELEASE(cset.count("red") == 0);
+    YGM_ASSERT_RELEASE(cset.size() == 0);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 2);
+    YGM_ASSERT_RELEASE(cset2.size() == 6);
+  }
+
+  //
+  // Test move assignment operator
+  {
+    ygm::container::counting_set<std::string> cset(world);
+    if (world.rank() == 0) {
+      cset.async_insert("dog");
+      cset.async_insert("apple");
+      cset.async_insert("red");
+    }
+
+    ygm::container::counting_set<std::string> cset2(world);
+    cset2 = std::move(cset);
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 0);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 0);
+    YGM_ASSERT_RELEASE(cset.count("red") == 0);
+    YGM_ASSERT_RELEASE(cset.size() == 0);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 1);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
+
+    if (world.rank0()) {
+      cset2.async_insert("dog");
+      cset2.async_insert("apple");
+      cset2.async_insert("red");
+    }
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == 0);
+    YGM_ASSERT_RELEASE(cset.count("apple") == 0);
+    YGM_ASSERT_RELEASE(cset.count("red") == 0);
+    YGM_ASSERT_RELEASE(cset.size() == 0);
+
+    YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
+    YGM_ASSERT_RELEASE(cset2.count("red") == 2);
+    YGM_ASSERT_RELEASE(cset2.size() == 6);
   }
 
   return 0;

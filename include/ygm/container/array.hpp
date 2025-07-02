@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -8,10 +8,10 @@
 #include <concepts>
 #include <random>
 
-#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
+#include <ygm/container/detail/base_async_reduce.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
@@ -20,6 +20,15 @@
 
 namespace ygm::container {
 
+/**
+ * @brief Container for key-value pairs with keys that are contiguous indices in
+ * the range [0, size()-1]
+ *
+ * @details Assigns ranks contiguous chunks of indices using block_partitioner
+ * object. Resizing array is an expensive operation as it requires reassigning
+ * storage to ranks.
+ *
+ */
 template <typename Value, typename Index = size_t>
 class array
     : public detail::base_async_insert_key_value<array<Value, Index>,
@@ -27,8 +36,10 @@ class array
       public detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>,
       public detail::base_async_visit<array<Value, Index>,
                                       std::tuple<Index, Value>>,
-      public detail::base_iteration<array<Value, Index>,
-                                    std::tuple<Index, Value>> {
+      public detail::base_iteration_key_value<array<Value, Index>,
+                                              std::tuple<Index, Value>>,
+      public detail::base_async_reduce<array<Value, Index>,
+                                       std::tuple<Index, Value>> {
   friend class detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>;
 
  public:
@@ -48,28 +59,53 @@ class array
 
   array() = delete;
 
+  /**
+   * @brief Array constructor
+   *
+   * @param comm Communicator to use for communication
+   * @param size Global size to use to array
+   */
   array(ygm::comm& comm, const size_type size)
       : m_comm(comm),
         pthis(this),
         m_global_size(size),
         m_default_value{},
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
   }
 
+  /**
+   * @brief Array constructor taking default value
+   *
+   * @param comm Communicator to use for communication
+   * @param size Global size to use for array
+   * @param default_value Value to initialize all stored items with
+   */
   array(ygm::comm& comm, const size_type size, const mapped_type& default_value)
       : m_comm(comm),
         pthis(this),
         m_global_size(size),
         m_default_value(default_value),
         partitioner(comm, size) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(size);
   }
 
+  /**
+   * @brief Array constructor from std::initializer_list of values
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of values to put in array
+   * @details Initializer list is assumed to be replicated on all ranks.
+   * Initializer list only contains values to place in array. Indices assigned
+   * to values are provided in sequential order. Array size is determined by
+   * size of initializer list.
+   */
   array(ygm::comm& comm, std::initializer_list<mapped_type> l)
       : m_comm(comm),
         pthis(this),
@@ -77,6 +113,7 @@ class array
         m_default_value{},
         partitioner(comm, l.size()) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(l.size());
@@ -90,10 +127,21 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Array constructor from std::initializer_list of index-value pairs
+   *
+   * @param comm Communicator to use for communication
+   * @param l Initializer list of index-value pairs to put in array
+   * @details Initializer list is assumed to be replicated on all ranks.
+   * Initializer list contains index-value pairs to place in array. Indices are
+   * not assumed to be in sequential order or contiguous. Array size is
+   * determined by max index within initializer list.
+   */
   array(ygm::comm&                                               comm,
         std::initializer_list<std::tuple<key_type, mapped_type>> l)
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     m_comm.cout0("initializer_list assumes all ranks are equal");
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -114,22 +162,22 @@ class array
     m_comm.barrier();
   }
 
-  array(const self_type& rhs)
-      : m_comm(rhs.m_comm),
-        pthis(this),
-        m_global_size(rhs.m_global_size),
-        m_default_value(rhs.m_default_value),
-        m_local_vec(rhs.m_local_vec),
-        partitioner(rhs.m_comm, rhs.m_global_size) {
-    pthis.check(m_comm);
-    resize(m_global_size);
-  }
-
+  /**
+   * @brief Construct array from existing YGM container
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t YGM container containing values to put in array
+   * @details Existing container contains only values. Indices are assigned
+   * sequentially across ranks. Partitioning will likely not be the same between
+   * existing container and constructed array.
+   */
   template <typename T>
   array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
       detail::SingleItemTuple<typename T::for_all_args> &&
       std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     resize(t.size());
@@ -143,6 +191,16 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct array from existing YGM container of key-value pairs
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t YGM container of key-value pairs to put in array.
+   * @details Requires input container `for_all_args` to be a single item tuple
+   * that is itself a key-value pair (e.g. works from a `ygm::container::bag`).
+   * Array size is determined by finding the largest index across all ranks.
+   */
   template <typename T>
   array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
       detail::SingleItemTuple<typename T::for_all_args> && detail::
@@ -156,6 +214,7 @@ class array
               1, std::tuple_element_t<0, typename T::for_all_args>>,
           mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -163,7 +222,7 @@ class array
       max_index = std::max<mapped_type>(std::get<0>(index_value), max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 
@@ -174,14 +233,24 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct array from existing YGM container of key-value pairs
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t YGM container of key-value pairs to put in array
+   * @details Requires input container's `for_all_args` to be a tuple containing
+   * keys and values (e.g. works from a `ygm::container::map`). Array size is
+   * determined by finding the largest index across all ranks.
+   */
   template <typename T>
   array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
       detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
-
           std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
       std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
                           mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -189,7 +258,7 @@ class array
       max_index = std::max<mapped_type>(index, max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 
@@ -200,11 +269,23 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct array from existing STL container
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t STL container containing values to put in array
+   * @details Existing container contains only values. Values are assumed to be
+   * distinct between ranks. Indices are assigned sequentially across ranks.
+   * Partitioning will likely not be the same between existing container and
+   * constructed array.
+   */
   template <typename T>
   array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
       (not detail::SingleItemTuple<typename T::value_type>)&&std::
           convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     auto global_size = sum(t.size(), m_comm);
@@ -220,6 +301,16 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Construct array from existing STL container of key-value pairs
+   *
+   * @tparam T Existing container type
+   * @param comm Communicator to use for communication
+   * @param t STL container of key-value pairs to put in array.
+   * @details Requires existing container to have a `value_type` that contains
+   * keys and values. Array size is determined by finding the largest index
+   * across all ranks.
+   */
   template <typename T>
   array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
       detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
@@ -227,6 +318,7 @@ class array
       std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
                           mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
     key_type max_index{0};
@@ -234,7 +326,7 @@ class array
       max_index = std::max<key_type>(std::get<0>(index_value), max_index);
     });
 
-    max_index = ygm::max(max_index, m_comm);
+    max_index = ::ygm::max(max_index, m_comm);
 
     resize(max_index + 1);
 
@@ -243,14 +335,84 @@ class array
     });
   }
 
-  ~array() { m_comm.barrier(); }
+  ~array() {
+    m_comm.barrier();
+    m_comm.log(log_level::info, "Destroying ygm::container::array");
+  }
 
+  array(const self_type& other)
+      : m_comm(other.comm()),
+        pthis(this),
+        m_global_size(other.m_global_size),
+        m_default_value(other.m_default_value),
+        m_local_vec(other.m_local_vec),
+        partitioner(other.m_comm, other.m_global_size) {
+    m_comm.log(log_level::info, "Copying ygm::container::array");
+    pthis.check(m_comm);
+  }
+
+  array(self_type&& other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        m_global_size(other.m_global_size),
+        m_default_value(other.m_default_value),
+        m_local_vec(std::move(other.m_local_vec)),
+        partitioner(other.comm(), other.m_global_size) {
+    m_comm.log(log_level::info, "Moving ygm::container::array");
+    pthis.check(m_comm);
+
+    other.m_global_size = 0;
+  }
+
+  array& operator=(const self_type& other) {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::array copy assignment operator");
+    resize(other.m_global_size);
+    m_default_value = other.m_default_value;
+    m_local_vec     = other.m_local_vec;
+
+    return *this;
+  }
+
+  array& operator=(self_type&& other) noexcept {
+    m_comm.log(log_level::info,
+               "Calling ygm::container::array move assignment operator");
+    m_global_size   = other.m_global_size;
+    m_default_value = other.m_default_value;
+    partitioner = detail::block_partitioner<key_type>(m_comm, m_global_size);
+
+    std::swap(m_local_vec, other.m_local_vec);
+
+    if (other.m_local_vec.size() > 0) {
+      other.m_local_vec.clear();
+    }
+    other.m_global_size = 0;
+
+    return *this;
+  }
+
+  /**
+   * @brief Insert a key and value into local storage.
+   *
+   * @param key Local index to store value at
+   * @param value Vale to store
+   * @details Assumes key (index) has already been converted to a local index.
+   */
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_vec[partitioner.local_index(key)] = value;
   }
 
+  /**
+   * @brief Visit an item stored locally
+   *
+   * @tparam Function functor type
+   * @tparam VisitorArgs... Variadic argument types
+   * @param index Index to visit
+   * @param fn User-provided function to execute at item
+   * @param args... Arguments to pass to user functor
+   */
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type index, Function& fn,
+  void local_visit(const key_type index, Function&& fn,
                    const VisitorArgs&... args) {
     ygm::detail::interrupt_mask mask(m_comm);
     if constexpr (std::is_invocable<decltype(fn), const key_type, mapped_type&,
@@ -258,22 +420,38 @@ class array
                   std::is_invocable<decltype(fn), ptr_type, const key_type,
                                     mapped_type&, VisitorArgs&...>()) {
       ygm::meta::apply_optional(
-          fn, std::make_tuple(pthis),
+          std::forward<Function>(fn), std::make_tuple(pthis),
           std::forward_as_tuple(
               index, m_local_vec[partitioner.local_index(index)], args...));
     } else {
-      static_assert(ygm::detail::always_false<>,
-                    "remote array lambda must be "
-                    "invocable with (const "
-                    "key_type, mapped_type &, ...) or "
-                    "(ptr_type, mapped_type &, ...) signatures");
+      static_assert(
+          ygm::detail::always_false<Function>,
+          "remote array lambda must be "
+          "invocable with (const "
+          "key_type, mapped_type &, ...) or "
+          "(ptr_type, const key_type, mapped_type &, ...) signatures");
     }
   }
 
+  /**
+   * @brief Set the value associated to given index
+   *
+   * @param index Index to store value at
+   * @param value Value to store
+   */
   void async_set(const key_type index, const mapped_type& value) {
     async_insert(index, value);
   }
 
+  /**
+   * @brief Apply a binary operation to a provided value and the value already
+   * stored at a given index to update the stored value
+   *
+   * @tparam BinaryOp functor type
+   * @param index Index to apply update at
+   * @param value New value to update with
+   * @param b Binary operation to apply
+   */
   template <typename BinaryOp>
   void async_binary_op_update_value(const key_type     index,
                                     const mapped_type& value,
@@ -288,42 +466,104 @@ class array
     async_visit(index, updater, value);
   }
 
+  /**
+   * @brief Apply bitwise and to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "and" with current value
+   */
   void async_bit_and(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::bit_and<mapped_type>());
   }
 
+  /**
+   * @brief Apply bitwise or to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "or" with current value
+   */
   void async_bit_or(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::bit_or<mapped_type>());
   }
 
+  /**
+   * @brief Apply bitwise xor to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "xor" with current value
+   */
   void async_bit_xor(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::bit_xor<mapped_type>());
   }
 
+  /**
+   * @brief Apply logical and to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "and" with current value
+   */
   void async_logical_and(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::logical_and<mapped_type>());
   }
 
+  /**
+   * @brief Apply logical or to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to "or" with current value
+   */
   void async_logical_or(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::logical_or<mapped_type>());
   }
 
+  /**
+   * @brief Apply multiplication to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to multiply with current value
+   */
   void async_multiplies(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::multiplies<mapped_type>());
   }
 
+  /**
+   * @brief Apply division to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to divide current value by
+   */
   void async_divides(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::divides<mapped_type>());
   }
 
+  /**
+   * @brief Apply addition to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to add to current value
+   */
   void async_plus(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::plus<mapped_type>());
   }
 
+  /**
+   * @brief Apply subtraction to update stored value
+   *
+   * @param index Index to perform update at
+   * @param value Value to subtract from current value
+   */
   void async_minus(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::minus<mapped_type>());
   }
 
+  /**
+   * @brief Apply a unary operation to the value already
+   * stored at a given index to update the stored value
+   *
+   * @tparam UnaryOp functor type
+   * @param index Index to apply update at
+   * @param u Unary operation to apply
+   */
   template <typename UnaryOp>
   void async_unary_op_update_value(const key_type index, const UnaryOp& u) {
     YGM_ASSERT_RELEASE(index < m_global_size);
@@ -335,11 +575,21 @@ class array
     async_visit(index, updater);
   }
 
+  /**
+   * @brief Increment stored value
+   *
+   * @param index Index to perform update at
+   */
   void async_increment(const key_type index) {
     async_unary_op_update_value(index,
                                 [](const mapped_type& v) { return v + 1; });
   }
 
+  /**
+   * @brief Decrement stored value
+   *
+   * @param index Index to perform update at
+   */
   void async_decrement(const key_type index) {
     async_unary_op_update_value(index,
                                 [](const mapped_type& v) { return v - 1; });
@@ -347,6 +597,15 @@ class array
 
   const mapped_type& default_value() const;
 
+  /**
+   * @brief Set new global size for array
+   *
+   * @param size New global size
+   * @param fill_value Value to initialize new values to (when expanding an
+   * array)
+   * @details This operation requires repartitioning the data already stored in
+   * a container, which is a `O(old_size)` operation.
+   */
   void resize(const size_type size, const mapped_type& fill_value) {
     m_comm.barrier();
 
@@ -376,17 +635,44 @@ class array
     m_comm.barrier();
   }
 
+  /**
+   * @brief Set new global size for array with a default fill value
+   *
+   * @param size New global size
+   * @details Equivalent to `resize(size, m_default_value)`
+   */
   void resize(const size_type size) { resize(size, m_default_value); }
 
+  /**
+   * @brief Get the number of elements stored on the local process.
+   *
+   * @return Local size of array
+   */
   size_t local_size() { return partitioner.local_size(); }
 
+  /**
+   * @brief Get the global size of the array
+   *
+   * @return Array's global size
+   */
   size_t size() const {
     m_comm.barrier();
     return m_global_size;
   }
 
+  /**
+   * @brief Clear the local contents of the array and set size to 0
+   *
+   * @details Setting the local size to 0 cannot be performed independently of
+   * other ranks. This operation needs to be called collectively for the array.
+   */
   void local_clear() { resize(0); }
 
+  /**
+   * @brief Swap the local contents of an array.
+   *
+   * @param other The array to swap local contents with
+   */
   void local_swap(self_type& other) {
     m_local_vec.swap(other.m_local_vec);
     std::swap(m_global_size, other.m_global_size);
@@ -394,8 +680,16 @@ class array
     std::swap(partitioner, other.partitioner);
   }
 
+  /**
+   * @brief Apply a lambda to all local elements
+   *
+   * @tparam Function functor type
+   * @param fn Functor object to apply to all elements locally stored in the
+   * array
+   * @details This operation can be called non-collectively.
+   */
   template <typename Function>
-  void local_for_all(Function fn) {
+  void local_for_all(Function&& fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     mapped_type&>()) {
       for (int i = 0; i < m_local_vec.size(); ++i) {
@@ -403,9 +697,10 @@ class array
         fn(g_index, m_local_vec[i]);
       }
     } else if constexpr (std::is_invocable<decltype(fn), mapped_type&>()) {
-      std::for_each(std::begin(m_local_vec), std::end(m_local_vec), fn);
+      std::for_each(std::begin(m_local_vec), std::end(m_local_vec),
+                    std::forward<Function>(fn));
     } else {
-      static_assert(ygm::detail::always_false<>,
+      static_assert(ygm::detail::always_false<Function>,
                     "local array lambda must be "
                     "invocable with (const "
                     "key_type, mapped_type &) or "
@@ -413,6 +708,30 @@ class array
     }
   }
 
+  /**
+   * @brief Update a locally stored element by performing a binary operation
+   * between it and a provided value
+   *
+   * @tparam ReductionOp functor type
+   * @param index Global index to perform binary operation at. Must be found on
+   * the local process.
+   * @param value Value to combine with the currently-held value
+   * @param reducer Binary operation to perform
+   */
+  template <typename ReductionOp>
+  void local_reduce(const key_type index, const mapped_type& value,
+                    ReductionOp reducer) {
+    m_local_vec[partitioner.local_index(index)] =
+        reducer(value, m_local_vec[partitioner.local_index(index)]);
+  }
+
+  /**
+   * @brief Globally sort values in array in increasing order
+   *
+   * @details Partitions data using sampled pivots to approximately balance
+   * values on ranks. Then use `std::sort` locally on values before reinserting
+   * into the array.
+   */
   void sort() {
     const key_type samples_per_pivot = std::max<key_type>(
         std::min<key_type>(20, m_global_size / m_comm.size()), 1);
@@ -446,7 +765,8 @@ class array
     }
     m_comm.barrier();
 
-    YGM_ASSERT_RELEASE(samples.size() == samples_per_pivot * (m_comm.size() - 1));
+    YGM_ASSERT_RELEASE(samples.size() ==
+                       samples_per_pivot * (m_comm.size() - 1));
     std::sort(samples.begin(), samples.end());
     for (size_t i = samples_per_pivot - 1; i < samples.size();
          i += samples_per_pivot) {

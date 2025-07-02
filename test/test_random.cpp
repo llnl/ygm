@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     rn_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
     sample_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
 
-    int global_counter = world.all_reduce_sum(local_counter);
+    int global_counter = ygm::sum(local_counter, world);
 
     YGM_ASSERT_RELEASE(global_counter == world.size());
   }

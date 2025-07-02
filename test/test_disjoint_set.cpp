@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -204,26 +204,56 @@ int main(int argc, char** argv) {
       ++counter;
     });
 
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(counter) == num_items);
+    YGM_ASSERT_RELEASE(ygm::sum(counter, world) == num_items);
   }
 
   // Test async_union_and_execute
   {
     ygm::container::disjoint_set<int> dset(world);
 
-    static int counter{0};
+    static int successful_counter{0};
+    static int unsuccessful_counter{0};
 
-    dset.async_union_and_execute(0, 1,
-                                 [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(0, 2,
-                                 [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(1, 2,
-                                 [](const int u, const int v) { counter++; });
     dset.async_union_and_execute(
-        3, 4, [](const int u, const int v, const auto thing) { counter++; }, 0);
+        0, 1, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        0, 2, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        1, 2, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        3, 4,
+        [](const int u, const int v, const bool union_result,
+           const auto thing) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        },
+        0);
 
     world.barrier();
 
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(counter) == 3);
+    YGM_ASSERT_RELEASE(ygm::sum(successful_counter, world) == 3);
+    YGM_ASSERT_RELEASE(ygm::sum(unsuccessful_counter, world) ==
+                       world.size() * 4 - 3);
   }
 }

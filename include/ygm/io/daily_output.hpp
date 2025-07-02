@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -12,16 +12,39 @@
 
 namespace ygm::io {
 
+/**
+ * @brief Class for writing output to a file for each day based on a timestamp
+ * provided at the time of writing
+ *
+ * @tparam Partitioner Type used to assign filenames to ranks for writing
+ */
 template <typename Partitioner =
               ygm::container::detail::old_hash_partitioner<std::string>>
 class daily_output {
  public:
   using self_type = daily_output<Partitioner>;
 
+  /**
+   * @brief Construct a daily_output object
+   *
+   * @param comm Communicator to use for communication
+   * @param filename_prefix Prefix used when creating filenames
+   * @param buffer_length Length of buffers to use before writing
+   * @param append If false, existing files are overwritten. Otherwise, output
+   * is appended to existing files.
+   */
   daily_output(ygm::comm &comm, const std::string &filename_prefix,
                size_t buffer_length = 1024 * 1024, bool append = false)
       : m_multi_output(comm, filename_prefix, buffer_length, append) {}
 
+  /**
+   * @brief Write a line of output
+   *
+   * @tparam Args... Variadic types of output
+   * @param timestamp Linux timestamp associated to use when assigning output to
+   * a file
+   * @param args... Variadic arguments to write to output file
+   */
   template <typename... Args>
   void async_write_line(const uint64_t timestamp, Args &&...args) {
     // std::chrono::time_point<std::chrono::seconds> t(timestamp);

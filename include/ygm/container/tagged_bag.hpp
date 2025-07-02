@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -29,8 +29,14 @@ class tagged_bag {
   tagged_bag(ygm::comm &comm)
       : m_next_tag(tag_type(comm.rank()) << TAG_BITS),
         m_tagged_bag(ygm::container::map<tag_type, value_type>(comm)),
-        pthis(this) {}
-  ~tagged_bag() = default;
+        pthis(this) {
+    m_tagged_bag.comm().log(log_level::info,
+                            "Creating ygm::container::tagged_bag");
+  }
+  ~tagged_bag() {
+    m_tagged_bag.comm().log(log_level::info,
+                            "Creating ygm::container::tagged_bag");
+  }
 
   tag_type async_insert(const value_type &item) {
     tag_type tag = m_next_tag++;
@@ -55,8 +61,8 @@ class tagged_bag {
   }
 
   template <typename Function>
-  void for_all(Function fn) {
-    return m_tagged_bag.for_all(fn);
+  void for_all(Function &&fn) {
+    return m_tagged_bag.for_all(std::forward<Function>(fn));
   }
 
   void clear() { return m_tagged_bag.clear(); }
@@ -85,9 +91,9 @@ class tagged_bag {
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const tag_type &tag, Function &fn,
+  void local_visit(const tag_type &tag, Function &&fn,
                    const VisitorArgs &...args) {
-    return m_tagged_bag.local_visit(tag, fn, args...);
+    return m_tagged_bag.local_visit(tag, std::forward<Function>(fn), args...);
   }
 
   void local_erase(const tag_type &tag) { m_tagged_bag.m_local_map.erase(tag); }
@@ -103,12 +109,13 @@ class tagged_bag {
   //   return m_tagged_bag.all_gather(tags);
   // }
 
-  std::map<tag_type, value_type> gather_keys(const std::vector<tag_type> &tags) {
+  std::map<tag_type, value_type> gather_keys(
+      const std::vector<tag_type> &tags) {
     return m_tagged_bag.gather_keys(tags);
   }
   template <typename Function>
-  void local_for_all(Function fn) {
-    return m_tagged_bag.local_for_all(fn);
+  void local_for_all(Function &&fn) {
+    return m_tagged_bag.local_for_all(std::forward<Function>(fn));
   }
 
  private:

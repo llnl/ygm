@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -174,6 +174,62 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Test async_visit functor
+  {
+    struct visit_functor {
+      void operator()(const size_t index, const int value) {
+        YGM_ASSERT_RELEASE(value == index);
+      }
+    };
+
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, visit_functor());
+    }
+  }
+
+  //
+  // Test async_reduce
+  {
+    ygm::container::array<int> arr(world, 3);
+
+    int num_reductions = 5;
+    for (int i = 0; i < num_reductions; ++i) {
+      arr.async_reduce(0, i, std::plus<int>());
+      arr.async_reduce(
+          1, i, [](const int &a, const int &b) { return std::min<int>(a, b); });
+      arr.async_reduce(
+          2, i, [](const int &a, const int &b) { return std::max<int>(a, b); });
+    }
+
+    world.barrier();
+
+    arr.for_all(
+        [&world, &num_reductions](const auto &index, const auto &value) {
+          if (index == 0) {
+            YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
+                                            (num_reductions - 1) / 2);
+          } else if (index == 1) {
+            YGM_ASSERT_RELEASE(value == 0);
+          } else if (index == 2) {
+            YGM_ASSERT_RELEASE(value == num_reductions - 1);
+          } else {
+            YGM_ASSERT_RELEASE(false);
+          }
+        });
+  }
+
   // Test value-only for_all
   {
     int size = 64;
@@ -245,6 +301,121 @@ int main(int argc, char **argv) {
             YGM_ASSERT_RELEASE(my_value == other_value);
           },
           value);
+    });
+
+    // Double all values in copy
+    arr_copy.for_all([&arr](const auto &index, auto &value) { value *= 2; });
+
+    world.barrier();
+
+    arr.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 2 * index);
+    });
+
+    arr_copy.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 4 * index);
+    });
+  }
+
+  // Test copy assignment operator
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 2 * i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr_copy(world, 0);
+    arr_copy = arr;
+
+    arr_copy.for_all([&arr](const auto &index, const auto &value) {
+      arr.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            YGM_ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
+    });
+
+    arr.for_all([&arr_copy](const auto &index, const auto &value) {
+      arr_copy.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            YGM_ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
+    });
+
+    // Double all values in copy
+    arr_copy.for_all([](const auto &index, auto &value) { value *= 2; });
+
+    world.barrier();
+
+    arr.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 2 * index);
+    });
+
+    arr_copy.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 4 * index);
+    });
+  }
+
+  // Test move constructor
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 2 * i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr2(std::move(arr));
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(arr.size() == 0);
+    YGM_ASSERT_RELEASE(arr2.size() == size);
+
+    arr2.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 2 * index);
+    });
+  }
+
+  // Test move assignment operator
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 2 * i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr2(world, 0);
+    arr2 = std::move(arr);
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(arr.size() == 0);
+    YGM_ASSERT_RELEASE(arr2.size() == size);
+
+    arr2.for_all([](const auto &index, const auto &value) {
+      YGM_ASSERT_RELEASE(value == 2 * index);
     });
   }
 
