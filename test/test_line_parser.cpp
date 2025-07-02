@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -64,7 +64,7 @@ void test_line_parser_files(ygm::comm& comm, const std::vector<std::string>& fil
   std::set<std::string>                     line_set_sequential;
   for (const auto& f : files) {
     std::ifstream ifs(f.c_str());
-    ASSERT_RELEASE(ifs.good());
+    YGM_ASSERT_RELEASE(ifs.good());
     std::string line;
     while (std::getline(ifs, line)) {
       line_set.async_insert(line);
@@ -72,10 +72,10 @@ void test_line_parser_files(ygm::comm& comm, const std::vector<std::string>& fil
     }
   }
 
-  ASSERT_RELEASE(line_set.size() == line_set_sequential.size());
+  YGM_ASSERT_RELEASE(line_set.size() == line_set_sequential.size());
   //comm.cout0(line_set.size(), " =? ", line_set_to_test.size());
-  ASSERT_RELEASE(line_set.size() == line_set_to_test.size());
-  // ASSERT_RELEASE(line_set == line_set_to_test);
+  YGM_ASSERT_RELEASE(line_set.size() == line_set_to_test.size());
+  // YGM_ASSERT_RELEASE(line_set == line_set_to_test);
 }
 
 
@@ -88,5 +88,5 @@ void test_line_parser_directory(ygm::comm& comm, const std::string& dir, size_t 
     line_set_to_test.async_insert(line);
   });
 
-  ASSERT_RELEASE(unique_line_count == line_set_to_test.size());  
+  YGM_ASSERT_RELEASE(unique_line_count == line_set_to_test.size());  
 }

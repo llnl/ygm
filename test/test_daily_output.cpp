@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 
     if (world.rank0()) {
       std::string expected_path(prefix_path + "1970/1/1");
-      ASSERT_RELEASE(fs::exists(fs::path(expected_path)));
+      YGM_ASSERT_RELEASE(fs::exists(fs::path(expected_path)));
       fs::remove_all(fs::path(base_dir));
     }
   }
@@ -55,8 +55,9 @@ int main(int argc, char **argv) {
       xor_write = std::hash<std::string>()(message);
       d.async_write_line(timestamp, message);
 
-      xor_write = world.all_reduce(
-          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_write = ygm::all_reduce(
+          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Read lines back
@@ -68,8 +69,9 @@ int main(int argc, char **argv) {
         xor_read ^= std::hash<std::string>()(line);
       });
 
-      xor_read = world.all_reduce(
-          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_read = ygm::all_reduce(
+          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Clean up files
@@ -77,7 +79,7 @@ int main(int argc, char **argv) {
       fs::remove_all(fs::path(base_dir));
     }
 
-    ASSERT_RELEASE(xor_write == xor_read);
+    YGM_ASSERT_RELEASE(xor_write == xor_read);
   }
 
   // Test appending
@@ -110,8 +112,9 @@ int main(int argc, char **argv) {
       xor_write ^= std::hash<std::string>()(message);
       d.async_write_line(timestamp, message);
 
-      xor_write = world.all_reduce(
-          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_write = ygm::all_reduce(
+          xor_write, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Read lines back
@@ -123,8 +126,9 @@ int main(int argc, char **argv) {
         xor_read ^= std::hash<std::string>()(line);
       });
 
-      xor_read = world.all_reduce(
-          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; });
+      xor_read = ygm::all_reduce(
+          xor_read, [](const uint64_t a, const uint64_t b) { return a ^ b; },
+          world);
     }
 
     // Clean up files
@@ -132,7 +136,7 @@ int main(int argc, char **argv) {
       fs::remove_all(fs::path(base_dir));
     }
 
-    ASSERT_RELEASE(xor_write == xor_read);
+    YGM_ASSERT_RELEASE(xor_write == xor_read);
   }
 
   return 0;

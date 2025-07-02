@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -9,19 +9,21 @@
 #include <ygm/container/detail/disjoint_set_impl.hpp>
 
 namespace ygm::container {
-template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>
+template <typename Item,
+          typename Partitioner = detail::old_hash_partitioner<Item>>
 class disjoint_set {
  public:
-  using self_type          = disjoint_set<Item, Partitioner>;
-  using value_type         = Item;
-  using size_type          = size_t;
-  using ygm_for_all_types  = std::tuple<Item, Item>;
-  using ygm_container_type = ygm::container::disjoint_set_tag;
-  using impl_type          = detail::disjoint_set_impl<Item, Partitioner>;
+  using self_type         = disjoint_set<Item, Partitioner>;
+  using value_type        = Item;
+  using size_type         = size_t;
+  using ygm_for_all_types = std::tuple<Item, Item>;
+  using container_type    = ygm::container::disjoint_set_tag;
+  using impl_type         = detail::disjoint_set_impl<Item, Partitioner>;
 
   disjoint_set() = delete;
 
-  disjoint_set(ygm::comm &comm) : m_impl(comm) {}
+  disjoint_set(ygm::comm &comm, const size_t cache_size = 8192)
+      : m_impl(comm, cache_size) {}
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const value_type &item, Visitor visitor,
@@ -61,6 +63,8 @@ class disjoint_set {
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();
   }
+
+  ygm::comm &comm() { return m_impl.comm(); }
 
  private:
   impl_type m_impl;

@@ -1,0 +1,16 @@
+version: 2
+
+# Set OS and Python versions
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+
+# Change the location of the requirements file
+python:
+  install:
+    - requirements: docs/sphinx/requirements.txt
+
+# Change the location of the configuration file
+sphinx:
+  configuration: docs/sphinx/conf.py

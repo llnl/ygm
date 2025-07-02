@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -14,18 +14,18 @@ int main(int argc, char** argv) {
   // node sizes agree
   {
     int node_size(world.layout().node_size());
-    int min_node_size = world.all_reduce_min(node_size);
+    int min_node_size = ygm::min(node_size, world);
     world.barrier();
-    ASSERT_RELEASE(min_node_size == node_size);
+    YGM_ASSERT_RELEASE(min_node_size == node_size);
   }
 
   //
   // local sizes agree
   {
     int local_size(world.layout().local_size());
-    int min_local_size = world.all_reduce_min(local_size);
+    int min_local_size = ygm::min(local_size, world);
     world.barrier();
-    ASSERT_RELEASE(min_local_size == local_size);
+    YGM_ASSERT_RELEASE(min_local_size == local_size);
   }
 
   //
@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
   {
     for (int dst(0); dst < world.size(); ++dst) {
       auto p = world.layout().rank_to_nl(dst);
-      ASSERT_RELEASE(p.first == world.layout().node_id(dst));
-      ASSERT_RELEASE(p.second == world.layout().local_id(dst));
+      YGM_ASSERT_RELEASE(p.first == world.layout().node_id(dst));
+      YGM_ASSERT_RELEASE(p.second == world.layout().local_id(dst));
     }
     world.barrier();
   }
@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       for (int dst(0); dst < world.size(); ++dst) {
         auto check_fn = [](auto pcomm, int node_guess, int local_guess) {
-          ASSERT_RELEASE(pcomm->layout().node_id() == node_guess);
-          ASSERT_RELEASE(pcomm->layout().local_id() == local_guess);
+          YGM_ASSERT_RELEASE(pcomm->layout().node_id() == node_guess);
+          YGM_ASSERT_RELEASE(pcomm->layout().local_id() == local_guess);
         };
         auto p = world.layout().rank_to_nl(dst);
         world.async(dst, check_fn, p.first, p.second);
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
   // is_local() is correct
   {
     auto check_fn = [](auto pcomm, int rank, bool tru) {
-      ASSERT_RELEASE(pcomm->layout().is_local(rank) == tru);
+      YGM_ASSERT_RELEASE(pcomm->layout().is_local(rank) == tru);
     };
 
     bool target = (world.layout().node_id() == 0) ? true : false;
@@ -72,9 +72,9 @@ int main(int argc, char** argv) {
   {
     std::vector<int> strided_ranks = world.layout().strided_ranks();
     for (auto sr : strided_ranks) {
-      ASSERT_RELEASE(world.layout().is_strided(sr) == true);
+      YGM_ASSERT_RELEASE(world.layout().is_strided(sr) == true);
       if (world.layout().rank() != sr) {
-        ASSERT_RELEASE(world.layout().is_local(sr) == false);
+        YGM_ASSERT_RELEASE(world.layout().is_local(sr) == false);
       }
     }
     world.barrier();
@@ -85,9 +85,9 @@ int main(int argc, char** argv) {
   {
     std::vector<int> local_ranks = world.layout().local_ranks();
     for (auto lr : local_ranks) {
-      ASSERT_RELEASE(world.layout().is_local(lr) == true);
+      YGM_ASSERT_RELEASE(world.layout().is_local(lr) == true);
       if (world.layout().rank() != lr) {
-        ASSERT_RELEASE(world.layout().is_strided(lr) == false);
+        YGM_ASSERT_RELEASE(world.layout().is_strided(lr) == false);
       }
     }
     world.barrier();
@@ -96,9 +96,9 @@ int main(int argc, char** argv) {
   {
     std::vector<int> strided_ranks = world.layout().strided_ranks();
     auto             check_fn      = [](auto pcomm, int src_rank) {
-      ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == true);
+      YGM_ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == true);
       if (pcomm->layout().rank() != src_rank) {
-        ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == false);
+        YGM_ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == false);
       }
     };
     for (auto dst : strided_ranks) {
@@ -110,9 +110,9 @@ int main(int argc, char** argv) {
   {
     std::vector<int> local_ranks = world.layout().local_ranks();
     auto             check_fn    = [](auto pcomm, int src_rank) {
-      ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == true);
+      YGM_ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == true);
       if (pcomm->layout().rank() != src_rank) {
-        ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == false);
+        YGM_ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == false);
       }
     };
     for (auto dst : local_ranks) {

@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/detail/byte_vector.hpp>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -16,7 +17,7 @@ int main() {
       "our fathers brought forth on this continent",
       "a new nation conceived in liberty"};
 
-  std::vector<std::byte> buffer;
+  ygm::detail::byte_vector buffer;
   {
     cereal::YGMOutputArchive archive(buffer);
     for (const auto& s : vec_sentences) { archive(s); }
@@ -33,7 +34,7 @@ int main() {
       // std::cout << tmp << std::endl;
       out_sentences.push_back(tmp);
     }
-    ASSERT_RELEASE(vec_sentences == out_sentences);
+    YGM_ASSERT_RELEASE(vec_sentences == out_sentences);
   }
 
   return 0;

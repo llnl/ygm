@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -7,14 +7,15 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/map.hpp>
+#include <cereal/types/optional.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <cstring>
-#include <vector>
-#include <ygm/detail/assert.hpp>
+#include <ygm/detail/byte_vector.hpp>
+#include <ygm/utility/assert.hpp>
 
 namespace cereal {
 // ######################################################################
@@ -37,7 +38,11 @@ class YGMOutputArchive
   //! Construct, outputting to the provided stream
   /*! @param stream The stream to output to.  Can be a stringstream, a file
      stream, or even cout! */
-  YGMOutputArchive(std::vector<std::byte> &stream)
+  /*YGMOutputArchive(std::vector<std::byte> &stream)
+      : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
+        vec_data(stream) {}*/
+
+  YGMOutputArchive(ygm::detail::byte_vector &stream)
       : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
         vec_data(stream) {}
 
@@ -45,12 +50,7 @@ class YGMOutputArchive
 
   //! Writes size bytes of data to the output stream
   void saveBinary(const void *data, std::streamsize size) {
-    size_t vec_data_size_before = vec_data.size();
-    if (vec_data.capacity() < vec_data.size() + size) {
-      vec_data.reserve(vec_data.capacity() * 2);
-    }
-    vec_data.resize(vec_data.size() + size);
-    std::memcpy(vec_data.data() + vec_data_size_before, data, size);
+    vec_data.push_bytes(data, size);
 
     // if (writtenSize != size)
     //   throw Exception("Failed to write " + std::to_string(size) +
@@ -59,7 +59,7 @@ class YGMOutputArchive
   }
 
  private:
-  std::vector<std::byte> &vec_data;
+  ygm::detail::byte_vector &vec_data;
 };
 
 // ######################################################################
@@ -86,7 +86,7 @@ class YGMInputArchive
 
   //! Reads size bytes of data from the input stream
   void loadBinary(void *const data, std::streamsize size) {
-    ASSERT_DEBUG(m_position + size <= m_capacity);
+    YGM_ASSERT_DEBUG(m_position + size <= m_capacity);
     std::memcpy(data, m_pdata + m_position, size);
     m_position += size;
 
@@ -97,7 +97,7 @@ class YGMInputArchive
   }
 
   bool empty() const {
-    ASSERT_DEBUG(!(m_position > m_capacity));
+    YGM_ASSERT_DEBUG(!(m_position > m_capacity));
     return m_position == m_capacity;
   }
 

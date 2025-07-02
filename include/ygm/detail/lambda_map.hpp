@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -34,7 +34,7 @@ class lambda_map {
  private:
   template <typename LambdaType>
   static FuncId record() {
-    ASSERT_RELEASE(s_map.size() < std::numeric_limits<FuncId>::max());
+    YGM_ASSERT_RELEASE(s_map.size() < std::numeric_limits<FuncId>::max());
     FuncId      to_return = s_map.size();
     LambdaType *lp;  // scary, but by definition can't capture
     s_map.push_back(*lp);

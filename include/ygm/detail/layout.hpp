@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -32,31 +32,31 @@ class layout {
  public:
   layout(MPI_Comm comm) {
     // global ranks
-    ASSERT_MPI(MPI_Comm_size(comm, &m_comm_size));
-    ASSERT_MPI(MPI_Comm_rank(comm, &m_comm_rank));
+    YGM_ASSERT_MPI(MPI_Comm_size(comm, &m_comm_size));
+    YGM_ASSERT_MPI(MPI_Comm_rank(comm, &m_comm_rank));
 
     // local ranks
     MPI_Comm comm_local;
-    ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_comm_rank,
+    YGM_ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_comm_rank,
                                    MPI_INFO_NULL, &comm_local));
-    ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
-    ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_id));
+    YGM_ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
+    YGM_ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_id));
 
     _mpi_allgather(m_comm_rank, m_local_ranks, m_local_size, comm_local);
 
     // node ranks
     MPI_Comm comm_node;
-    ASSERT_MPI(MPI_Comm_split(comm, m_local_id, m_comm_rank, &comm_node));
-    ASSERT_MPI(MPI_Comm_size(comm_node, &m_node_size));
-    ASSERT_MPI(MPI_Comm_rank(comm_node, &m_node_id));
+    YGM_ASSERT_MPI(MPI_Comm_split(comm, m_local_id, m_comm_rank, &comm_node));
+    YGM_ASSERT_MPI(MPI_Comm_size(comm_node, &m_node_size));
+    YGM_ASSERT_MPI(MPI_Comm_rank(comm_node, &m_node_id));
 
     _mpi_allgather(m_comm_rank, m_strided_ranks, m_node_size, comm_node);
 
     _mpi_allgather(m_local_id, m_rank_to_local, m_comm_size, comm);
     _mpi_allgather(m_node_id, m_rank_to_node, m_comm_size, comm);
 
-    ASSERT_RELEASE(MPI_Comm_free(&comm_local) == MPI_SUCCESS);
-    ASSERT_RELEASE(MPI_Comm_free(&comm_node) == MPI_SUCCESS);
+    YGM_ASSERT_RELEASE(MPI_Comm_free(&comm_local) == MPI_SUCCESS);
+    YGM_ASSERT_RELEASE(MPI_Comm_free(&comm_node) == MPI_SUCCESS);
   }
 
   layout(const layout &rhs)
@@ -158,7 +158,7 @@ class layout {
   template <typename T>
   void _mpi_allgather(T &_t, std::vector<T> &out_vec, int size, MPI_Comm comm) {
     out_vec.resize(size);
-    ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
+    YGM_ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
                              sizeof(_t), MPI_BYTE, comm));
   }
 

@@ -1,0 +1,4 @@
+cmake
+sphinx
+breathe
+sphinx-rtd-theme

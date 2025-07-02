@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
     std::vector<std::string> to_find = {"cat", "dog", "car"};
 
     auto reps = dset.all_find(to_find);
-    ASSERT_RELEASE(reps["cat"] == reps["dog"]);
-    ASSERT_RELEASE(reps["cat"] != reps["car"]);
+    YGM_ASSERT_RELEASE(reps["cat"] == reps["dog"]);
+    YGM_ASSERT_RELEASE(reps["cat"] != reps["car"]);
   }
 
   //
@@ -67,8 +67,8 @@ int main(int argc, char** argv) {
     std::vector<std::string> to_find = {"cat", "dog", "car"};
 
     auto reps = dset.all_find(to_find);
-    ASSERT_RELEASE(reps["cat"] == reps["dog"]);
-    ASSERT_RELEASE(reps["cat"] != reps["car"]);
+    YGM_ASSERT_RELEASE(reps["cat"] == reps["dog"]);
+    YGM_ASSERT_RELEASE(reps["cat"] != reps["car"]);
   }
 
   //
@@ -86,13 +86,13 @@ int main(int argc, char** argv) {
 
     dset.async_union("cat", "dog");
 
-    ASSERT_RELEASE(dset.size() == 3);
-    ASSERT_RELEASE(dset.num_sets() == 2);
+    YGM_ASSERT_RELEASE(dset.size() == 3);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 2);
 
     dset.clear();
 
-    ASSERT_RELEASE(dset.size() == 0);
-    ASSERT_RELEASE(dset.num_sets() == 0);
+    YGM_ASSERT_RELEASE(dset.size() == 0);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 0);
   }
 
   //
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     }
 
     world.barrier();
-    ASSERT_RELEASE(dset.num_sets() == 6);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 6);
 
     std::vector<int> to_find = {0, 1, 2, 3, 4, 5};
 
@@ -120,24 +120,24 @@ int main(int argc, char** argv) {
     dset.async_union(3, 4);
     dset.async_union(4, 5);
 
-    ASSERT_RELEASE(dset.num_sets() == 2);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 2);
 
     auto reps = dset.all_find(to_find);
-    ASSERT_RELEASE(reps[0] == reps[1]);
-    ASSERT_RELEASE(reps[1] == reps[2]);
-    ASSERT_RELEASE(reps[2] != reps[3]);
-    ASSERT_RELEASE(reps[3] == reps[4]);
-    ASSERT_RELEASE(reps[4] == reps[5]);
+    YGM_ASSERT_RELEASE(reps[0] == reps[1]);
+    YGM_ASSERT_RELEASE(reps[1] == reps[2]);
+    YGM_ASSERT_RELEASE(reps[2] != reps[3]);
+    YGM_ASSERT_RELEASE(reps[3] == reps[4]);
+    YGM_ASSERT_RELEASE(reps[4] == reps[5]);
 
     dset.async_union(0, 3);
-    ASSERT_RELEASE(dset.num_sets() == 1);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 1);
 
     auto reps_final = dset.all_find(to_find);
-    ASSERT_RELEASE(reps_final[0] == reps_final[1]);
-    ASSERT_RELEASE(reps_final[1] == reps_final[2]);
-    ASSERT_RELEASE(reps_final[2] == reps_final[3]);
-    ASSERT_RELEASE(reps_final[3] == reps_final[4]);
-    ASSERT_RELEASE(reps_final[4] == reps_final[5]);
+    YGM_ASSERT_RELEASE(reps_final[0] == reps_final[1]);
+    YGM_ASSERT_RELEASE(reps_final[1] == reps_final[2]);
+    YGM_ASSERT_RELEASE(reps_final[2] == reps_final[3]);
+    YGM_ASSERT_RELEASE(reps_final[3] == reps_final[4]);
+    YGM_ASSERT_RELEASE(reps_final[4] == reps_final[5]);
   }
 
   //
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     }
 
     world.barrier();
-    ASSERT_RELEASE(dset.num_sets() == 6);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 6);
 
     std::vector<int> to_find = {0, 1, 2, 3, 4, 5};
 
@@ -165,26 +165,26 @@ int main(int argc, char** argv) {
     dset.async_union(4, 5);
     dset.async_union(3, 5);
 
-    ASSERT_RELEASE(dset.num_sets() == 2);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 2);
 
     auto reps = dset.all_find(to_find);
-    ASSERT_RELEASE(reps[0] == reps[1]);
-    ASSERT_RELEASE(reps[1] == reps[2]);
-    ASSERT_RELEASE(reps[2] != reps[3]);
-    ASSERT_RELEASE(reps[3] == reps[4]);
-    ASSERT_RELEASE(reps[4] == reps[5]);
+    YGM_ASSERT_RELEASE(reps[0] == reps[1]);
+    YGM_ASSERT_RELEASE(reps[1] == reps[2]);
+    YGM_ASSERT_RELEASE(reps[2] != reps[3]);
+    YGM_ASSERT_RELEASE(reps[3] == reps[4]);
+    YGM_ASSERT_RELEASE(reps[4] == reps[5]);
 
     dset.async_union(0, 3);
-    ASSERT_RELEASE(dset.num_sets() == 1);
+    YGM_ASSERT_RELEASE(dset.num_sets() == 1);
 
     dset.all_compress();
 
     auto reps_final = dset.all_find(to_find);
-    ASSERT_RELEASE(reps_final[0] == reps_final[1]);
-    ASSERT_RELEASE(reps_final[1] == reps_final[2]);
-    ASSERT_RELEASE(reps_final[2] == reps_final[3]);
-    ASSERT_RELEASE(reps_final[3] == reps_final[4]);
-    ASSERT_RELEASE(reps_final[4] == reps_final[5]);
+    YGM_ASSERT_RELEASE(reps_final[0] == reps_final[1]);
+    YGM_ASSERT_RELEASE(reps_final[1] == reps_final[2]);
+    YGM_ASSERT_RELEASE(reps_final[2] == reps_final[3]);
+    YGM_ASSERT_RELEASE(reps_final[3] == reps_final[4]);
+    YGM_ASSERT_RELEASE(reps_final[4] == reps_final[5]);
   }
 
   //
@@ -200,30 +200,60 @@ int main(int argc, char** argv) {
     }
 
     dset.for_all([&counter](const auto& item, const auto& rep) {
-      ASSERT_RELEASE(item == rep);
+      YGM_ASSERT_RELEASE(item == rep);
       ++counter;
     });
 
-    ASSERT_RELEASE(world.all_reduce_sum(counter) == num_items);
+    YGM_ASSERT_RELEASE(ygm::sum(counter, world) == num_items);
   }
 
   // Test async_union_and_execute
   {
     ygm::container::disjoint_set<int> dset(world);
 
-    static int counter{0};
+    static int successful_counter{0};
+    static int unsuccessful_counter{0};
 
-    dset.async_union_and_execute(0, 1,
-                                 [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(0, 2,
-                                 [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(1, 2,
-                                 [](const int u, const int v) { counter++; });
     dset.async_union_and_execute(
-        3, 4, [](const int u, const int v, const auto thing) { counter++; }, 0);
+        0, 1, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        0, 2, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        1, 2, [](const int u, const int v, const bool union_result) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        });
+    dset.async_union_and_execute(
+        3, 4,
+        [](const int u, const int v, const bool union_result,
+           const auto thing) {
+          if (union_result) {
+            successful_counter++;
+          } else {
+            unsuccessful_counter++;
+          }
+        },
+        0);
 
     world.barrier();
 
-    ASSERT_RELEASE(world.all_reduce_sum(counter) == 3);
+    YGM_ASSERT_RELEASE(ygm::sum(successful_counter, world) == 3);
+    YGM_ASSERT_RELEASE(ygm::sum(unsuccessful_counter, world) ==
+                       world.size() * 4 - 3);
   }
 }

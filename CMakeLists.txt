@@ -1,43 +1,61 @@
-# Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+# Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 # Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: MIT
 
 cmake_minimum_required(VERSION 3.14)
 
+# ---------------------------------------------------------------------------- #
+# CMake policy
+# ---------------------------------------------------------------------------- #
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
+    cmake_policy(SET CMP0167 NEW)
+endif ()
+
+# ---------------------------------------------------------------------------- #
+# YGM configuration
+# ---------------------------------------------------------------------------- #
 project(
     ygm
-    VERSION 0.6
+    VERSION 0.8
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
 
-if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(YGM_MAIN_PROJECT ON)
-endif ()
+#
+# Configuration options for YGM
+#
+option(YGM_BUILD_TESTS "Build tests" OFF)
+option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
+option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
+option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
+option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
 
-# Controls whether to set up install boilerplate for project and depencencies.
-# Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
+#
+# FetchContent dependencies that can be overridden on the command line.
+#
+set(BOOST_FETCH_URL 
+    "https://github.com/boostorg/boost/releases/download/boost-1.87.0/boost-1.87.0-cmake.tar.gz" 
+    CACHE STRING "URL to fetch Boost tarball")
+set(CEREAL_FETCH_GIT 
+    "https://github.com/USCiLab/cereal.git" 
+    CACHE STRING "GIT to fetch Cereal")
+set(SPDLOG_FETCH_GIT 
+    "https://github.com/gabime/spdlog.git" 
+    CACHE STRING "GIT to fetch Spdlog")
 
-# Only do these if this is the main project, and not if it is included through
-# add_subdirectory
-if (YGM_MAIN_PROJECT)
 
-    # Let's nicely support folders in IDE's
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-    # Testing only available if this is the main app Note this needs to be done
-    # in the main CMakeLists since it calls enable_testing, which must be in the
-    # main CMakeLists.
-    include(CTest)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-    # Docs only available if this is the main app
-    find_package(Doxygen)
-    if (Doxygen_FOUND)
-        # add_subdirectory(docs)
-    else ()
-        message(STATUS "Doxygen not found, not building docs")
+#
+# Doxygen and Read the Docs (RTD) Documentation
+#
+if (YGM_BUILD_DOCS OR YGM_DOCS_ONLY)
+    add_subdirectory(docs)
+    if (YGM_DOCS_ONLY)
+        return()
     endif ()
 endif ()
 
@@ -58,122 +76,64 @@ find_package(Threads REQUIRED)
 
 # prepare to FetchContent
 include(FetchContent)
+set(FETCHCONTENT_QUIET OFF)
 
 #
 # Cereal
 #
-set(YGM_CEREAL_VERSION 1.3.0)
-# Would like to version this find, but the spack config file is versionless so
-# will always throw an error.
-set(YGM_CEREAL_TARGET "cereal::cereal")
-find_package(cereal CONFIG QUIET)
-if (NOT cereal_FOUND)
-    # Currently cereal version 1.3.0 has an outdated CMakeLists.txt, so we need
-    # to use this specific commit for now.
-    FetchContent_Declare(
-        cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-        GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
-    )
-    FetchContent_GetProperties(cereal)
-    if (cereal_POPULATED)
-        message(STATUS ${PROJECT_NAME}
-                       " found already populated cereal dependency: "
-                       ${cereal_SOURCE_DIR}
+if (NOT cereal_POPULATED)
+    find_package(cereal CONFIG QUIET)
+    if (NOT cereal_FOUND)
+        set(JUST_INSTALL_CEREAL TRUE)
+        FetchContent_Declare(
+            cereal
+            GIT_REPOSITORY ${CEREAL_FETCH_GIT}
+            GIT_TAG v1.3.2
         )
-    else ()
-        # Do not compile any cereal tests
-        set(JUST_INSTALL_CEREAL ON)
-        # Install cereal at ${CMAKE_INSTALL_PREFIX}
-        set(CEREAL_INSTALL ${YGM_INSTALL})
-        # Populate cereal
-        FetchContent_Populate(cereal)
-        # Include cereal root cmake boilerplate
-        add_subdirectory(${cereal_SOURCE_DIR} ${cereal_BINARY_DIR})
-
-        message(STATUS ${PROJECT_NAME} " cloned cereal dependency: "
-                       ${cereal_SOURCE_DIR}
-        )
-    endif ()
-else ()
-    message(STATUS ${PROJECT_NAME} " found installed cereal dependency: "
-                   ${cereal_DIR}
-    )
-    # cereal installed with spack creates library target "cereal", whereas
-    # installing from source creates target "cereal::cereal". This is the only
-    # simple way I could figure out how to differentiate the two, but this will
-    # cause problems if a spack instance installs headers to a path that does
-    # not include the substring "spack".
-    if (${cereal_DIR} MATCHES ".*spack.*")
-        set(YGM_CEREAL_TARGET "cereal")
-    else ()
-        # cereal::cereal should be the right target
+        FetchContent_MakeAvailable(cereal)
     endif ()
 endif ()
 
 #
 # Boost
 #
-# only required by ygm/detail/cereal_boost_json.hpp. YGM will build if Boost is
-# not found. The user must manually link Boost to the executable.
+if (NOT boost_POPULATED)
+    find_package(Boost 1.81)
+    if (Boost_FOUND)
+        message(STATUS ${PROJECT_NAME} " found boost include dirs: "
+                       ${Boost_INCLUDE_DIRS}
+        )
+    else ()
+        message(STATUS "Fetching Boost from source")
+        FetchContent_Declare(
+            Boost
+            URL ${BOOST_FETCH_URL}
+            DOWNLOAD_EXTRACT_TIMESTAMP ON
+        )
+        set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
+        FetchContent_MakeAvailable(Boost)
+    endif ()
+endif ()
+
 #
-# find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not
-# working on LC
-find_package(Boost 1.75)
-if (Boost_FOUND)
-    message(STATUS ${PROJECT_NAME} " found boost include dirs: "
-                   ${Boost_INCLUDE_DIRS}
+# spdlog
+#
+if (NOT spdlog_POPULATED)
+    set(SPDLOG_INSTALL On)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY ${SPDLOG_FETCH_GIT}
+        GIT_TAG v1.14.1
     )
-else ()
-    message(WARNING ${PROJECT_NAME}
-                    " did not find Boost >=1.75. Building without Boost."
-    )
+    FetchContent_MakeAvailable(spdlog)
 endif ()
 
 #
 # Arrow
 #
-#
-find_package(Arrow 8.0 QUIET)
-if (NOT Arrow_FOUND)
-	find_package(Arrow 9.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 10.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 11.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 12.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 13.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 14.0 QUIET)
-endif()
-if (NOT Arrow_FOUND)
-	find_package(Arrow 15.0 QUIET)
-endif()
-if (Arrow_FOUND)
-   message(STATUS ${PROJECT_NAME} " found Arrow ")
-   message(STATUS "Arrow version: ${ARROW_VERSION}")
-   message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
-   set(ARROW_CMAKE_DIR ${Arrow_DIR})
-   find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
-   if (Parquet_FOUND)
-       message(STATUS ${PROJECT_NAME} " found Parquet ")
-       message(STATUS "Parquet version: ${PARQUET_VERSION}")
-       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}")
-   else ()
-       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.")
-   endif ()
-else ()
-   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.")
-   if (YGM_REQUIRE_ARROW)
-	   message(FATAL_ERROR "YGM configured to require Arrow, but Arrow could not be found")
-   endif ()
+include(FindArrowParquet)
+if (YGM_INSTALL_PARQUET)
+    install_arrow_parquet()
 endif ()
 
 #
@@ -181,78 +141,35 @@ endif ()
 #
 add_library(ygm INTERFACE)
 add_library(ygm::ygm ALIAS ygm)
-target_compile_features(ygm INTERFACE cxx_std_17)
+target_compile_features(ygm INTERFACE cxx_std_20)
 target_include_directories(
     ygm INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
-    ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs ${YGM_CEREAL_TARGET}
+    ygm
+    PUBLIC
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json
 )
 
-option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
-
-# Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-if (${YGM_INSTALL})
-    include(GNUInstallDirs)
-    include(CMakePackageConfigHelpers)
-
-    # List libraries to be installed
-    set(YGM_EXPORT_TARGETS ygm)
-
-    install(
-        TARGETS ${PROJECT_NAME}
-        EXPORT ${PROJECT_NAME}Targets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-
-    install(
-        EXPORT ${PROJECT_NAME}Targets
-        FILE ${PROJECT_NAME}Targets.cmake
-        NAMESPACE ${PROJECT_NAME}::
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
-
-    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-    # create version file
-    write_basic_package_version_file(
-        "${PROJECT_NAME}ConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY ExactVersion
-    )
-
-    # create config file
-    configure_package_config_file(
-        "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
-
-    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-                  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
-
+if (YGM_DONT_USE_MREMAP)
+    target_compile_definitions(ygm INTERFACE YGM_DONT_USE_MREMAP)
 endif ()
 
-option(JUST_INSTALL_YGM "Skip executable compilation" OFF)
-if (JUST_INSTALL_YGM)
-    return()
+if (UNIX AND NOT APPLE)
+    target_link_libraries(
+        ygm
+        PUBLIC
+        INTERFACE rt
+    )
 endif ()
 
-if (NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
-	message(STATUS "CMAKE_BUILD_TYPE is set as Release")
-endif ()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(ygm INTERFACE stdc++fs)
+endif()
 
-# Testing & examples are only available if this is the main app
-if (YGM_MAIN_PROJECT)
+if (YGM_BUILD_TESTS)
+    option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
+    enable_testing()
     add_subdirectory(test)
-    # Example codes are here.
-    add_subdirectory(examples)
 endif ()

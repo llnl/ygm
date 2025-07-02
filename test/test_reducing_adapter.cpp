@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -44,12 +44,12 @@ int main(int argc, char **argv) {
     test_map.for_all(
         [&num_reductions, &world](const auto &key, const auto &value) {
           if (key == "max") {
-            ASSERT_RELEASE(value == num_reductions - 1);
+            YGM_ASSERT_RELEASE(value == num_reductions - 1);
           } else if (key == "sum") {
-            ASSERT_RELEASE(value == world.size() * num_reductions *
+            YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
                                         (num_reductions - 1) / 2);
           } else {
-            ASSERT_RELEASE(false);
+            YGM_ASSERT_RELEASE(false);
           }
         });
   }
@@ -70,9 +70,9 @@ int main(int argc, char **argv) {
 
     test_array.for_all([&num_reductions](const auto &index, const auto &value) {
       if (index == 0) {
-        ASSERT_RELEASE(value == num_reductions - 1);
+        YGM_ASSERT_RELEASE(value == num_reductions - 1);
       } else {
-        ASSERT_RELEASE(value == 0);
+        YGM_ASSERT_RELEASE(value == 0);
       }
     });
   }
