@@ -1,7 +1,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/random/random.hpp>
-#include <ygm/utility.hpp>
-#include <ygm/collective.hpp> 
+#include <ygm/detail/collective.hpp> 
+#include <ygm/container/detail/base_concepts.hpp> 
 #include <unordered_map>
 #include <map>
 #include <mpi.h>
@@ -11,16 +11,8 @@
 
 namespace ygm::random {
 
-
-
 template <typename T>
 concept convertable_to_double = std::convertible_to<T,double>;
-
-template<typename T>
-concept is_pair = requires {
-    typename T::first_type;
-    typename T::second_type;
-} && std::same_as<T, std::pair<typename T::first_type, typename T::second_type>>;
 
 template<typename T>
 concept is_associative_container = requires {
@@ -33,18 +25,34 @@ concept is_value_container = requires {
     typename T::value_type;
 };
 
+// template<typename T>
+// concept valid_stl_associative_container = requires {
+//     typename T::key_type;
+//     typename T::value_type;
+// };
 
-template <typename item_type, typename RNG>
+
+// template<typename T>
+// concept valid_stl_value_container = requires {
+//     typename T::value_type;
+//     requires ygm::container::detail::DoubleItemTuple<T::value_type>;
+// };
+
+// template<typename T>
+// concept valid_stl_container =
+//     is_associative_container<T> || valid_stl_value_container<T>;
+
+template <typename Item, typename RNG>
 class alias_table {
 
-    using self_type = alias_table<item_type, RNG>;
-    using weight_type = double;
+    using self_type = alias_table<Item, RNG>;
+    using weight_t = double;
 
     public: 
 
         struct item {
-            item_type id;
-            weight_type weight;
+            Item id;
+            weight_t weight;
 
             template <typename Archive>
             void serialize(Archive& ar) { // Needed for cereal serialization
@@ -54,38 +62,35 @@ class alias_table {
 
         struct table_item { 
             double p; // prob item a is selected = p, prob item b is selected = (1 - p)
-            item_type a;
-            item_type b;
-
-            template <typename Archive>
-            void serialize(Archive& ar) { // Needed for cereal serialization
-                ar(p, a, b);
-            }
+            Item a;
+            Item b;
         };
 
  
         template<typename Container>
-        requires is_value_container<Container> && 
-                 is_pair<typename Container::value_type> && 
-                 convertable_to_double<typename Container::value_type::second_type>
+        requires ygm::container::detail::HasForAll<Container> &&
+                 is_value_container<Container> &&
+                 ygm::container::detail::DoubleItemTuple<typename Container::value_type> && 
+                 convertable_to_double<std::tuple_element_t<1, typename Container::value_type>>
         alias_table(ygm::comm &comm, RNG &rng, Container &c) : 
                 m_comm(comm),
                 pthis(this),
                 m_rng(rng),
                 m_rank_dist(0, comm.size()-1) {
             c.for_all([&](const auto& id_weight_pair){
-                m_local_items.push_back({id_weight_pair.first, id_weight_pair.second});
+                m_local_items.push_back({std::get<0>(id_weight_pair), std::get<1>(id_weight_pair)});
             });
             comm.barrier();
             balance_weight();
             comm.barrier();
-            YGM_ASSERT_RELEASE(check_balancing());
+            YGM_ASSERT_RELEASE(is_balanced());
             build_alias_table();
             m_local_items.clear();
         }
 
         template<typename Container>
-        requires is_associative_container<Container> && 
+        requires ygm::container::detail::HasForAll<Container> &&
+                 is_associative_container<Container> && 
                  convertable_to_double<typename Container::mapped_type>
         alias_table(ygm::comm &comm, RNG &rng, Container &c) : 
                 m_comm(comm),
@@ -98,19 +103,12 @@ class alias_table {
             comm.barrier();
             balance_weight();
             comm.barrier();
-            YGM_ASSERT_RELEASE(check_balancing());
+            YGM_ASSERT_RELEASE(is_balanced());
             build_alias_table();
             m_local_items.clear();
         }
 
-        // For debugging
-        std::string get_weight_str(std::vector<item> items) {
-            std::string weights_str = "< ";
-            for (auto& itm : items) {
-                weights_str += std::to_string(itm.weight) + " ";
-            }
-            return weights_str + ">"; 
-        }
+    private:
  
         void balance_weight() { 
 
@@ -183,7 +181,7 @@ class alias_table {
             std::swap(new_local_items, m_local_items);
         } 
 
-        bool check_balancing() { 
+        bool is_balanced() { 
             // Not a perfect check. Will check if every rank has the same weight for each table
             // but does not confirm that the actual target weight is met on each rank
             double local_weight = 0.0;
@@ -257,19 +255,21 @@ class alias_table {
             }
             m_comm.barrier();
         }
+    
+    public:
 
         template <typename Visitor, typename... VisitorArgs>
         void async_sample(Visitor visitor, const VisitorArgs &...args) { // Sample should be provided a lambda/functor that takes as an argument the item type 
 
-            auto sample_wrapper = [](auto ptr_MAT, const VisitorArgs &...args) {
-                std::uniform_int_distribution<uint64_t> table_item_dist(0, ptr_MAT->m_local_alias_table.size()-1);
-                table_item tbl_itm = ptr_MAT->m_local_alias_table[table_item_dist(ptr_MAT->m_rng)];
-                item_type s;
+            auto sample_wrapper = [](auto ptr_a_tbl, const VisitorArgs &...args) {
+                std::uniform_int_distribution<uint64_t> table_item_dist(0, ptr_a_tbl->m_local_alias_table.size()-1);
+                table_item tbl_itm = ptr_a_tbl->m_local_alias_table[table_item_dist(ptr_a_tbl->m_rng)];
+                Item s;
                 if (tbl_itm.p == 1) {
                     s = tbl_itm.a;
                 } else {
                     std::uniform_real_distribution<float> zero_one_dist(0.0, 1.0);
-                    float f = zero_one_dist(ptr_MAT->m_rng);
+                    float f = zero_one_dist(ptr_a_tbl->m_rng);
                     if (f < tbl_itm.p) {
                         s = tbl_itm.a;
                     } else {
@@ -277,7 +277,7 @@ class alias_table {
                     }
                 }
                 Visitor *vis = nullptr;
-                ygm::meta::apply_optional(*vis, std::make_tuple(ptr_MAT), std::forward_as_tuple(s, args...));
+                ygm::meta::apply_optional(*vis, std::make_tuple(ptr_a_tbl), std::forward_as_tuple(s, args...));
             };
 
             uint32_t dest_rank = m_rank_dist(m_rng);

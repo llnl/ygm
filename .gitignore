@@ -4,3 +4,5 @@ build*
 .vscode*
 .idea*
 .cache/
+CMakeCache.txt
+CMakeFiles/

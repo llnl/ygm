@@ -15,10 +15,13 @@ int main(int argc, char** argv) {
 
   ygm::comm world(&argc, &argv);
   using YGM_RNG = ygm::random::default_random_engine<>;
-  int seed = 150;
+  int seed = 42;
   YGM_RNG ygm_rng(world, seed);
+
+  // Test constructor works with YGM value container
   {
     ygm::container::bag<std::pair<uint32_t,double>> bag_of_items(world);
+    // ygm::container::bag<std::tuple<uint32_t,double>> bag_of_items(world);
 
     uint32_t n_items_per_rank = 1000;
     const int max_item_weight = 100;
@@ -46,6 +49,7 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(total_samples == (samples_per_rank * world.size()));
   }
 
+  // Test constructor works with YGM associative container
   {
     ygm::container::map<uint32_t,double> map_of_items(world);
 
@@ -73,7 +77,6 @@ int main(int argc, char** argv) {
     world.barrier();
     uint32_t total_samples = ygm::sum(samples, world);
     YGM_ASSERT_RELEASE(total_samples == (samples_per_rank * world.size()));
-
   }
 
   return 0;
