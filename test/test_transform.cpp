@@ -12,7 +12,7 @@
 #include <ygm/container/bag.hpp>
 #include <ygm/container/counting_set.hpp>
 #include <ygm/container/map.hpp>
-#include <ygm/random.hpp>
+#include <ygm/random/random.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
