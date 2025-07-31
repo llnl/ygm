@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <ygm/comm.hpp>
+
 // Note: collective.hpp should not be included directly by users. This may cause
 // the collectives to be unable to find a definition of `ygm::comm` or the
 // `ygm::comm` to be unable to find a definition for collective operations it is
