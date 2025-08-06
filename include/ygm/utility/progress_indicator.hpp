@@ -121,17 +121,23 @@ class progress_indicator {
   }
 
   void priv_report(bool completed) {
-    double rate = double(m_global_pair[0]) / (MPI_Wtime() - m_start_time);
+    double rate = double(m_global_pair[0]) / (MPI_Wtime() - m_start_time);  
     if (m_comm.rank0()) {
-      std::cout << m_options.message << ": " << m_global_pair[0] << "\t\t"
-                << std::fixed << std::setprecision(3) << rate << "\tper second";
+      static std::ostringstream oss;
+      oss.str("");
+      oss.clear();
+      oss << "\r" << (m_options.message + ":") 
+        << std::setw(12) << std::right << m_global_pair[0]
+        << std::setw(15) << std::right << std::fixed << std::setprecision(3) << rate 
+        << " per second\033[K";
+    
+      std::cout << oss.str() << std::flush;
       if (completed) {
         std::cout << std::endl;
-      } else {
-        std::cout << "\r" << std::flush;
       }
     }
   }
+
 
   MPI_Request m_mpi_iar_request = MPI_REQUEST_NULL;
   MPI_Comm    m_mpi_comm        = MPI_COMM_NULL;
