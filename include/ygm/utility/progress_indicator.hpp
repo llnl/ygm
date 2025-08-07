@@ -123,15 +123,10 @@ class progress_indicator {
   void priv_report(bool completed) {
     double rate = double(m_global_pair[0]) / (MPI_Wtime() - m_start_time);  
     if (m_comm.rank0()) {
-      static std::ostringstream oss;
-      oss.str("");
-      oss.clear();
-      oss << "\r" << (m_options.message + ":") 
+      std::cout << "\r" << (m_options.message + ":") 
         << std::setw(12) << std::right << m_global_pair[0]
         << std::setw(15) << std::right << std::fixed << std::setprecision(3) << rate 
-        << " per second\033[K";
-    
-      std::cout << oss.str() << std::flush;
+        << " per second\033[K" << std::flush;
       if (completed) {
         std::cout << std::endl;
       }
