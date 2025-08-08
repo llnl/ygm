@@ -12,12 +12,16 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
     cmake_policy(SET CMP0167 NEW)
 endif ()
 
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24")
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+
 # ---------------------------------------------------------------------------- #
 # YGM configuration
 # ---------------------------------------------------------------------------- #
 project(
     ygm
-    VERSION 0.8
+    VERSION 0.9
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -29,6 +33,7 @@ option(YGM_BUILD_TESTS "Build tests" OFF)
 option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
 option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
 option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
+set(YGM_PYTHON_VENV_ROOT CACHE PATH "Path to a Python virtual environment root. If set, YGM will use this virtual environment for Python dependencies.")
 option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
 
 #
@@ -108,7 +113,6 @@ if (NOT boost_POPULATED)
         FetchContent_Declare(
             Boost
             URL ${BOOST_FETCH_URL}
-            DOWNLOAD_EXTRACT_TIMESTAMP ON
         )
         set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
         FetchContent_MakeAvailable(Boost)
@@ -137,6 +141,22 @@ if (YGM_INSTALL_PARQUET)
 endif ()
 
 #
+# zstd for message compression
+#
+if (NOT zstd_POPULATED)
+  set(ZSTD_BUILD_STATIC ON)
+  set(ZSTD_BUILD_SHARED OFF)
+  FetchContent_Declare(
+    zstd
+    GIT_REPOSITORY https://github.com/facebook/zstd.git
+    GIT_TAG v1.5.7
+    SOURCE_SUBDIR build/cmake
+  )
+  FetchContent_MakeAvailable(zstd)
+endif ()
+#find_package(zstd REQUIRED)
+
+#
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
@@ -149,7 +169,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json
+    INTERFACE MPI::MPI_CXX Threads::Threads libzstd_static cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json
 )
 
 if (YGM_DONT_USE_MREMAP)

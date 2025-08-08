@@ -6,6 +6,10 @@ on:
   push:
     branches: [ 'feature/**', 'hotfix/**']
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build_docs:
     runs-on: ubuntu-latest

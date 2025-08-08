@@ -99,12 +99,22 @@ function(find_pyarrow_package)
 endfunction()
 
 # Install pyarrow using pip
+# Input:
+# YGM_PYTHON_VENV_ROOT can be set to the root of an existing Python virtual environment.
+# This function will activate the virtual environment and find or install pyarrow.
+# If it is not set, a Python virtual environment is created in the build directory.
+#
 # Output:
 # PIP_PYARROW_ROOT is set to the root of the pyarrow installation.
 function(install_pyarrow_in_venv)
-    setup_python_venv()
-    if (NOT PYTHON_VENV_ROOT)
-        return()
+    if (YGM_PYTHON_VENV_ROOT)
+        set(PYTHON_VENV_ROOT ${YGM_PYTHON_VENV_ROOT})
+    else ()
+        setup_python_venv()
+        # setup_python_venv() sets PYTHON_VENV_ROOT
+        if (NOT PYTHON_VENV_ROOT)
+            return()
+        endif ()
     endif ()
 
     activate_python_venv(${PYTHON_VENV_ROOT})

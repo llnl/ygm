@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include <zstd.h>
+
 #include <ygm/detail/byte_vector.hpp>
 #include <ygm/detail/comm_environment.hpp>
 #include <ygm/detail/comm_router.hpp>
@@ -374,6 +376,11 @@ class comm {
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;
+
+  // Compression objects
+  ZSTD_CCtx *m_compression_context;
+  ZSTD_DCtx *m_decompression_context;
+  int        m_compression_level = 1;
 };
 
 }  // end namespace ygm

@@ -86,6 +86,10 @@ inline void comm::comm_setup(MPI_Comm c) {
     post_new_irecv(recv_buffer);
   }
 
+  // Prepare for compression
+  m_compression_context   = ZSTD_createCCtx();
+  m_decompression_context = ZSTD_createDCtx();
+
   if (m_trace_ygm || m_trace_mpi) {
     if (rank0()) m_tracer.create_directory();
     cf_barrier();
@@ -840,7 +844,28 @@ inline void comm::flush_send_buffer(int dest) {
       request.buffer = m_free_send_buffers.back();
       m_free_send_buffers.pop_back();
     }
-    request.buffer->swap(m_vec_send_buffers[dest]);
+
+    // Compress send buffer
+    size_t max_size = ZSTD_compressBound(m_vec_send_buffers[dest].size());
+    request.buffer->resize(max_size);
+
+    size_t compressed_size =
+        ZSTD_compressCCtx(m_compression_context, request.buffer->data(),
+                          max_size, m_vec_send_buffers[dest].data(),
+                          m_vec_send_buffers[dest].size(), m_compression_level);
+
+    size_t uncompressed_size = m_vec_send_buffers[dest].size();
+
+    log(log_level::info,
+        "Compressed message of " + std::to_string(uncompressed_size) +
+            " bytes to " + std::to_string(compressed_size) +
+            " bytes. Compression ratio: " +
+            std::to_string(((float)uncompressed_size) / compressed_size));
+
+    request.buffer->resize(compressed_size);
+    m_vec_send_buffers[dest].clear();
+
+    // request.buffer->swap(m_vec_send_buffers[dest]);
     if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
       log(log_level::debug, "MPI_Issend " +
                                 std::to_string(request.buffer->size()) +
@@ -861,9 +886,9 @@ inline void comm::flush_send_buffer(int dest) {
     m_pending_isend_bytes += request.buffer->size();
 
     if (m_layout.is_local(dest)) {
-      m_send_local_buffer_bytes -= request.buffer->size();
+      m_send_local_buffer_bytes -= uncompressed_size;
     } else {
-      m_send_remote_buffer_bytes -= request.buffer->size();
+      m_send_remote_buffer_bytes -= uncompressed_size;
     }
 
     if (m_trace_mpi) {
@@ -1279,7 +1304,9 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  { packed.push_bytes(&lid, sizeof(lid)); }
+  {
+    packed.push_bytes(&lid, sizeof(lid));
+  }
 
   if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
     size_t size_before = packed.size();
@@ -1367,7 +1394,25 @@ inline void comm::handle_next_receive(
                             buffer_size);
   }
 
-  cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
+  // Grab a send buffer to use for decompression
+  std::shared_ptr<ygm::detail::byte_vector> decompressed_buffer_ptr;
+  if (m_free_send_buffers.empty()) {
+    decompressed_buffer_ptr = std::make_shared<ygm::detail::byte_vector>();
+  } else {
+    decompressed_buffer_ptr = m_free_send_buffers.back();
+    m_free_send_buffers.pop_back();
+  }
+
+  size_t decompressed_size =
+      ZSTD_getFrameContentSize(buffer.get()->data(), buffer_size);
+  decompressed_buffer_ptr.get()->resize(decompressed_size);
+  size_t actual_decompressed_size = ZSTD_decompressDCtx(
+      m_decompression_context, decompressed_buffer_ptr.get()->data(),
+      decompressed_size, buffer.get()->data(), buffer_size);
+
+  // cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
+  cereal::YGMInputArchive iarchive(decompressed_buffer_ptr.get()->data(),
+                                   actual_decompressed_size);
   // Loop over messages in buffer and handle each
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
@@ -1420,6 +1465,11 @@ inline void comm::handle_next_receive(
       stats.rpc_execute();
     }
   }
+
+  // Return buffer used for decompression to queue of send buffers
+  decompressed_buffer_ptr->clear();
+  m_free_send_buffers.push_back(decompressed_buffer_ptr);
+
   post_new_irecv(buffer);
   flush_to_capacity();
 }
