@@ -394,8 +394,10 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  * \endcode
  */
 inline void comm::async_barrier() {
+  log(log_level::debug, "Entering YGM async_barrier");
   bool ret = priv_barrier(false);
   YGM_ASSERT_RELEASE(ret == false);
+  log(log_level::debug, "Exiting YGM async_barrier");
 }
 
 /**
