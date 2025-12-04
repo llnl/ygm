@@ -114,7 +114,7 @@ class workqueue
    * @brief Insert a work item into the local queue
    * 
    * @param item Work item to insert
-   * @details Registers processing callback on first insertion. Does not call barrier().
+   * @details Registers processing callback on first insertion. Does not call initiate execution.
    */
   void insert_work(const Item& item) {
     QueuePolicy::push(m_local_queue, item);
@@ -217,18 +217,18 @@ class workqueue
 template <typename Item, typename WorkLambda>
 using fifo_workqueue = workqueue<Item, detail::fifo_policy<Item>, WorkLambda>;
 
-template <typename Item, typename WorkLambda, typename Comp = std::greater<Item>>
+template <typename Item, typename Comp, typename WorkLambda>
 using priority_workqueue = workqueue<Item, detail::priority_policy<Item, Comp>, WorkLambda>;
 
-// Factory functions following YGM style (optional, for convenience)
+// Factory functions for convenient user instantiation
 template <typename Item, typename WorkLambda>
 auto make_fifo_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
   return fifo_workqueue<Item, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
 }
 
-template <typename Item, typename WorkLambda, typename Comp = std::greater<Item>>
+template <typename Item, typename Comp, typename WorkLambda>
 auto make_priority_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
-  return priority_workqueue<Item, WorkLambda, Comp>(comm, std::forward<WorkLambda>(work_fn));
+  return priority_workqueue<Item, Comp, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
 }
 
 } // namespace ygm::container

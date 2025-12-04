@@ -41,7 +41,7 @@ struct fifo_policy {
 /**
  * @brief Queue policy for priority ordering
  */
-template <typename Item, typename Comp = std::greater<Item>>
+template <typename Item, typename Comp>
 struct priority_policy {
   using queue_type = std::priority_queue<Item, std::vector<Item>, Comp>;
   using container_type = ygm::container::workqueue_tag;
