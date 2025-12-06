@@ -66,7 +66,7 @@ class workqueue
    * @brief Workqueue destructor
    * 
    * @details Asserts that queue is empty before destruction. Call empty_local() 
-   * explicitly if you want to destroy with pending work.
+   * explicitly to discard unfinished work before destruction.
    */
   ~workqueue() {
     m_comm.log(log_level::info, "Destroying ygm::container::workqueue");
@@ -111,12 +111,31 @@ class workqueue
   }
 
   /**
+   * @brief Unsupported base_misc functions
+   * 
+   * @details Functions inherited from base_misc that break under the execution model of the 
+   * 
+   */
+
+  void size() = delete;
+  void swap() = delete;
+
+
+  /**
+   * @brief Empties remaining items in global storage of workqueue
+   */
+  void clear() {
+    local_clear();
+    m_comm.barrier();
+  }
+
+  /**
    * @brief Insert a work item into the local queue
    * 
    * @param item Work item to insert
-   * @details Registers processing callback on first insertion. Does not call initiate execution.
+   * @details Registers processing callback on first insertion. Does not initiate execution.
    */
-  void insert_work(const Item& item) {
+  void local_insert(const Item& item) {
     QueuePolicy::push(m_local_queue, item);
     
     // Only register callback once per batch
@@ -127,21 +146,12 @@ class workqueue
   }
 
   /**
-   * @brief Insert a work item into the local queue (alias for YGM convention)
-   * 
-   * @param item Work item to insert
-   */
-  void local_insert(const Item& item) {
-    insert_work(item);
-  }
-
-  /**
    * @brief Process all pending work items in the local queue
    * 
-   * @details Processes items according to queue policy (FIFO or priority order).
+   * @details Processes items according to queue policy.
    * Does not call barrier().
    */
-  void process_all() {
+  void local_process_all() {
     while (!QueuePolicy::empty(m_local_queue)) {
       Item item = QueuePolicy::top(m_local_queue);
       QueuePolicy::pop(m_local_queue);
@@ -154,7 +164,7 @@ class workqueue
    * 
    * @return true if local queue has work, false otherwise
    */
-  bool has_work() const {
+  bool local_has_work() const {
     return !QueuePolicy::empty(m_local_queue);
   }
 
@@ -188,7 +198,7 @@ class workqueue
     ptr_type pthis_local = pthis;
     
     auto process_all_lambda = [pthis_local]() {
-      pthis_local->process_all();
+      pthis_local->local_process_all();
       pthis_local->m_callback_registered = false; // Reset for next batch
     };
     
@@ -217,6 +227,9 @@ class workqueue
 template <typename Item, typename WorkLambda>
 using fifo_workqueue = workqueue<Item, detail::fifo_policy<Item>, WorkLambda>;
 
+template <typename Item, typename WorkLambda>
+using lifo_workqueue = workqueue<Item, detail::lifo_policy<Item>, WorkLambda>;
+
 template <typename Item, typename Comp, typename WorkLambda>
 using priority_workqueue = workqueue<Item, detail::priority_policy<Item, Comp>, WorkLambda>;
 
@@ -224,6 +237,11 @@ using priority_workqueue = workqueue<Item, detail::priority_policy<Item, Comp>, 
 template <typename Item, typename WorkLambda>
 auto make_fifo_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
   return fifo_workqueue<Item, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
+}
+
+template <typename Item, typename WorkLambda>
+auto make_lifo_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
+  return lifo_workqueue<Item, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
 }
 
 template <typename Item, typename Comp, typename WorkLambda>
