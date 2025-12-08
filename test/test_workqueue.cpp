@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   {
     // test local priority workqueue ordering and size checks
     {
-      static size_t size_max = 64;
+      size_t size_max = 64;
 
       std::vector<size_t> work_items(size_max);
       std::iota(work_items.begin(), work_items.end(), 0);
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
       auto rng = std::default_random_engine {};
       std::ranges::shuffle(work_items, rng);
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
+      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
         size_max--;
         YGM_ASSERT_RELEASE(size_max == queued_item);
         YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
@@ -53,12 +53,12 @@ int main(int argc, char **argv) {
 
     // test local_clear
     {
-      static size_t size_max = 64;
+      size_t size_max = 64;
 
       std::vector<size_t> work_items(size_max);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
+      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
         size_max += queued_item;
       };
 
@@ -75,6 +75,34 @@ int main(int argc, char **argv) {
 
       YGM_ASSERT_RELEASE(wq.local_size() == 0);
       YGM_ASSERT_RELEASE(wq.local_has_work() == false);
+
+      world.barrier();
+    }
+
+    // test recursive calls with priority ordering
+    {
+      size_t cutoff = 64;
+      bool found_cutoff = false;
+
+      size_t xref = 0;
+
+      auto work_lambda = [&cutoff, &found_cutoff, &xref] (auto p_work_queue, auto& queued_item) {
+        if (queued_item < cutoff) {
+          YGM_ASSERT_RELEASE(found_cutoff == false);
+          YGM_ASSERT_RELEASE(xref == queued_item);
+          xref++;
+
+          p_work_queue->local_insert(queued_item + cutoff + 1);
+          p_work_queue->local_insert(queued_item + 1);
+        } 
+        else {
+          found_cutoff = true;
+        }
+      };
+
+      auto wq = ygm::container::make_priority_workqueue<size_t, std::greater<size_t>> (world, work_lambda);
+
+      wq.local_insert(0);
 
       world.barrier();
     }
@@ -141,6 +169,38 @@ int main(int argc, char **argv) {
 
       world.barrier();
     }
+
+    // test fifo ordering with recursion
+    {
+      size_t cutoff = 64;
+      size_t mod = 8;
+      size_t xref = 0;
+
+      auto work_lambda = [&cutoff, &mod, &xref] (auto p_work_queue, auto& queued_item) {
+        
+        YGM_ASSERT_RELEASE(queued_item == xref);
+        
+        if (queued_item == cutoff) {
+          return;
+        }
+        
+        if (queued_item % mod == 0) {
+          for (size_t i = 1; i <= mod; i++) {
+            p_work_queue->local_insert(queued_item + i);
+          } 
+        }
+
+        xref++;
+      };
+
+      auto wq = ygm::container::make_fifo_workqueue<size_t> (world, work_lambda);
+
+      wq.local_insert(0);
+
+      world.barrier();
+
+      YGM_ASSERT_RELEASE(xref == cutoff);
+    }
   }
 
 
@@ -202,6 +262,38 @@ int main(int argc, char **argv) {
       YGM_ASSERT_RELEASE(wq.local_has_work() == false);
 
       world.barrier();
+    }
+
+    // test lifo ordering with recursion
+    {
+      size_t cutoff = 64;
+      size_t mod = 8;
+      size_t xref = 0;
+
+      auto work_lambda = [&cutoff, &mod, &xref] (auto p_work_queue, auto& queued_item) {
+        
+        YGM_ASSERT_RELEASE(queued_item == xref);
+        
+        if (queued_item == cutoff) {
+          return;
+        }
+        
+        if (queued_item % mod == 0) {
+          for (size_t i = mod; i > 0; i--) {
+            p_work_queue->local_insert(queued_item + i);
+          } 
+        }
+
+        xref++;
+      };
+
+      auto wq = ygm::container::make_lifo_workqueue<size_t> (world, work_lambda);
+
+      wq.local_insert(0);
+
+      world.barrier();
+
+      YGM_ASSERT_RELEASE(xref == cutoff);
     }
   }
 
