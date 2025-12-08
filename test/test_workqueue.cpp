@@ -7,6 +7,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/workqueue.hpp>
+#include <ygm/container/array.hpp>
 
 #include <vector>
 #include <algorithm>
@@ -106,6 +107,47 @@ int main(int argc, char **argv) {
 
       world.barrier();
     }
+
+    // test container traversal
+    {
+      int                               size = 64;
+      ygm::container::array<int> arr(world, size);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          arr.async_set(i, i);
+        }
+      }
+
+      world.barrier();
+
+
+      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+        if (val < size -1) {
+          p_wq->local_insert(val + 1);
+        };
+
+        val = 0;
+      };
+
+      auto work_lambda = [&arr, &recv_enqueue_lambda] (auto p_wq, int item) {
+        arr.async_visit(item, recv_enqueue_lambda, p_wq);
+      };
+
+      auto wq = ygm::container::make_priority_workqueue<int, std::greater<int>> (world, work_lambda);
+
+      if (world.rank0()) {
+        wq.local_insert(0);
+      }
+
+      world.barrier();
+
+      arr.for_all([] (const auto value) {
+        YGM_ASSERT_RELEASE(value == 0);
+      });
+
+      world.barrier();
+    }
   }
 
 
@@ -201,6 +243,47 @@ int main(int argc, char **argv) {
 
       YGM_ASSERT_RELEASE(xref == cutoff);
     }
+
+    // test container traversal
+    {
+      int                               size = 64;
+      ygm::container::array<int> arr(world, size);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          arr.async_set(i, i);
+        }
+      }
+
+      world.barrier();
+
+
+      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+        if (val < size -1) {
+          p_wq->local_insert(val + 1);
+        };
+
+        val = 0;
+      };
+
+      auto work_lambda = [&arr, &recv_enqueue_lambda] (auto p_wq, int item) {
+        arr.async_visit(item, recv_enqueue_lambda, p_wq);
+      };
+
+      auto wq = ygm::container::make_fifo_workqueue<int> (world, work_lambda);
+
+      if (world.rank0()) {
+        wq.local_insert(0);
+      }
+
+      world.barrier();
+
+      arr.for_all([] (const auto value) {
+        YGM_ASSERT_RELEASE(value == 0);
+      });
+
+      world.barrier();
+    }
   }
 
 
@@ -294,6 +377,47 @@ int main(int argc, char **argv) {
       world.barrier();
 
       YGM_ASSERT_RELEASE(xref == cutoff);
+    }
+
+    // test container traversal
+    {
+      int                               size = 64;
+      ygm::container::array<int> arr(world, size);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          arr.async_set(i, i);
+        }
+      }
+
+      world.barrier();
+
+
+      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+        if (val < size -1) {
+          p_wq->local_insert(val + 1);
+        };
+
+        val = 0;
+      };
+
+      auto work_lambda = [&arr, &recv_enqueue_lambda] (auto p_wq, int item) {
+        arr.async_visit(item, recv_enqueue_lambda, p_wq);
+      };
+
+      auto wq = ygm::container::make_lifo_workqueue<int> (world, work_lambda);
+
+      if (world.rank0()) {
+        wq.local_insert(0);
+      }
+
+      world.barrier();
+
+      arr.for_all([] (const auto value) {
+        YGM_ASSERT_RELEASE(value == 0);
+      });
+
+      world.barrier();
     }
   }
 
