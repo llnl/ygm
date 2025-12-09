@@ -45,7 +45,7 @@ class workqueue
   /**
    * @brief Workqueue constructor
    * 
-   * @param comm Communicator to use for communication
+   * @param comm Communicator to use for callback registration
    * @param work_fn Lambda to execute on each work item during processing
    */
   workqueue(ygm::comm& comm, WorkLambda&& work_fn)
@@ -110,7 +110,6 @@ class workqueue
    * @details Common YGM container functions that break under the 
    * execution model of the workqueue.
    */
-
   void size() = delete;
   void swap() = delete;
   workqueue(const self_type&) = delete;
@@ -200,14 +199,14 @@ class workqueue
     m_callback_registered = true;
   }
 
-  ygm::comm&                   m_comm;
-  ptr_type                      pthis;
-  queue_type            m_local_queue;
-  WorkLambda            m_work_lambda;
-  bool          m_callback_registered;
+  ygm::comm&                       m_comm;
+  ptr_type                          pthis;
+  queue_type                m_local_queue;
+  WorkLambda                m_work_lambda;
+  bool              m_callback_registered;
 };
 
-// Convenience type aliases
+// Convenient type aliases
 template <typename Item, typename WorkLambda>
 using fifo_workqueue = workqueue<Item, detail::fifo_policy<Item>, WorkLambda>;
 

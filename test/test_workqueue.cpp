@@ -21,18 +21,18 @@ int main(int argc, char **argv) {
   {
     // test local priority workqueue ordering and size checks
     {
-      size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
       
-      auto rng = std::default_random_engine {};
+      auto rng = std::default_random_engine{};
       std::ranges::shuffle(work_items, rng);
 
-      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
-        size_max--;
-        YGM_ASSERT_RELEASE(size_max == queued_item);
-        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size--;
+        YGM_ASSERT_RELEASE(test_size == queued_item);
+        YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
       auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
       world.barrier();
 
-      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(test_size == 0);
       YGM_ASSERT_RELEASE(wq.local_size() == 0);
       YGM_ASSERT_RELEASE(wq.local_has_work() == false);
 
@@ -54,18 +54,18 @@ int main(int argc, char **argv) {
 
     // test assignment operator
     {
-      size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
       
       auto rng = std::default_random_engine {};
       std::ranges::shuffle(work_items, rng);
 
-      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
-        size_max--;
-        YGM_ASSERT_RELEASE(size_max == queued_item);
-        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size--;
+        YGM_ASSERT_RELEASE(test_size == queued_item);
+        YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
       auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
@@ -83,11 +83,11 @@ int main(int argc, char **argv) {
       YGM_ASSERT_RELEASE(wq2.local_has_work() == true);
 
       YGM_ASSERT_RELEASE(wq1.local_size() == 0);
-      YGM_ASSERT_RELEASE(wq2.local_size() == size_max);
+      YGM_ASSERT_RELEASE(wq2.local_size() == test_size);
 
       world.barrier();
 
-      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(test_size == 0);
       YGM_ASSERT_RELEASE(wq2.local_size() == 0);
       YGM_ASSERT_RELEASE(wq2.local_has_work() == false);
 
@@ -96,18 +96,18 @@ int main(int argc, char **argv) {
 
     // test move constructor
     {
-      size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
       
       auto rng = std::default_random_engine {};
       std::ranges::shuffle(work_items, rng);
 
-      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
-        size_max--;
-        YGM_ASSERT_RELEASE(size_max == queued_item);
-        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size--;
+        YGM_ASSERT_RELEASE(test_size == queued_item);
+        YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
       auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
@@ -124,11 +124,11 @@ int main(int argc, char **argv) {
       YGM_ASSERT_RELEASE(wq2.local_has_work() == true);
 
       YGM_ASSERT_RELEASE(wq1.local_size() == 0);
-      YGM_ASSERT_RELEASE(wq2.local_size() == size_max);
+      YGM_ASSERT_RELEASE(wq2.local_size() == test_size);
 
       world.barrier();
 
-      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(test_size == 0);
       YGM_ASSERT_RELEASE(wq2.local_size() == 0);
       YGM_ASSERT_RELEASE(wq2.local_has_work() == false);
 
@@ -137,13 +137,13 @@ int main(int argc, char **argv) {
 
     // test local_clear
     {
-      size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
-        size_max += queued_item;
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size += queued_item;
       };
 
       auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
         wq.local_insert(item);
       }
 
-      YGM_ASSERT_RELEASE(wq.local_size() == size_max);
+      YGM_ASSERT_RELEASE(wq.local_size() == test_size);
       YGM_ASSERT_RELEASE(wq.local_has_work() == true);
 
       wq.local_clear();
@@ -204,7 +204,6 @@ int main(int argc, char **argv) {
 
       world.barrier();
 
-
       auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
         if (val < size -1) {
           p_wq->local_insert(val + 1);
@@ -231,6 +230,29 @@ int main(int argc, char **argv) {
 
       world.barrier();
     }
+
+    // test multiple work batches
+    {
+      size_t total_processed = 0;
+
+      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+        total_processed++;
+      };
+
+      auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>>(world, work_lambda);
+      
+      // First batch
+      for (size_t i = 0; i < 10; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 10);
+      
+      // Second batch
+      for (size_t i = 0; i < 20; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 30);
+      
+      world.barrier();
+    }
   }
 
 
@@ -238,16 +260,16 @@ int main(int argc, char **argv) {
   {
     // test local workqueue ordering integrity and size checks
     {
-      static size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
       std::reverse(work_items.begin(), work_items.end());
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
-        size_max--;
-        YGM_ASSERT_RELEASE(size_max == queued_item);
-        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size--;
+        YGM_ASSERT_RELEASE(test_size == queued_item);
+        YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
       auto wq = ygm::container::make_fifo_workqueue<size_t> (world, work_lambda);
@@ -260,7 +282,7 @@ int main(int argc, char **argv) {
 
       world.barrier();
 
-      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(test_size == 0);
       YGM_ASSERT_RELEASE(wq.local_size() == 0);
       YGM_ASSERT_RELEASE(wq.local_has_work() == false);
 
@@ -269,13 +291,13 @@ int main(int argc, char **argv) {
 
     // test local_clear
     {
-      static size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
-        size_max += queued_item;
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size += queued_item;
       };
 
       auto wq = ygm::container::make_fifo_workqueue<size_t> (world, work_lambda);
@@ -284,7 +306,7 @@ int main(int argc, char **argv) {
         wq.local_insert(item);
       }
 
-      YGM_ASSERT_RELEASE(wq.local_size() == size_max);
+      YGM_ASSERT_RELEASE(wq.local_size() == test_size);
       YGM_ASSERT_RELEASE(wq.local_has_work() == true);
 
       wq.local_clear();
@@ -367,6 +389,27 @@ int main(int argc, char **argv) {
 
       world.barrier();
     }
+
+    // test multiple work batches
+    {
+      size_t total_processed = 0;
+      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+        total_processed++;
+      };
+      auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
+      
+      // First batch
+      for (size_t i = 0; i < 10; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 10);
+      
+      // Second batch
+      for (size_t i = 0; i < 20; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 30);
+      
+      world.barrier();
+    }
   }
 
 
@@ -374,15 +417,15 @@ int main(int argc, char **argv) {
   {
     // test local LIFO workqueue ordering and size checks
     {
-      static size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
-        size_max--;
-        YGM_ASSERT_RELEASE(size_max == queued_item);
-        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size--;
+        YGM_ASSERT_RELEASE(test_size == queued_item);
+        YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
       auto wq = ygm::container::make_lifo_workqueue<size_t> (world, work_lambda);
@@ -395,7 +438,7 @@ int main(int argc, char **argv) {
 
       world.barrier();
 
-      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(test_size == 0);
       YGM_ASSERT_RELEASE(wq.local_size() == 0);
       YGM_ASSERT_RELEASE(wq.local_has_work() == false);
 
@@ -404,13 +447,13 @@ int main(int argc, char **argv) {
 
     // test local_clear
     {
-      static size_t size_max = 64;
+      size_t test_size = 64;
 
-      std::vector<size_t> work_items(size_max);
+      std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [] (auto p_work_queue, auto& queued_item) {
-        size_max += queued_item;
+      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+        test_size += queued_item;
       };
 
       auto wq = ygm::container::make_lifo_workqueue<size_t> (world, work_lambda);
@@ -419,7 +462,7 @@ int main(int argc, char **argv) {
         wq.local_insert(item);
       }
 
-      YGM_ASSERT_RELEASE(wq.local_size() == size_max);
+      YGM_ASSERT_RELEASE(wq.local_size() == test_size);
       YGM_ASSERT_RELEASE(wq.local_has_work() == true);
 
       wq.local_clear();
@@ -500,6 +543,27 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(value == 0);
       });
 
+      world.barrier();
+    }
+
+    // test multiple work batches
+    {
+      size_t total_processed = 0;
+      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+        total_processed++;
+      };
+      auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);
+      
+      // First batch
+      for (size_t i = 0; i < 10; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 10);
+      
+      // Second batch
+      for (size_t i = 0; i < 20; i++) wq.local_insert(i);
+      world.barrier();
+      YGM_ASSERT_RELEASE(total_processed == 30);
+      
       world.barrier();
     }
   }
