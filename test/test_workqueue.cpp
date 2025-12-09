@@ -168,10 +168,11 @@ int main(int argc, char **argv) {
       size_t xref = 0;
 
       auto work_lambda = [&cutoff, &found_cutoff, &xref] (auto p_work_queue, auto& queued_item) {
+        YGM_ASSERT_RELEASE(xref == queued_item);
+        xref++;
+        
         if (queued_item < cutoff) {
           YGM_ASSERT_RELEASE(found_cutoff == false);
-          YGM_ASSERT_RELEASE(xref == queued_item);
-          xref++;
 
           p_work_queue->local_insert(queued_item + cutoff + 1);
           p_work_queue->local_insert(queued_item + 1);
@@ -201,7 +202,7 @@ int main(int argc, char **argv) {
 
       world.barrier();
 
-      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+      auto recv_enqueue_lambda = [size] (const auto&, int &val, auto p_wq) {
         if (val < size -1) {
           p_wq->local_insert(val + 1);
         };
@@ -232,7 +233,7 @@ int main(int argc, char **argv) {
     {
       size_t total_processed = 0;
 
-      auto work_lambda = [&total_processed] (size_t item) {
+      auto work_lambda = [&total_processed] (size_t) {
         total_processed++;
       };
 
@@ -362,7 +363,7 @@ int main(int argc, char **argv) {
       world.barrier();
 
 
-      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+      auto recv_enqueue_lambda = [size] (const auto&, int &val, auto p_wq) {
         if (val < size - 1) {
           p_wq->local_insert(val + 1);
         };
@@ -392,7 +393,7 @@ int main(int argc, char **argv) {
     // test multiple work batches
     {
       size_t total_processed = 0;
-      auto work_lambda = [&total_processed] (size_t item) {
+      auto work_lambda = [&total_processed] (size_t) {
         total_processed++;
       };
       auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
@@ -520,7 +521,7 @@ int main(int argc, char **argv) {
       world.barrier();
 
 
-      auto recv_enqueue_lambda = [size] (const auto& ind, int &val, auto p_wq) {
+      auto recv_enqueue_lambda = [size] (const auto&, int &val, auto p_wq) {
         if (val < size -1) {
           p_wq->local_insert(val + 1);
         };
@@ -550,7 +551,7 @@ int main(int argc, char **argv) {
     // test multiple work batches
     {
       size_t total_processed = 0;
-      auto work_lambda = [&total_processed] (size_t item) {
+      auto work_lambda = [&total_processed] (size_t) {
         total_processed++;
       };
       auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);

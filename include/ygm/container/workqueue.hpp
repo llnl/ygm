@@ -191,12 +191,10 @@ class workqueue
   /**
    * @brief Register callback to process work at next barrier
    */
-  void register_processing_callback() {
-    ptr_type pthis_local = pthis;
-    
-    auto process_all_lambda = [pthis_local]() {
-      pthis_local->local_process_all();
-      pthis_local->m_callback_registered = false; // Reset for next batch
+  void register_processing_callback() {    
+    auto process_all_lambda = [this]() {
+      this->local_process_all();
+      this->m_callback_registered = false; // Reset for next batch
     };
     
     m_comm.register_pre_barrier_callback(process_all_lambda);
