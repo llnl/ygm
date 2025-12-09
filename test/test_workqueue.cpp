@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
       std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+      auto work_lambda = [&test_size] (auto& queued_item) {
         test_size += queued_item;
       };
 
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
     {
       size_t total_processed = 0;
 
-      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+      auto work_lambda = [&total_processed] (size_t item) {
         total_processed++;
       };
 
@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
       std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+      auto work_lambda = [&test_size] (auto& queued_item) {
         test_size += queued_item;
       };
 
@@ -393,7 +393,7 @@ int main(int argc, char **argv) {
     // test multiple work batches
     {
       size_t total_processed = 0;
-      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+      auto work_lambda = [&total_processed] (size_t item) {
         total_processed++;
       };
       auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
@@ -452,7 +452,7 @@ int main(int argc, char **argv) {
       std::vector<size_t> work_items(test_size);
       std::iota(work_items.begin(), work_items.end(), 0);
 
-      auto work_lambda = [&test_size] (auto p_work_queue, auto& queued_item) {
+      auto work_lambda = [&test_size] (auto& queued_item) {
         test_size += queued_item;
       };
 
@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
     // test multiple work batches
     {
       size_t total_processed = 0;
-      auto work_lambda = [&total_processed] (auto p_wq, size_t item) {
+      auto work_lambda = [&total_processed] (size_t item) {
         total_processed++;
       };
       auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);

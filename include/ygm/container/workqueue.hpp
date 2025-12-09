@@ -9,6 +9,7 @@
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/workqueue_policy.hpp>
+#include <ygm/detail/meta/functional.hpp>
 #include <queue>
 #include <functional>
 
@@ -150,7 +151,7 @@ class workqueue
     while (!QueuePolicy::empty(m_local_queue)) {
       Item item = QueuePolicy::top(m_local_queue);
       QueuePolicy::pop(m_local_queue);
-      m_work_lambda(pthis, item);
+      ygm::meta::apply_optional(std::forward<WorkLambda>(m_work_lambda), std::make_tuple(pthis), std::forward_as_tuple(item));
     }
   }
 
