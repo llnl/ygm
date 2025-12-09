@@ -14,20 +14,17 @@
 
 namespace ygm::container {
 
-// Forward declarations
-template <typename Item, typename QueuePolicy, typename WorkLambda>
-class workqueue;
-
 /**
  * @brief Workqueue container for YGM
  * 
  * @tparam Item Type of work items stored in queue
- * @tparam QueuePolicy Policy determining queue ordering (fifo_policy or priority_policy)
+ * @tparam QueuePolicy Policy determining queue ordering (@see detail/workqueue_policy.hpp)
  * @tparam WorkLambda Lambda type for processing work items
  * 
- * @details Provides a workqueue that processes items either in FIFO
+ * @details Provides a workqueue that processes items in FIFO, LIFO
  * order or priority order. Work is processed at barriers via registered callbacks.
  */
+
 template <typename Item, typename QueuePolicy, typename WorkLambda>
 class workqueue
     : public detail::base_misc<workqueue<Item, QueuePolicy, WorkLambda>, 
@@ -41,8 +38,6 @@ class workqueue
   using value_type =                                        Item;
   using ptr_type =              typename ygm::ygm_ptr<self_type>;
   using size_type =                                       size_t;
-  using for_all_args =                          std::tuple<Item>;
-  using container_type =    typename QueuePolicy::container_type;
   using queue_type =            typename QueuePolicy::queue_type;
 
   workqueue() = delete;
@@ -59,29 +54,21 @@ class workqueue
         m_work_lambda(std::forward<WorkLambda>(work_fn)),
         m_callback_registered(false) {
     m_comm.log(log_level::info, "Creating ygm::container::workqueue");
+
     pthis.check(m_comm);
   }
 
   /**
    * @brief Workqueue destructor
    * 
-   * @details Asserts that queue is empty before destruction. Call empty_local() 
+   * @details Asserts that queue is empty before destruction. Call local_clear() 
    * explicitly to discard unfinished work before destruction.
    */
   ~workqueue() {
     m_comm.log(log_level::info, "Destroying ygm::container::workqueue");
+
     m_comm.barrier();
     YGM_ASSERT_RELEASE(local_size() == 0);
-  }
-
-  workqueue(const self_type& other)
-      : m_comm(other.m_comm),
-        pthis(this),
-        m_local_queue(other.m_local_queue),
-        m_work_lambda(other.m_work_lambda),
-        m_callback_registered(false) {
-    m_comm.log(log_level::info, "Copying ygm::container::workqueue");
-    pthis.check(m_comm);
   }
 
   workqueue(self_type&& other) noexcept
@@ -89,40 +76,50 @@ class workqueue
         pthis(this),
         m_local_queue(std::move(other.m_local_queue)),
         m_work_lambda(std::move(other.m_work_lambda)),
-        m_callback_registered(other.m_callback_registered) {
+        m_callback_registered(false) {
     m_comm.log(log_level::info, "Moving ygm::container::workqueue");
+
     pthis.check(m_comm);
     other.m_callback_registered = false;
-  }
 
-  workqueue& operator=(const self_type& other) {
-    m_comm.log(log_level::info, 
-               "Calling ygm::container::workqueue copy assignment operator");
-    return *this = workqueue(other);
+    if(local_has_work()) {
+      register_processing_callback();
+    }
   }
 
   workqueue& operator=(self_type&& other) noexcept {
+    if (this == &other) return *this;
+
     m_comm.log(log_level::info,
                "Calling ygm::container::workqueue move assignment operator");
-    std::swap(m_local_queue, other.m_local_queue);
-    std::swap(m_work_lambda, other.m_work_lambda);
-    std::swap(m_callback_registered, other.m_callback_registered);
+
+    m_local_queue = std::move(other.m_local_queue);
+    m_callback_registered = false;
+    other.m_callback_registered = false;
+
+    if(local_has_work()) {
+      register_processing_callback();
+    }
+
     return *this;
   }
 
   /**
-   * @brief Unsupported base_misc functions
+   * @brief Unsupported functions
    * 
-   * @details Functions inherited from base_misc that break under the execution model of the 
-   * 
+   * @details Common YGM container functions that break under the 
+   * execution model of the workqueue.
    */
 
   void size() = delete;
   void swap() = delete;
+  workqueue(const self_type&) = delete;
+  workqueue& operator=(const self_type&) = delete;
 
 
   /**
-   * @brief Empties remaining items in global storage of workqueue
+   * @brief Empties remaining items in global storage of workqueue.
+   * May be discarded if local_clear preferred method
    */
   void clear() {
     local_clear();
@@ -141,7 +138,6 @@ class workqueue
     // Only register callback once per batch
     if (!m_callback_registered) {
       register_processing_callback();
-      m_callback_registered = true;
     }
   }
 
@@ -173,7 +169,7 @@ class workqueue
    * 
    * @return Number of items in local queue
    */
-  size_t local_size() const {
+  size_type local_size() const {
     return QueuePolicy::size(m_local_queue);
   }
 
@@ -184,9 +180,7 @@ class workqueue
    * Does not call barrier().
    */
   void local_clear() {
-    while (!QueuePolicy::empty(m_local_queue)) {
-      QueuePolicy::pop(m_local_queue);
-    }
+    m_local_queue = queue_type{};
   }
 
 
@@ -203,17 +197,7 @@ class workqueue
     };
     
     m_comm.register_pre_barrier_callback(process_all_lambda);
-  }
-
-  /**
-   * @brief Swap local queues between workqueues
-   * 
-   * @param other Workqueue to swap with
-   */
-  void local_swap(self_type& other) {
-    std::swap(m_local_queue, other.m_local_queue);
-    std::swap(m_work_lambda, other.m_work_lambda);
-    std::swap(m_callback_registered, other.m_callback_registered);
+    m_callback_registered = true;
   }
 
   ygm::comm&                   m_comm;
@@ -235,18 +219,18 @@ using priority_workqueue = workqueue<Item, detail::priority_policy<Item, Comp>, 
 
 // Factory functions for convenient user instantiation
 template <typename Item, typename WorkLambda>
-auto make_fifo_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
-  return fifo_workqueue<Item, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
+auto make_fifo_workqueue(ygm::comm& comm, WorkLambda work_fn) {
+  return fifo_workqueue<Item, WorkLambda>(comm, std::move(work_fn));
 }
 
 template <typename Item, typename WorkLambda>
-auto make_lifo_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
-  return lifo_workqueue<Item, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
+auto make_lifo_workqueue(ygm::comm& comm, WorkLambda work_fn) {
+  return lifo_workqueue<Item, WorkLambda>(comm, std::move(work_fn));
 }
 
 template <typename Item, typename Comp, typename WorkLambda>
-auto make_priority_workqueue(ygm::comm& comm, WorkLambda&& work_fn) {
-  return priority_workqueue<Item, Comp, WorkLambda>(comm, std::forward<WorkLambda>(work_fn));
+auto make_priority_workqueue(ygm::comm& comm, WorkLambda work_fn) {
+  return priority_workqueue<Item, Comp, WorkLambda>(comm, std::move(work_fn));
 }
 
 } // namespace ygm::container

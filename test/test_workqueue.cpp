@@ -52,6 +52,89 @@ int main(int argc, char **argv) {
       world.barrier();
     }
 
+    // test assignment operator
+    {
+      size_t size_max = 64;
+
+      std::vector<size_t> work_items(size_max);
+      std::iota(work_items.begin(), work_items.end(), 0);
+      
+      auto rng = std::default_random_engine {};
+      std::ranges::shuffle(work_items, rng);
+
+      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
+        size_max--;
+        YGM_ASSERT_RELEASE(size_max == queued_item);
+        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      };
+
+      auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+
+      auto wq2 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+
+
+      for (size_t item : work_items) {
+        wq1.local_insert(item);
+      }
+
+      wq2 = std::move(wq1);
+
+      YGM_ASSERT_RELEASE(wq1.local_has_work() == false);
+      YGM_ASSERT_RELEASE(wq2.local_has_work() == true);
+
+      YGM_ASSERT_RELEASE(wq1.local_size() == 0);
+      YGM_ASSERT_RELEASE(wq2.local_size() == size_max);
+
+      world.barrier();
+
+      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(wq2.local_size() == 0);
+      YGM_ASSERT_RELEASE(wq2.local_has_work() == false);
+
+      world.barrier();
+    }
+
+    // test move constructor
+    {
+      size_t size_max = 64;
+
+      std::vector<size_t> work_items(size_max);
+      std::iota(work_items.begin(), work_items.end(), 0);
+      
+      auto rng = std::default_random_engine {};
+      std::ranges::shuffle(work_items, rng);
+
+      auto work_lambda = [&size_max] (auto p_work_queue, auto& queued_item) {
+        size_max--;
+        YGM_ASSERT_RELEASE(size_max == queued_item);
+        YGM_ASSERT_RELEASE(size_max == p_work_queue->local_size());
+      };
+
+      auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+
+      
+      
+      for (size_t item : work_items) {
+        wq1.local_insert(item);
+      }
+      
+      auto wq2(std::move(wq1));
+
+      YGM_ASSERT_RELEASE(wq1.local_has_work() == false);
+      YGM_ASSERT_RELEASE(wq2.local_has_work() == true);
+
+      YGM_ASSERT_RELEASE(wq1.local_size() == 0);
+      YGM_ASSERT_RELEASE(wq2.local_size() == size_max);
+
+      world.barrier();
+
+      YGM_ASSERT_RELEASE(size_max == 0);
+      YGM_ASSERT_RELEASE(wq2.local_size() == 0);
+      YGM_ASSERT_RELEASE(wq2.local_has_work() == false);
+
+      world.barrier();
+    }
+
     // test local_clear
     {
       size_t size_max = 64;
