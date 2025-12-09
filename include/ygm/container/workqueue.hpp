@@ -10,7 +10,6 @@
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/workqueue_policy.hpp>
 #include <ygm/detail/meta/functional.hpp>
-#include <queue>
 #include <functional>
 
 namespace ygm::container {
@@ -28,18 +27,18 @@ namespace ygm::container {
 
 template <typename Item, typename QueuePolicy, typename WorkLambda>
 class workqueue
-    : public detail::base_misc<workqueue<Item, QueuePolicy, WorkLambda>, 
+    : public detail::base_misc<workqueue<Item, QueuePolicy, WorkLambda>,
                                            std::tuple<Item>> {
   
   friend struct detail::base_misc<workqueue<Item, QueuePolicy, WorkLambda>,
                                          std::tuple<Item>>;
 
  public:
-  using self_type =     workqueue<Item, QueuePolicy, WorkLambda>;
-  using value_type =                                        Item;
-  using ptr_type =              typename ygm::ygm_ptr<self_type>;
-  using size_type =                                       size_t;
-  using queue_type =            typename QueuePolicy::queue_type;
+  using self_type =         workqueue<Item, QueuePolicy, WorkLambda>;
+  using ptr_type =                  typename ygm::ygm_ptr<self_type>;
+  using value_type =                                            Item;
+  using size_type =                                           size_t;
+  using queue_type =                typename QueuePolicy::queue_type;
 
   workqueue() = delete;
 
@@ -62,8 +61,9 @@ class workqueue
   /**
    * @brief Workqueue destructor
    * 
-   * @details Asserts that queue is empty before destruction. Call local_clear() 
-   * explicitly to discard unfinished work before destruction.
+   * @details Asserts queue is empty before destruction to prevent items left
+   * accidentally unprocessed. Call local_clear() explicitly to discard 
+   * unfinished work before destruction.
    */
   ~workqueue() {
     m_comm.log(log_level::info, "Destroying ygm::container::workqueue");
@@ -119,7 +119,7 @@ class workqueue
 
   /**
    * @brief Empties remaining items in global storage of workqueue.
-   * May be discarded if local_clear preferred method
+   * May be discarded if local_clear and manual barrier the preferred method.
    */
   void clear() {
     local_clear();
@@ -130,7 +130,8 @@ class workqueue
    * @brief Insert a work item into the local queue
    * 
    * @param item Work item to insert
-   * @details Registers processing callback on first insertion. Does not initiate execution.
+   * @details Registers processing callback on first insertion. Does not
+   * initiate execution.
    */
   void local_insert(const Item& item) {
     QueuePolicy::push(m_local_queue, item);
@@ -145,13 +146,15 @@ class workqueue
    * @brief Process all pending work items in the local queue
    * 
    * @details Processes items according to queue policy.
-   * Does not call barrier().
+   * Does not call comm.barrier().
    */
   void local_process_all() {
     while (!QueuePolicy::empty(m_local_queue)) {
       Item item = QueuePolicy::top(m_local_queue);
       QueuePolicy::pop(m_local_queue);
-      ygm::meta::apply_optional(std::forward<WorkLambda>(m_work_lambda), std::make_tuple(pthis), std::forward_as_tuple(item));
+      ygm::meta::apply_optional(std::forward<WorkLambda>(m_work_lambda),
+                                  std::make_tuple(pthis),
+                                  std::forward_as_tuple(item));
     }
   }
 
