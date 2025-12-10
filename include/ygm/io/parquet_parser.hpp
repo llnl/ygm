@@ -497,11 +497,11 @@ class parquet_parser {
   }
 
   bool is_owner(const size_t item_id) const {
-    return m_comm.rank() == (item_id % m_comm.size());
+    return size_t(m_comm.rank()) == (item_id % m_comm.size());
   }
 
   bool is_local_owner(const size_t item_id) const {
-    return m_comm.layout().local_id() ==
+    return size_t(m_comm.layout().local_id()) ==
            (item_id % m_comm.layout().local_size());
   }
 
@@ -555,7 +555,7 @@ class parquet_parser {
       const size_t num_row_groups = file_metadata->num_row_groups();
 
       // Iterate over all the RowGroups in the file
-      for (int r = 0; r < num_row_groups; ++r) {
+      for (size_t r = 0; r < num_row_groups; ++r) {
         std::shared_ptr<parquet::RowGroupReader> row_group_reader =
             parquet_reader->RowGroup(r);
 
@@ -567,7 +567,7 @@ class parquet_parser {
             column_indices.size());
 
         // Read the columns in the RowGroup
-        for (int ci = 0; ci < column_indices.size(); ++ci) {
+        for (size_t ci = 0; ci < column_indices.size(); ++ci) {
           // Assign std::monostate if A) there is no column associated with the
           // name (invalid index), or B) the column is unsupported.
           if (column_indices[ci] == k_invalid_col_index ||
@@ -609,7 +609,7 @@ class parquet_parser {
           // As this parser supports only flat columns,
           // the number of rows read must be equal to the number of rows in
           // the RowGroup.
-          if (read_buf[ci].size() != num_rows) {
+          if (read_buf[ci].size() != size_t(num_rows)) {
             std::cerr << "Error reading column " << column_indices[ci] << ": "
                       << read_buf[ci].size() << " rows read, expected "
                       << num_rows << " rows." << std::endl;
@@ -618,7 +618,7 @@ class parquet_parser {
         }
 
         // Finally, call the user function for each row
-        for (size_t i = 0; i < num_rows; ++i) {
+        for (size_t i = 0; i < size_t(num_rows); ++i) {
           if (num_read_rows == max_num_rows_to_read) {
             return max_num_rows_to_read;  // Read enough rows
           }

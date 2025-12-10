@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         // Count elements in large message's vector
         world.async(
             dest,
-            [](auto pcomm, auto pcounter, const std::vector<size_t>& vec) {
+            [](auto pcounter, const std::vector<size_t>& vec) {
               for (size_t i = 0; i < vec.size(); ++i) {
                 (*pcounter)++;
               }

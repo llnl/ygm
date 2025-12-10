@@ -16,7 +16,8 @@ int main(int argc, char** argv) {
     size_t                 local_count{0};
     ygm::io::ndjson_parser jsonp(world,
                                  std::vector<std::string>{"data/3.ndjson"});
-    jsonp.for_all([&world, &local_count](const auto& json) { ++local_count; });
+    jsonp.for_all(
+        [&local_count]([[maybe_unused]] const auto& json) { ++local_count; });
 
     world.barrier();
     YGM_ASSERT_RELEASE(ygm::sum(local_count, world) == 3);
@@ -27,7 +28,8 @@ int main(int argc, char** argv) {
     size_t                 local_count{0};
     ygm::io::ndjson_parser jsonp(world,
                                  std::vector<std::string>{"data/bad.ndjson"});
-    jsonp.for_all([&world, &local_count](const auto& json) { ++local_count; });
+    jsonp.for_all(
+        [&local_count]([[maybe_unused]] const auto& json) { ++local_count; });
 
     world.barrier();
     YGM_ASSERT_RELEASE(ygm::sum(local_count, world) == 3);

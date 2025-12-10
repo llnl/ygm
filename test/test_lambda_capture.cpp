@@ -26,13 +26,14 @@ int main(int argc, char **argv) {
     ygm::container::map<std::string, int> my_map(world);
 
     int a = world.rank();
-    my_map.async_visit("key",
-                       [a](const std::string &key, int &val) { val += a; });
+    my_map.async_visit("key", [a]([[maybe_unused]] const std::string &key,
+                                  int &val) { val += a; });
 
     world.barrier();
-    my_map.for_all([&world](const std::string &key, const int &val) {
-      YGM_ASSERT_RELEASE(val == world.size() * (world.size() - 1) / 2);
-    });
+    my_map.for_all(
+        [&world]([[maybe_unused]] const std::string &key, const int &val) {
+          YGM_ASSERT_RELEASE(val == world.size() * (world.size() - 1) / 2);
+        });
   }
 
   return 0;

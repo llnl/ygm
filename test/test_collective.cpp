@@ -10,7 +10,7 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  YGM_ASSERT_RELEASE(ygm::sum(size_t(1), world) == world.size());
+  YGM_ASSERT_RELEASE(ygm::sum(size_t(1), world) == size_t(world.size()));
   YGM_ASSERT_RELEASE(ygm::sum(double(1), world) == double(world.size()));
   YGM_ASSERT_RELEASE(ygm::sum(float(1), world) == float(world.size()));
 

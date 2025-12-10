@@ -80,10 +80,12 @@ struct base_iteration_value {
   void gather(STLContainer& gto, int rank) const {
     static_assert(
         std::is_same_v<typename STLContainer::value_type, value_type>);
-    bool                 all_gather   = (rank == -1);
-    const auto*          derived_this = static_cast<const derived_type*>(this);
-    const ygm::comm&     mycomm       = derived_this->comm();
-    static STLContainer* spgto;
+    bool             all_gather   = (rank == -1);
+    const auto*      derived_this = static_cast<const derived_type*>(this);
+    const ygm::comm& mycomm       = derived_this->comm();
+    [[maybe_unused]] static STLContainer*
+        spgto;  // spgto is used, but compilers give warnings about it being
+                // unused
     spgto = &gto;
 
     auto glambda = [&mycomm, rank, all_gather](const auto& value) {
@@ -125,9 +127,10 @@ struct base_iteration_value {
    * @return vector of largest values
    */
   template <typename Compare = std::greater<value_type>>
-  std::vector<value_type> gather_topk(size_t  k,
-                                      Compare comp = std::greater<value_type>())
-      const requires SingleItemTuple<for_all_args> {
+  std::vector<value_type> gather_topk(
+      size_t k, Compare comp = std::greater<value_type>()) const
+    requires SingleItemTuple<for_all_args>
+  {
     const auto*      derived_this = static_cast<const derived_type*>(this);
     const ygm::comm& mycomm       = derived_this->comm();
     std::vector<value_type> local_topk;
@@ -260,7 +263,7 @@ struct base_iteration_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
@@ -275,7 +278,7 @@ struct base_iteration_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-  requires requires(STLContainer stc, Value v) { stc.insert(v); }
+    requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
@@ -507,8 +510,10 @@ struct base_iteration_key_value {
    * @return Transform object that returns only keys to user
    */
   auto keys() {
-    return transform([](const key_type&    key,
-                        const mapped_type& value) -> key_type { return key; });
+    return transform([](const key_type&                     key,
+                        [[maybe_unused]] const mapped_type& value) -> key_type {
+      return key;
+    });
   }
 
   /**
@@ -518,9 +523,8 @@ struct base_iteration_key_value {
    */
   auto values() {
     return transform(
-        [](const key_type& key, const mapped_type& value) -> mapped_type {
-          return value;
-        });
+        []([[maybe_unused]] const key_type& key,
+           const mapped_type& value) -> mapped_type { return value; });
   }
 
   flatten_proxy_key_value<derived_type> flatten();
@@ -540,7 +544,7 @@ struct base_iteration_key_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
@@ -555,7 +559,7 @@ struct base_iteration_key_value {
    * @param v Value to insert
    */
   template <typename STLContainer, typename Value>
-  requires requires(STLContainer stc, Value v) { stc.insert(v); }
+    requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }

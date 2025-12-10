@@ -23,7 +23,7 @@ class lambda_map {
   using func_id = FuncId;
 
   template <typename LambdaType>
-  static FuncId register_lambda(LambdaType l) {
+  static FuncId register_lambda([[maybe_unused]] LambdaType l) {
     return lambda_enumerator<LambdaType>::id;
   }
   template <typename... Args>
@@ -35,9 +35,9 @@ class lambda_map {
   template <typename LambdaType>
   static FuncId record() {
     YGM_ASSERT_RELEASE(s_map.size() < std::numeric_limits<FuncId>::max());
-    FuncId      to_return = s_map.size();
-    LambdaType *lp;  // scary, but by definition can't capture
-    s_map.push_back(*lp);
+    FuncId     to_return = s_map.size();
+    LambdaType lp;  // can default construct lambdas that do not capture
+    s_map.push_back(lp);
     return to_return;
   }
   static std::vector<CFuncPtr> s_map;

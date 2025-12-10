@@ -35,7 +35,8 @@ class daily_output {
    */
   daily_output(ygm::comm &comm, const std::string &filename_prefix,
                size_t buffer_length = 1024 * 1024, bool append = false)
-      : m_multi_output(comm, filename_prefix, buffer_length, append) {}
+      : m_multi_output(comm, filename_prefix, buffer_length, append),
+        pthis(this) {}
 
   /**
    * @brief Write a line of output
@@ -62,7 +63,27 @@ class daily_output {
     m_multi_output.async_write_line(date_path, std::forward<Args>(args)...);
   }
 
+  /**
+   * @brief Access to own ygm_ptr
+   *
+   * @return `ygm_ptr` used by the container when identifying itself in `async`
+   * calls on the `ygm::comm`
+   */
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() {
+    return static_cast<self_type *>(this)->pthis;
+  }
+
+  /**
+   * @brief Const access to own ygm ptr
+   *
+   * @return `ygm_ptr` to const version of container
+   */
+  const typename ygm::ygm_ptr<self_type> get_ygm_ptr() const {
+    return static_cast<const self_type *>(this)->pthis;
+  }
+
  private:
-  multi_output<Partitioner> m_multi_output;
+  multi_output<Partitioner>        m_multi_output;
+  typename ygm::ygm_ptr<self_type> pthis;
 };
 }  // namespace ygm::io

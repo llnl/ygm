@@ -25,8 +25,9 @@ auto apply(const std::true_type&, Fn&& fn, std::tuple<Opts...>&& optional,
 }
 
 template <class Fn, class... Opts, class... Args>
-auto apply(const std::false_type&, Fn&& fn, std::tuple<Opts...>&& optional,
-           std::tuple<Args...>&& args) {
+auto apply(const std::false_type&, Fn&& fn,
+           [[maybe_unused]] std::tuple<Opts...>&& optional,
+           std::tuple<Args...>&&                  args) {
   using ArgType = std::tuple<Args...>;
 
   return std::apply(std::forward<Fn>(fn), std::forward<ArgType>(args));

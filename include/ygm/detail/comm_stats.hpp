@@ -8,9 +8,13 @@
 #include <mpi.h>
 
 namespace ygm {
+class comm;
+
 namespace detail {
 class comm_stats {
  public:
+  friend class ygm::comm;
+
   class timer {
    public:
     timer(double& _timer) : m_timer(_timer), m_start_time(MPI_Wtime()) {}
@@ -23,38 +27,6 @@ class comm_stats {
   };
 
   comm_stats() : m_time_start(MPI_Wtime()) {}
-
-  void isend(int dest, size_t bytes) {
-    m_isend_count += 1;
-    m_isend_bytes += bytes;
-  }
-
-  void irecv(int source, size_t bytes) {
-    m_irecv_count += 1;
-    m_irecv_bytes += bytes;
-  }
-
-  void async(int dest) { m_async_count += 1; }
-
-  void rpc_execute() { m_rpc_count += 1; }
-
-  void routing() { m_route_count += 1; }
-
-  void isend_test() { m_isend_test_count += 1; }
-
-  void irecv_test() { m_irecv_test_count += 1; }
-
-  void iallreduce() { m_iallreduce_count += 1; }
-
-  timer waitsome_isend_irecv() {
-    m_waitsome_isend_irecv_count += 1;
-    return timer(m_waitsome_isend_irecv_time);
-  }
-
-  timer waitsome_iallreduce() {
-    m_waitsome_iallreduce_count += 1;
-    return timer(m_waitsome_iallreduce_time);
-  }
 
   void reset() {
     m_async_count                = 0;
@@ -104,6 +76,38 @@ class comm_stats {
   double get_elapsed_time() const { return MPI_Wtime() - m_time_start; }
 
  private:
+  void isend([[maybe_unused]] int dest, size_t bytes) {
+    m_isend_count += 1;
+    m_isend_bytes += bytes;
+  }
+
+  void irecv([[maybe_unused]] int source, size_t bytes) {
+    m_irecv_count += 1;
+    m_irecv_bytes += bytes;
+  }
+
+  void async([[maybe_unused]] int dest) { m_async_count += 1; }
+
+  void rpc_execute() { m_rpc_count += 1; }
+
+  void routing() { m_route_count += 1; }
+
+  void isend_test() { m_isend_test_count += 1; }
+
+  void irecv_test() { m_irecv_test_count += 1; }
+
+  void iallreduce() { m_iallreduce_count += 1; }
+
+  timer waitsome_isend_irecv() {
+    m_waitsome_isend_irecv_count += 1;
+    return timer(m_waitsome_isend_irecv_time);
+  }
+
+  timer waitsome_iallreduce() {
+    m_waitsome_iallreduce_count += 1;
+    return timer(m_waitsome_iallreduce_time);
+  }
+
   size_t m_async_count = 0;
   size_t m_rpc_count   = 0;
   size_t m_route_count = 0;

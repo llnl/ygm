@@ -145,7 +145,7 @@ inline void comm::welcome(std::ostream &os) {
  * computation of interest from set-up or from other trials of the same
  * experiment.
  */
-inline void comm::stats_reset() { stats.reset(); }
+inline void comm::stats_reset() { m_stats.reset(); }
 
 /**
  * @brief Prints information about communication tracked in comm_stats object
@@ -157,18 +157,19 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
   std::stringstream sstr;
   sstr << "============== STATS =================\n"
        << "NAME                     = " << name << "\n"
-       << "TIME                     = " << stats.get_elapsed_time() << "\n"
+       << "TIME                     = " << m_stats.get_elapsed_time() << "\n"
        << "GLOBAL_ASYNC_COUNT       = "
-       << ::ygm::sum(stats.get_async_count(), *this) << "\n"
+       << ::ygm::sum(m_stats.get_async_count(), *this) << "\n"
        << "GLOBAL_ISEND_COUNT       = "
-       << ::ygm::sum(stats.get_isend_count(), *this) << "\n"
+       << ::ygm::sum(m_stats.get_isend_count(), *this) << "\n"
        << "GLOBAL_ISEND_BYTES       = "
-       << ::ygm::sum(stats.get_isend_bytes(), *this) << "\n"
+       << ::ygm::sum(m_stats.get_isend_bytes(), *this) << "\n"
        << "MAX_WAITSOME_ISEND_IRECV = "
-       << ::ygm::max(stats.get_waitsome_isend_irecv_time(), *this) << "\n"
+       << ::ygm::max(m_stats.get_waitsome_isend_irecv_time(), *this) << "\n"
        << "MAX_WAITSOME_IALLREDUCE  = "
-       << ::ygm::max(stats.get_waitsome_iallreduce_time(), *this) << "\n"
-       << "COUNT_IALLREDUCE         = " << stats.get_iallreduce_count() << "\n"
+       << ::ygm::max(m_stats.get_waitsome_iallreduce_time(), *this) << "\n"
+       << "COUNT_IALLREDUCE         = " << m_stats.get_iallreduce_count()
+       << "\n"
        << "======================================";
 
   if (rank0()) {
@@ -226,7 +227,7 @@ inline void comm::async(int dest, AsyncFunction &&fn, const SendArgs &...args) {
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
-  stats.async(dest);
+  m_stats.async(dest);
 
   check_if_production_halt_required();
   m_send_count++;
@@ -343,6 +344,13 @@ inline const detail::layout &comm::layout() const { return m_layout; }
 inline const detail::comm_router &comm::router() const { return m_router; }
 
 /**
+ * @brief Access to underlying comm_stats object
+ *
+ * @return ygm::detail::comm_stats object used by the ygm::comm
+ */
+inline const detail::comm_stats &comm::stats() const { return m_stats; }
+
+/**
  * @brief Number of ranks in communicator
  *
  * @return Communicator size
@@ -386,8 +394,10 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  * \endcode
  */
 inline void comm::async_barrier() {
+  log(log_level::debug, "Entering YGM async_barrier");
   bool ret = priv_barrier(false);
   YGM_ASSERT_RELEASE(ret == false);
+  log(log_level::debug, "Exiting YGM async_barrier");
 }
 
 /**
@@ -777,7 +787,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   MPI_Request req = MPI_REQUEST_NULL;
   YGM_ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
                                 MPI_SUM, m_comm_barrier, &req));
-  stats.iallreduce();
+  m_stats.iallreduce();
   bool iallreduce_complete(false);
   while (!iallreduce_complete) {
     MPI_Request twin_req[2];
@@ -789,7 +799,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
     MPI_Status twin_status[2];
 
     {
-      auto timer = stats.waitsome_iallreduce();
+      auto timer = m_stats.waitsome_iallreduce();
       while (outcount == 0) {
         YGM_ASSERT_MPI(
             MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
@@ -806,7 +816,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         m_recv_queue.pop_front();
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
-        stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+        m_stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         handle_next_receive(req_buffer.buffer, buffer_size,
                             twin_status[i].MPI_SOURCE);
@@ -856,7 +866,7 @@ inline void comm::flush_send_buffer(int dest) {
                                MPI_BYTE, dest, 0, m_comm_async,
                                &(request.request)));
     }
-    stats.isend(dest, request.buffer->size());
+    m_stats.isend(dest, request.buffer->size());
 
     m_pending_isend_bytes += request.buffer->size();
 
@@ -916,7 +926,7 @@ inline void comm::check_completed_sends() {
     while (flag && not m_send_queue.empty()) {
       YGM_ASSERT_MPI(
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
-      stats.isend_test();
+      m_stats.isend_test();
       if (flag) {
         if (m_trace_mpi) {
           m_tracer.trace_mpi_send_complete(m_tracer.get_next_message_id(),
@@ -1086,10 +1096,6 @@ inline void comm::post_new_irecv(
 template <typename Lambda, typename... PackArgs>
 inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda &&l,
                                 const PackArgs &...args) {
-  size_t                        size_before = packed.size();
-  const std::tuple<PackArgs...> tuple_args(
-      std::forward<const PackArgs>(args)...);
-
   auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
                             std::remove_reference_t<Lambda> &&l) {
     std::tuple<PackArgs...> ta;
@@ -1126,9 +1132,6 @@ inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda &&l,
  */
 template <typename Lambda, typename... PackArgs>
 inline void comm::pack_lambda_broadcast(Lambda &&l, const PackArgs &...args) {
-  const std::tuple<PackArgs...> tuple_args(
-      std::forward<const PackArgs>(args)...);
-
   auto forward_remote_and_dispatch_lambda = [](comm                    *c,
                                                cereal::YGMInputArchive *bia,
                                                std::remove_reference_t<Lambda>
@@ -1279,17 +1282,15 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  { packed.push_bytes(&lid, sizeof(lid)); }
+  {
+    packed.push_bytes(&lid, sizeof(lid));
+  }
 
   if constexpr (!std::is_empty<RemoteLogicLambda>::value) {
-    size_t size_before = packed.size();
     packed.push_bytes(&rll, sizeof(RemoteLogicLambda));
   }
 
   if constexpr (!std::is_empty<std::remove_reference_t<Lambda>>::value) {
-    // std::cout << "Non-empty lambda" << std::endl;
-    //  oarchive.saveBinary(&l, sizeof(Lambda));
-    size_t size_before = packed.size();
     packed.push_bytes(&l, sizeof(std::remove_reference_t<Lambda>));
   }
 
@@ -1379,7 +1380,7 @@ inline void comm::handle_next_receive(
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
         m_recv_count++;
-        stats.rpc_execute();
+        m_stats.rpc_execute();
       } else {
         int  next_dest = m_router.next_hop(h.dest);
         bool local     = m_layout.is_local(next_dest);
@@ -1417,7 +1418,7 @@ inline void comm::handle_next_receive(
       iarchive.loadBinary(&lid, sizeof(lid));
       m_lambda_map.execute(lid, this, &iarchive);
       m_recv_count++;
-      stats.rpc_execute();
+      m_stats.rpc_execute();
     }
   }
   post_new_irecv(buffer);
@@ -1449,7 +1450,7 @@ inline bool comm::process_receive_queue() {
     int        twin_indices[2];
     MPI_Status twin_status[2];
     {
-      auto timer = stats.waitsome_isend_irecv();
+      auto timer = m_stats.waitsome_isend_irecv();
       while (outcount == 0) {
         YGM_ASSERT_MPI(
             MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
@@ -1465,7 +1466,7 @@ inline bool comm::process_receive_queue() {
         m_recv_queue.pop_front();
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
-        stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+        m_stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         handle_next_receive(req_buffer.buffer, buffer_size,
                             twin_status[i].MPI_SOURCE);
@@ -1494,14 +1495,14 @@ inline bool comm::local_process_incoming() {
     int        flag(0);
     MPI_Status status;
     YGM_ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
-    stats.irecv_test();
+    m_stats.irecv_test();
     if (flag) {
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
       m_recv_queue.pop_front();
       int buffer_size{0};
       YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
-      stats.irecv(status.MPI_SOURCE, buffer_size);
+      m_stats.irecv(status.MPI_SOURCE, buffer_size);
 
       handle_next_receive(req_buffer.buffer, buffer_size, status.MPI_SOURCE);
     } else {

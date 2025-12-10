@@ -16,7 +16,7 @@ class file_cleanup {
   std::filesystem::path m_p;
 };
 
-int main(int argc, char **argv) {
+int main() {
   // Test files are not created until necessary
   {
     std::filesystem::path p("./test_log");

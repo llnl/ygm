@@ -35,7 +35,7 @@ class random_engine {
   using result_type = typename RandomEngine::result_type;
 
   random_engine(ygm::comm &comm, result_type seed = std::random_device{}())
-      : m_seed(Function(comm, seed)), m_rng(Function(comm, seed)) {}
+      : m_rng(Function(comm, seed)), m_seed(Function(comm, seed)) {}
 
   result_type operator()() { return m_rng(); }
 

@@ -12,12 +12,16 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.30")
     cmake_policy(SET CMP0167 NEW)
 endif ()
 
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24")
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+
 # ---------------------------------------------------------------------------- #
 # YGM configuration
 # ---------------------------------------------------------------------------- #
 project(
     ygm
-    VERSION 0.8
+    VERSION 0.9
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -29,6 +33,7 @@ option(YGM_BUILD_TESTS "Build tests" OFF)
 option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
 option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
 option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
+set(YGM_PYTHON_VENV_ROOT CACHE PATH "Path to a Python virtual environment root. If set, YGM will use this virtual environment for Python dependencies.")
 option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
 
 #
@@ -98,21 +103,13 @@ endif ()
 # Boost
 #
 if (NOT boost_POPULATED)
-    find_package(Boost 1.81)
-    if (Boost_FOUND)
-        message(STATUS ${PROJECT_NAME} " found boost include dirs: "
-                       ${Boost_INCLUDE_DIRS}
-        )
-    else ()
-        message(STATUS "Fetching Boost from source")
-        FetchContent_Declare(
-            Boost
-            URL ${BOOST_FETCH_URL}
-            DOWNLOAD_EXTRACT_TIMESTAMP ON
-        )
-        set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
-        FetchContent_MakeAvailable(Boost)
-    endif ()
+    message(STATUS "Fetching Boost from source")
+    FetchContent_Declare(
+        Boost
+        URL ${BOOST_FETCH_URL}
+    )
+    set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
+    FetchContent_MakeAvailable(Boost)
 endif ()
 
 #

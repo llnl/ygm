@@ -66,7 +66,7 @@ class progress_indicator {
         YGM_ASSERT_MPI(MPI_Test(&m_mpi_iar_request, &flag, MPI_STATUS_IGNORE));
         if (flag) {
           YGM_ASSERT_RELEASE(m_mpi_iar_request == MPI_REQUEST_NULL);
-          YGM_ASSERT_RELEASE(m_global_pair[1] < m_comm.size());
+          YGM_ASSERT_RELEASE(m_global_pair[1] < uint64_t(m_comm.size()));
           priv_report(false);
           priv_post_iallreduce(false);
         }
@@ -93,7 +93,7 @@ class progress_indicator {
       int flag = 0;
       YGM_ASSERT_MPI(MPI_Test(&m_mpi_iar_request, &flag, MPI_STATUS_IGNORE));
       if (flag) {
-        bool globally_complete = (m_global_pair[1] == m_comm.size());
+        bool globally_complete = (m_global_pair[1] == uint64_t(m_comm.size()));
         if (!globally_complete) {
           priv_post_iallreduce(true);
         }

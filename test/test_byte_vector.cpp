@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
-#include <ygm/detail/ygm_cereal_archive.hpp>
-#include <ygm/detail/byte_vector.hpp>
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
+#include <ygm/detail/byte_vector.hpp>
+#include <ygm/detail/ygm_cereal_archive.hpp>
 
 int main() {
   std::vector<std::string> vec_sentences = {
@@ -19,7 +19,7 @@ int main() {
 
   ygm::detail::byte_vector buffer;
   {
-    for(const auto& s : vec_sentences) {
+    for (const auto& s : vec_sentences) {
       buffer.push_bytes(s.data(), s.size());
     }
   }
@@ -29,8 +29,8 @@ int main() {
     memcpy((void*)output.data(), (void*)buffer.data(), buffer.size());
     auto str_it = output.begin();
     auto bv_it  = buffer.begin();
-    for(const auto& s : vec_sentences) {
-      for(int i = 0; i < s.size(); i++) {
+    for (const auto& s : vec_sentences) {
+      for (size_t i = 0; i < s.size(); i++) {
         YGM_ASSERT_RELEASE(s[i] == (char)(*bv_it) && s[i] == (*str_it));
         bv_it++;
         str_it++;
@@ -54,19 +54,19 @@ int main() {
     YGM_ASSERT_RELEASE(test_it2 >= test_it1);
     test_it2--;
     YGM_ASSERT_RELEASE(test_it1 == test_it2);
-    test_it2 += 3; // testing +=
+    test_it2 += 3;                                 // testing +=
     YGM_ASSERT_RELEASE(test_it1[3] == *test_it2);  // testing [] operator
-    test_it2 -= 3; // testing -=
+    test_it2 -= 3;                                 // testing -=
     YGM_ASSERT_RELEASE(test_it1 == test_it2);
 
-    //testing postfix and prefix operators
+    // testing postfix and prefix operators
     YGM_ASSERT_RELEASE(test_it1 == test_it2++);
     YGM_ASSERT_RELEASE(test_it1 == --test_it2);
 
     YGM_ASSERT_RELEASE(!(test_it1 < test_it2++));
     YGM_ASSERT_RELEASE(!(test_it1 > --test_it2));
 
-    test_it2++; // test_it1 is at 0, test_it2 is at 1
+    test_it2++;  // test_it1 is at 0, test_it2 is at 1
     YGM_ASSERT_RELEASE(test_it1 != test_it2--);
     YGM_ASSERT_RELEASE(test_it1 == test_it2);
     YGM_ASSERT_RELEASE(test_it1 < ++test_it2);

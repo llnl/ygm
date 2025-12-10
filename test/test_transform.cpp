@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 
     int sum =
         ibag.transform([](int i) { return i + 1; }).reduce(std::plus<int>());
-    YGM_ASSERT_RELEASE(sum = 134);
+    YGM_ASSERT_RELEASE(sum == 134);
   }
 
   {
@@ -36,10 +36,10 @@ int main(int argc, char** argv) {
     size_t slength = mymap.keys()
                          .transform([](std::string s) { return s.size(); })
                          .reduce(std::plus<int>());
-    YGM_ASSERT_RELEASE(slength = 12);
+    YGM_ASSERT_RELEASE(slength == size_t(12));
 
     int vsum = mymap.values().reduce(std::plus<int>());
-    YGM_ASSERT_RELEASE(vsum = 3);
+    YGM_ASSERT_RELEASE(vsum == size_t(3));
   }
 
   {
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
           YGM_ASSERT_RELEASE((transformed_value % 2) == 0);
         });
 
-    imap.transform([](const int key, const int value) {
+    imap.transform([](const int key, [[maybe_unused]] const int value) {
           return std::make_pair(key, 2 * key);
         })
         .for_all([](const auto& kv) {
@@ -65,7 +65,9 @@ int main(int argc, char** argv) {
 
     // Filter to only odd numbers, so integer division by 2 followed by
     // multiplication by 2 do not yield the original value
-    imap.filter([](const int key, const int value) { return ((key % 2) == 1); })
+    imap.filter([](const int key, [[maybe_unused]] const int value) {
+          return ((key % 2) == 1);
+        })
         .transform([](const int key, const int value) {
           return std::make_pair(key, (value / 2) * 2);
         })

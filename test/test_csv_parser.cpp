@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
   size_t              local_count{0};
   ygm::io::csv_parser csvp(world, std::vector<std::string>{"data/100.csv"});
-  csvp.for_all([&world, &local_count](const auto& vfields) {
+  csvp.for_all([&local_count](const auto& vfields) {
     for (auto f : vfields) {
       YGM_ASSERT_RELEASE(f.is_integer());
       local_count += f.as_integer();

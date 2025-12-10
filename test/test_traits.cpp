@@ -17,9 +17,9 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  auto l_int          = [](int a) {};
-  auto l_int_int      = [](int a, int b) {};
-  auto l_pair_int_int = [](std::pair<int, int> p) {};
+  auto l_int          = []([[maybe_unused]] int a) {};
+  auto l_int_int      = []([[maybe_unused]] int a, [[maybe_unused]] int b) {};
+  auto l_pair_int_int = []([[maybe_unused]] std::pair<int, int> p) {};
 
   //
   // vector<int>
@@ -77,7 +77,6 @@ int main(int argc, char** argv) {
   // static_assert(
   //     not ygm::detail::is_for_all_invocable<ygm::container::map<int, int>,
   //                                           decltype(l_pair_int_int)>::value);
-  
 
   return 0;
 }

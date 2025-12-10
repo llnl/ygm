@@ -31,9 +31,8 @@ concept HasAsyncReduceWithReductionOp = requires(T v) {
     std::declval<T>().async_reduce(
         std::declval<typename T::key_type>(),
         std::declval<typename T::mapped_type>(),
-        [](const typename T::mapped_type a, const typename T::mapped_type b) {
-          return a;
-        })
+        [](const typename T::mapped_type                  a,
+           [[maybe_unused]] const typename T::mapped_type b) { return a; })
   } -> std::same_as<void>;
 };
 

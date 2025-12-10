@@ -14,6 +14,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+
 #include <ygm/container/detail/hash_partitioner.hpp>
 
 namespace ygm::io {
@@ -104,6 +105,25 @@ class multi_output {
   }
 
   ygm::comm &comm() { return m_comm; }
+
+  /**
+   * @brief Access to own ygm_ptr
+   *
+   * @return `ygm_ptr` used by the container when identifying itself in `async`
+   * calls on the `ygm::comm`
+   */
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() {
+    return static_cast<self_type *>(this)->pthis;
+  }
+
+  /**
+   * @brief Const access to own ygm ptr
+   *
+   * @return `ygm_ptr` to const version of container
+   */
+  const typename ygm::ygm_ptr<self_type> get_ygm_ptr() const {
+    return static_cast<const self_type *>(this)->pthis;
+  }
 
  private:
   class buffered_ofstream {
@@ -236,12 +256,12 @@ class multi_output {
     }
   }
 
+  ygm::comm                               &m_comm;
+  typename ygm::ygm_ptr<self_type>         pthis;
   fs::path                                 m_prefix_path;
   size_t                                   m_buffer_length;
   bool                                     m_append_flag;
   std::map<std::string, buffered_ofstream> m_map_file_pointers;
-  ygm::comm                               &m_comm;
-  typename ygm::ygm_ptr<self_type>         pthis;
   Partitioner                              partitioner;
 };
 }  // namespace ygm::io

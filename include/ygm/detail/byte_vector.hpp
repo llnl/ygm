@@ -13,13 +13,13 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 namespace ygm::detail {
 class byte_vector {
-  using value_type = std::byte;
-  using pointer    = std::byte*;
-  using reference  = std::byte&;
+  using value_type      = std::byte;
+  using pointer         = std::byte*;
+  using reference       = std::byte&;
+  using const_reference = const std::byte&;
 
  public:
   class Byte_Iterator {
@@ -28,9 +28,9 @@ class byte_vector {
     Byte_Iterator(byte_vector* v, size_t i) : m_bv(v), i(i) {}
 
     reference       operator*() { return (*m_bv)[i]; }
-    const reference operator*() const { return (*m_bv)[i]; }
+    const_reference operator*() const { return (*m_bv)[i]; }
     reference       operator[](int n) { return (*m_bv)[i + n]; }
-    const reference operator[](int n) const { return (*m_bv)[i + n]; }
+    const_reference operator[](int n) const { return (*m_bv)[i + n]; }
 
     Byte_Iterator& operator++() {
       ++i;
@@ -68,8 +68,8 @@ class byte_vector {
     bool operator==(Byte_Iterator const& r) const { return i == r.i; }
 
    private:
-    const byte_vector* m_bv;
-    size_t             i;
+    byte_vector* m_bv;
+    size_t       i;
   };
 
   byte_vector() : m_data(nullptr), m_size(0), m_capacity(0) {}
@@ -92,7 +92,7 @@ class byte_vector {
   byte_vector(const byte_vector&) = default;
   byte_vector(byte_vector&&)      = default;
 
-  const reference operator[](int i) const { return m_data[i]; }
+  const_reference operator[](int i) const { return m_data[i]; }
   reference       operator[](int i) { return m_data[i]; }
 
   pointer data() const { return m_data; }

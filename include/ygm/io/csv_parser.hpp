@@ -37,8 +37,6 @@ class csv_parser : public ygm::container::detail::base_iteration_value<
   void for_all(Function fn) {
     using namespace ygm::io::detail;
 
-    std::map<std::string, int>* header_map_ptr;
-    bool                        skip_first;
     auto handle_line_lambda = [fn, this](const std::string& line) {
       auto vfields = parse_csv_line(line, m_header_map);
       // auto stypes    = convert_type_string(vfields);

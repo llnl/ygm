@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   ygm::io::csv_parser csvp(world,
                            std::vector<std::string>{"data/csv_headers.csv"});
   csvp.read_headers();
-  csvp.for_all([&world](const auto& vfields) {
+  csvp.for_all([](const auto& vfields) {
     // Test lookups by header names
     YGM_ASSERT_RELEASE(vfields["zero"].as_integer() == 0);
     YGM_ASSERT_RELEASE(vfields["two"].as_integer() == 2);

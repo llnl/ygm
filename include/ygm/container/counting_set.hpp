@@ -29,7 +29,7 @@ class counting_set
       public detail::base_iterators<counting_set<Key>>,
       public detail::base_iteration_key_value<counting_set<Key>,
                                               std::tuple<Key, size_t>> {
-  friend class detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>;
+  friend struct detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>;
 
   using internal_container_type = map<Key, size_t>;
 
@@ -51,7 +51,7 @@ class counting_set
    * @param comm Communicator to use for communication
    */
   counting_set(ygm::comm &comm)
-      : m_map(comm), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(m_map.partitioner) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -67,7 +67,7 @@ class counting_set
    * @details Initializer list is assumed to be replicated on all ranks.
    */
   counting_set(ygm::comm &comm, std::initializer_list<Key> l)
-      : m_map(comm), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(m_map.partitioner) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -87,10 +87,10 @@ class counting_set
    * @param cont STL container containing values to count
    */
   template <typename STLContainer>
-  counting_set(ygm::comm &comm, const STLContainer &cont) requires
-      detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type, Key>
-      : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
+  counting_set(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Key>
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -108,10 +108,10 @@ class counting_set
    * @param yc YGM container containing values to count
    */
   template <typename YGMContainer>
-  counting_set(ygm::comm &comm, const YGMContainer &yc) requires
-      detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
+  counting_set(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -294,7 +294,7 @@ class counting_set
   mapped_type count_all() {
     mapped_type local_count{0};
     local_for_all(
-        [&local_count](const auto &key, auto &value) { local_count += value; });
+        [&local_count]([[maybe_unused]]const auto &key, auto &value) { local_count += value; });
     return ::ygm::sum(local_count, m_map.comm());
   }
 
@@ -352,8 +352,6 @@ class counting_set
    * @param fname Filename prefix to create names for files used by each rank
    */
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
-
-  detail::hash_partitioner<detail::hash<key_type>> partitioner;
 
  private:
   /**
@@ -418,9 +416,8 @@ class counting_set
     YGM_ASSERT_DEBUG(cached_count > 0);
     m_map.async_visit(
         key,
-        [](const key_type &key, size_t &count, int32_t to_add) {
-          count += to_add;
-        },
+        []([[maybe_unused]] const key_type &key, size_t &count,
+           int32_t to_add) { count += to_add; },
         cached_count);
     m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
@@ -452,10 +449,13 @@ class counting_set
   }
 
   ygm::comm                           &m_comm;
+  typename ygm::ygm_ptr<self_type>     pthis;
   std::vector<std::pair<Key, int32_t>> m_count_cache;
   bool                                 m_cache_empty = true;
   internal_container_type              m_map;
-  typename ygm::ygm_ptr<self_type>     pthis;
+
+ public:
+  detail::hash_partitioner<detail::hash<key_type>> partitioner;
 };
 
 }  // namespace ygm::container

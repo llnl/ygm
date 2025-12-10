@@ -16,8 +16,7 @@ class ygm_ptr {
  public:
   ygm_ptr() {};
 
-  T       *operator->() { return sptrs[idx]; }
-  T *const operator->() const { return sptrs[idx]; }
+  T *operator->() const { return sptrs[idx]; }
 
   T &operator*() const { return *sptrs[idx]; }
 

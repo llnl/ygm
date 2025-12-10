@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
           world.async(0, [](const auto& val) { buf.push_back(val); }, key);
         }
         world.barrier();
-        YGM_ASSERT_RELEASE(buf.size() <= world.size());
+        YGM_ASSERT_RELEASE(buf.size() <= size_t(world.size()));
 
         std::unordered_set<std::string> unique_values(buf.begin(), buf.end());
         YGM_ASSERT_RELEASE(unique_values.size() == buf.size());

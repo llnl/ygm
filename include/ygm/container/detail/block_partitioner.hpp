@@ -34,7 +34,7 @@ struct block_partitioner {
     m_large_block_size =
         m_small_block_size + ((partitioned_size % m_comm_size) > 0);
 
-    if (m_comm_rank < (partitioned_size % m_comm_size)) {
+    if (index_type(m_comm_rank) < (partitioned_size % m_comm_size)) {
       m_local_start_index = m_comm_rank * m_large_block_size;
     } else {
       m_local_start_index =
@@ -42,10 +42,10 @@ struct block_partitioner {
           (m_comm_rank - (partitioned_size % m_comm_size)) * m_small_block_size;
     }
 
-    m_local_size =
-        m_small_block_size + (m_comm_rank < (m_partitioned_size % m_comm_size));
+    m_local_size = m_small_block_size + (index_type(m_comm_rank) <
+                                         (m_partitioned_size % m_comm_size));
 
-    if (m_comm_rank < (m_partitioned_size % m_comm_size)) {
+    if (index_type(m_comm_rank) < (m_partitioned_size % m_comm_size)) {
       m_local_start_index = m_comm_rank * m_large_block_size;
     } else {
       m_local_start_index =

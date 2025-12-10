@@ -8,7 +8,7 @@ YGM is an asynchronous communication library written in C++ and designed for hig
 irregular communication patterns. YGM includes a collection of
 distributed-memory storage containers designed to express common algorithmic and data-munging tasks. These containers
 automatically partition data, allowing insertions and, with most containers, processing of individual elements to be
-initiated from any runninng YGM process.
+initiated from any running YGM process.
 
 Underlying YGM's containers is a communicator abstraction. This communicator asynchronously sends messages spawned by
 senders with receivers needing no knowledge of incoming messages prior to their arrival. YGM communications take the

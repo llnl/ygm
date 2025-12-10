@@ -37,7 +37,8 @@ class line_parser : public ygm::container::detail::base_iteration_value<
    * @param recursive True if directory traversal should be recursive
    */
   line_parser(ygm::comm& comm, const std::vector<std::string>& stringpaths,
-              bool node_local_filesystem = false, bool recursive = false)
+              [[maybe_unused]] bool node_local_filesystem = false,
+              bool                  recursive             = false)
       : m_comm(comm), m_skip_first_line(false) {
     check_paths(stringpaths, recursive);
     // if (node_local_filesystem) {
@@ -193,7 +194,8 @@ class line_parser : public ygm::container::detail::base_iteration_value<
         first_line = true;
       }
       // Keep reading until line containing bytes_end is read
-      while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
+      while (ifs.tellg() <= std::streamoff(bytes_end) &&
+             std::getline(ifs, line)) {
         // Check if last character is '\r'. This will happen if a file was
         // edited on Windows and can cause issues for parsing
         if (not line.empty() && (line.back() == 0x0D)) {

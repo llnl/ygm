@@ -31,15 +31,19 @@ int main(int argc, char** argv) {
     world.barrier();
 
     int local_counter(0);
-    seed_set.for_all([&local_counter](int key, int val) {
+    seed_set.for_all([&local_counter]([[maybe_unused]] int key, int val) {
       YGM_ASSERT_RELEASE(val == 1);
       ++local_counter;
     });
 
     // this can fail if two samples collide, but that is very unlikely.
     // is it worth the trouble of making the test more robust?
-    rn_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
-    sample_set.for_all([](int key, int val) { YGM_ASSERT_RELEASE(val == 1); });
+    rn_set.for_all([]([[maybe_unused]] int key, int val) {
+      YGM_ASSERT_RELEASE(val == 1);
+    });
+    sample_set.for_all([]([[maybe_unused]] int key, int val) {
+      YGM_ASSERT_RELEASE(val == 1);
+    });
 
     int global_counter = ygm::sum(local_counter, world);
 

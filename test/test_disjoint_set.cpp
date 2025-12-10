@@ -215,7 +215,9 @@ int main(int argc, char** argv) {
     static int unsuccessful_counter{0};
 
     dset.async_union_and_execute(
-        0, 1, [](const int u, const int v, const bool union_result) {
+        0, 1,
+        []([[maybe_unused]] const int u, [[maybe_unused]] const int v,
+           const bool union_result) {
           if (union_result) {
             successful_counter++;
           } else {
@@ -223,7 +225,9 @@ int main(int argc, char** argv) {
           }
         });
     dset.async_union_and_execute(
-        0, 2, [](const int u, const int v, const bool union_result) {
+        0, 2,
+        []([[maybe_unused]] const int u, [[maybe_unused]] const int v,
+           const bool union_result) {
           if (union_result) {
             successful_counter++;
           } else {
@@ -231,7 +235,9 @@ int main(int argc, char** argv) {
           }
         });
     dset.async_union_and_execute(
-        1, 2, [](const int u, const int v, const bool union_result) {
+        1, 2,
+        []([[maybe_unused]] const int u, [[maybe_unused]] const int v,
+           const bool union_result) {
           if (union_result) {
             successful_counter++;
           } else {
@@ -240,8 +246,8 @@ int main(int argc, char** argv) {
         });
     dset.async_union_and_execute(
         3, 4,
-        [](const int u, const int v, const bool union_result,
-           const auto thing) {
+        []([[maybe_unused]] const int u, [[maybe_unused]] const int v,
+           const bool union_result, [[maybe_unused]] const auto thing) {
           if (union_result) {
             successful_counter++;
           } else {

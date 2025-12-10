@@ -7,7 +7,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
-int main(int argc, char** argv) {
+int main() {
   YGM_ASSERT_MPI(MPI_Init(nullptr, nullptr));
 
   std::vector<std::string> routing_schemes{"NONE", "NR", "NLNR"};

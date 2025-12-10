@@ -12,7 +12,7 @@
 
 #include <vector>
 
-int main(int argc, char **argv) {
+int main() {
   using namespace ygm::container::detail;
 
   // Test SingleItemTuple

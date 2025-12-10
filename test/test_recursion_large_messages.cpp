@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     size_t           vec_size = 1024;
     std::vector<int> my_vec(vec_size);
 
-    for (int i = 0; i < my_vec.size(); ++i) {
+    for (size_t i = 0; i < my_vec.size(); ++i) {
       my_vec[i] = i;
     }
 

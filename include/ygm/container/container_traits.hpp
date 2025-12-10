@@ -41,37 +41,37 @@ constexpr bool check_container_type() {
 
 // Tag checking functions for every YGM container
 template <class Container>
-constexpr bool is_array(Container &c) {
+constexpr bool is_array([[maybe_unused]] Container &c) {
   return check_container_type<Container, array_tag>();
 }
 
 template <class Container>
-constexpr bool is_bag(Container &c) {
+constexpr bool is_bag([[maybe_unused]] Container &c) {
   return check_container_type<Container, bag_tag>();
 }
 
 template <class Container>
-constexpr bool is_counting_set(Container &c) {
+constexpr bool is_counting_set([[maybe_unused]] Container &c) {
   return check_container_type<Container, counting_set_tag>();
 }
 
 template <class Container>
-constexpr bool is_disjoint_set(Container &c) {
+constexpr bool is_disjoint_set([[maybe_unused]] Container &c) {
   return check_container_type<Container, disjoint_set_tag>();
 }
 
 template <class Container>
-constexpr bool is_map(Container &c) {
+constexpr bool is_map([[maybe_unused]] Container &c) {
   return check_container_type<Container, map_tag>();
 }
 
 template <class Container>
-constexpr bool is_multimap(Container &c) {
+constexpr bool is_multimap([[maybe_unused]] Container &c) {
   return check_container_type<Container, multimap_tag>();
 }
 
 template <class Container>
-constexpr bool is_set(Container &c) {
+constexpr bool is_set([[maybe_unused]] Container &c) {
   return check_container_type<Container, set_tag>();
 }
 

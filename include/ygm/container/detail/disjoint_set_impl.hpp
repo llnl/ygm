@@ -36,11 +36,9 @@ class disjoint_set_impl {
 
     const value_type &get_parent() const { return m_parent; }
 
-    const rank_type get_rank() const { return m_rank; }
+    rank_type get_rank() const { return m_rank; }
 
-    const rank_type get_parent_rank_estimate() const {
-      return m_parent_rank_est;
-    }
+    rank_type get_parent_rank_estimate() const { return m_parent_rank_est; }
 
     template <typename Archive>
     void serialize(Archive &ar) {
@@ -145,8 +143,8 @@ class disjoint_set_impl {
   void async_visit(const value_type &item, Visitor visitor,
                    const VisitorArgs &...args) {
     int  dest          = owner(item);
-    auto visit_wrapper = [](auto p_dset, const value_type &item,
-                            const VisitorArgs &...args) {
+    auto visit_wrapper = [visitor](auto p_dset, const value_type &item,
+                                   const VisitorArgs &...args) mutable {
       auto item_data_iter = p_dset->m_local_item_map.find(item);
       if (item_data_iter == p_dset->m_local_item_map.end()) {
         data_t new_item_data;
@@ -155,10 +153,9 @@ class disjoint_set_impl {
             p_dset->m_local_item_map.insert(std::make_pair(item, new_item_data))
                 .first;
       }
-      Visitor *vis = nullptr;
 
       ygm::meta::apply_optional(
-          *vis, std::make_tuple(p_dset),
+          visitor, std::make_tuple(p_dset),
           std::forward_as_tuple(*item_data_iter, args...));
     };
 
@@ -199,7 +196,7 @@ class disjoint_set_impl {
         } else {  // Tell merging item about new parent
           p_dset->async_visit(
               merging_item,
-              [](auto p_dset, auto &item_data, const value_type &new_parent,
+              [](auto &item_data, const value_type &new_parent,
                  const rank_type &new_parent_rank_est) {
                 item_data.second.set_parent(new_parent, new_parent_rank_est);
               },
@@ -313,11 +310,6 @@ class disjoint_set_impl {
     static auto update_parent_and_cache_lambda =
         [](auto p_dset, auto &item_data, const value_type &old_parent,
            const value_type &new_parent, const rank_type &new_parent_rank_est) {
-          size_t index = std::hash<value_type>()(old_parent) %
-                         p_dset->m_cache.m_cache_size;
-
-          auto &current_entry = p_dset->m_cache.m_cache[index];
-
           p_dset->m_cache.add_cache_entry(old_parent, new_parent,
                                           new_parent_rank_est);
 
@@ -345,7 +337,7 @@ class disjoint_set_impl {
         } else {  // Tell merging item about new parent
           p_dset->async_visit(
               merging_item,
-              [](auto p_dset, auto &item_data, const value_type &new_parent,
+              [](auto &item_data, const value_type &new_parent,
                  const rank_type new_parent_rank_est) {
                 item_data.second.set_parent(new_parent, new_parent_rank_est);
               },

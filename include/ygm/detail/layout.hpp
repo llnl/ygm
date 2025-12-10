@@ -38,7 +38,7 @@ class layout {
     // local ranks
     MPI_Comm comm_local;
     YGM_ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_comm_rank,
-                                   MPI_INFO_NULL, &comm_local));
+                                       MPI_INFO_NULL, &comm_local));
     YGM_ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
     YGM_ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_id));
 
@@ -104,14 +104,14 @@ class layout {
 
   constexpr int node_id() const { return m_node_id; }
   inline int    node_id(const int rank) const {
-       _check_world_rank(rank);
-       return m_rank_to_node.at(rank);
+    _check_world_rank(rank);
+    return m_rank_to_node.at(rank);
   }
 
   constexpr int local_id() const { return m_local_id; }
   inline int    local_id(const int rank) const {
-       _check_world_rank(rank);
-       return m_rank_to_local.at(rank);
+    _check_world_rank(rank);
+    return m_rank_to_local.at(rank);
   }
 
   constexpr std::pair<int, int> rank_to_nl() const {
@@ -159,7 +159,7 @@ class layout {
   void _mpi_allgather(T &_t, std::vector<T> &out_vec, int size, MPI_Comm comm) {
     out_vec.resize(size);
     YGM_ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
-                             sizeof(_t), MPI_BYTE, comm));
+                                 sizeof(_t), MPI_BYTE, comm));
   }
 
   inline void _check_world_rank(const int rank) const {
@@ -173,10 +173,10 @@ class layout {
   }
   inline void _check_rank(const int rank, const int size,
                           const char *scope) const {
-    if (rank < 0 || rank > m_comm_size) {
+    if (rank < 0 || rank > size) {
       std::stringstream ss;
-      ss << scope << " rank " << rank << " is not in the range [0, "
-         << m_comm_size << "]";
+      ss << scope << " rank " << rank << " is not in the range [0, " << size
+         << "]";
       throw std::logic_error(ss.str());
     }
   }

@@ -76,8 +76,8 @@ class comm_router {
   int next_hop(const int dest) const { return next_hop(dest, m_default_route); }
 
  private:
-  routing_type  m_default_route;
   const layout &m_layout;
+  routing_type  m_default_route;
 };
 
 }  // namespace detail
