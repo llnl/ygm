@@ -7,20 +7,18 @@
 #pragma once
 
 #include <ygm/comm.hpp>
-#include <ygm/random/random.hpp>
 #include <ygm/detail/collective.hpp> 
 #include <ygm/container/detail/base_concepts.hpp> 
-#include <unordered_map>
-#include <map>
 #include <mpi.h>
 #include <cmath>
-#include <algorithm>
-
 
 namespace ygm::random {
 
 template <typename T>
-concept convertable_to_double = std::convertible_to<T,double>;
+concept second_within_convertable_to_double = 
+  std::convertible_to<std::tuple_element_t<1, std::tuple_element_t<0,T>>,double>;
+
+// convertable_to_double<std::tuple_element_t<1, std::tuple_element_t<0, typename YGMContainer::for_all_args>>>
 
 template<typename T>
 concept is_associative_container = requires {
@@ -28,16 +26,16 @@ concept is_associative_container = requires {
     typename T::mapped_type;
 };
 
-template<typename T>
-concept is_value_container = requires {
-    typename T::value_type;
-};
-
 // template<typename T>
-// concept valid_stl_associative_container = requires {
-//     typename T::key_type;
+// concept is_value_container = requires {
 //     typename T::value_type;
 // };
+
+template<typename T>
+concept valid_stl_associative_container = requires {
+    typename T::key_type;
+    typename T::value_type;
+};
 
 
 // template<typename T>
@@ -73,12 +71,20 @@ class alias_table {
       Item b;
   };
 
-  template<typename Container>
-  requires ygm::container::detail::HasForAll<Container> &&
-            is_value_container<Container> &&
-            ygm::container::detail::DoubleItemTuple<typename Container::value_type> && 
-            convertable_to_double<std::tuple_element_t<1, typename Container::value_type>>
-  alias_table(ygm::comm &comm, RNG &rng, Container &c) 
+  // template<typename Container>
+  // requires ygm::container::detail::HasForAll<Container> &&
+  //           is_value_container<Container> &&
+  //           ygm::container::detail::DoubleItemTuple<typename Container::value_type> && 
+  //           convertable_to_double<std::tuple_element_t<1, typename Container::value_type>>
+  // template <typename YGMContainer>
+  // requires ygm::container::detail::DoubleItemTuple<typename YGMContainer::value_type> &&
+  //           convertable_to_double<std::tuple_element_t<1, typename YGMContainer::value_type>> 
+  
+  template <typename YGMContainer>
+  requires ygm::container::detail::HasForAll<YGMContainer> &&
+                ygm::container::detail::SingleItemTuple<typename YGMContainer::for_all_args> &&
+                second_within_convertable_to_double<typename YGMContainer::for_all_args>
+  alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng), 
       m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
 
@@ -93,24 +99,24 @@ class alias_table {
     m_local_items.clear();
   }
 
-  template<typename Container>
-  requires ygm::container::detail::HasForAll<Container> &&
-            is_associative_container<Container> && 
-            convertable_to_double<typename Container::mapped_type>
-  alias_table(ygm::comm &comm, RNG &rng, Container &c) 
-    : m_comm(comm), pthis(this), m_rng(rng),
-      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+  // // template<typename Container>
+  // template <typename YGMContainer>
+  // requires ygm::container::detail::SingleItemTuple<typename YGMContainer::value_type> &&
+  //           convertable_to_double<typename YGMContainer::mapped_type>> 
+  // alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
+  //   : m_comm(comm), pthis(this), m_rng(rng),
+  //     m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
 
-    c.for_all([&](const auto &key, const auto &value){
-        m_local_items.push_back({key, value});
-    });
-    comm.barrier();
-    balance_weight();
-    comm.barrier();
-    YGM_ASSERT_RELEASE(is_balanced());
-    build_alias_table();
-    m_local_items.clear();
-  }
+  //   c.for_all([&](const auto &key, const auto &value){
+  //       m_local_items.push_back({key, value});
+  //   });
+  //   comm.barrier();
+  //   balance_weight();
+  //   comm.barrier();
+  //   YGM_ASSERT_RELEASE(is_balanced());
+  //   build_alias_table();
+  //   m_local_items.clear();
+  // }
 
  private:
 
@@ -172,8 +178,8 @@ class alias_table {
       }
     }
     
-    // Need to handle items left in items to send
-    if (items_to_send.size() > 0 && curr_weight > 0.00001 && dest_rank < m_comm.size()) { // Account for floating point errors
+    // Need to handle items left in items to send. Must also account for floating point errors.
+    if (items_to_send.size() > 0 && curr_weight > 0.00001 && dest_rank < m_comm.size()) {
       m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
         new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
       }, items_to_send, ptr_new_items);
@@ -199,7 +205,7 @@ class alias_table {
   }
 
   void build_alias_table() {
-    // Make average weight of items 1, so coin flip is simple across all tables 
+    // Make average weight of items 1. Makes random number generated for each sample be in [0,1]
     double local_weight = 0.0;
     for (const auto& itm : m_local_items) {
       local_weight += itm.weight;
@@ -256,6 +262,7 @@ class alias_table {
       light_items.pop_back();
     }
     m_comm.barrier();
+    m_num_items_uniform_dist = std::uniform_int_distribution<uint64_t>(0,m_local_alias_table.size()-1);
   }
   
  public:
@@ -264,13 +271,11 @@ class alias_table {
   void async_sample([[maybe_unused]] Visitor visitor, const VisitorArgs &...args) { // Sample should be provided a lambda/functor that takes as an argument the item type 
 
     auto sample_wrapper = [](auto ptr_a_tbl, const VisitorArgs &...args) {
-      std::uniform_int_distribution<uint64_t> table_item_dist(0, ptr_a_tbl->m_local_alias_table.size()-1);
-      table_item tbl_itm = ptr_a_tbl->m_local_alias_table[table_item_dist(ptr_a_tbl->m_rng)];
+      table_item tbl_itm = ptr_a_tbl->m_local_alias_table[ptr_a_tbl->m_num_items_uniform_dist(ptr_a_tbl->m_rng)];
       Item s;
       if (tbl_itm.p == 1) {
         s = tbl_itm.a;
       } else {
-        // std::uniform_real_distribution<float> zero_one_dist(0.0, 1.0);
         float f = ptr_a_tbl->m_zero_one_dist(ptr_a_tbl->m_rng);
         if (f < tbl_itm.p) {
           s = tbl_itm.a;
@@ -290,9 +295,11 @@ class alias_table {
   ygm::comm&                                          m_comm;
   ygm::ygm_ptr<self_type>                             pthis;
   RNG&                                                m_rng;
-  std::uniform_int_distribution<uint32_t>             m_rank_dist;
   std::vector<item>                                   m_local_items;
   std::vector<table_item>                             m_local_alias_table;
+
+  std::uniform_int_distribution<uint32_t>             m_rank_dist;
+  std::uniform_int_distribution<uint64_t>             m_num_items_uniform_dist;
   std::uniform_real_distribution<float>               m_zero_one_dist;
 };
 
