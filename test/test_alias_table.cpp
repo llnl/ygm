@@ -18,10 +18,10 @@ int main(int argc, char** argv) {
   int seed = 42;
   YGM_RNG ygm_rng(world, seed);
 
+  //
   // Test constructor works with YGM value container
   {
     ygm::container::bag<std::pair<uint32_t,double>> bag_of_items(world);
-    // ygm::container::bag<std::tuple<uint32_t,double>> bag_of_items(world);
 
     uint32_t n_items_per_rank = 1000;
     const int max_item_weight = 100;
@@ -37,11 +37,13 @@ int main(int argc, char** argv) {
 
     ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, bag_of_items);
 
-    static uint32_t samples; 
+    static uint32_t samples;
+    static uint32_t sum_of_samples; 
     uint32_t samples_per_rank = 1000;
-    for (int i = 0; i < samples_per_rank; i++) {
-        alias_tbl.async_sample([](auto ptr, uint32_t item){
+    for (uint32_t i = 0; i < samples_per_rank; i++) {
+        alias_tbl.async_sample([](uint32_t item){
             samples++;
+            sum_of_samples += item;
         });
     } 
     world.barrier();
@@ -49,6 +51,7 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(total_samples == (samples_per_rank * world.size()));
   }
 
+  //
   // Test constructor works with YGM associative container
   {
     ygm::container::map<uint32_t,double> map_of_items(world);
@@ -69,7 +72,7 @@ int main(int argc, char** argv) {
 
     static uint32_t samples; 
     uint32_t samples_per_rank = 1000;
-    for (int i = 0; i < samples_per_rank; i++) {
+    for (uint32_t i = 0; i < samples_per_rank; i++) {
         alias_tbl.async_sample([](auto ptr, uint32_t item){
             samples++;
         });
