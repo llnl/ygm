@@ -16,7 +16,7 @@ namespace ygm::container::detail {
   template <typename Item, typename Comp>
   struct priority_policy {
     using queue_type = std::priority_queue<Item, std::vector<Item>, Comp>;
-    using container_type = ygm::container::workqueue_tag;
+    using container_type = ygm::container::work_queue_tag;
     
     static void push(queue_type& q, const Item& item) {
       q.push(item);
@@ -45,7 +45,7 @@ namespace ygm::container::detail {
   template <typename Item>
   struct fifo_policy {
     using queue_type = std::queue<Item>;
-    using container_type = ygm::container::workqueue_tag;
+    using container_type = ygm::container::work_queue_tag;
     
     static void push(queue_type& q, const Item& item) {
       q.push(item);
@@ -74,7 +74,7 @@ namespace ygm::container::detail {
   template <typename Item>
   struct lifo_policy {
     using queue_type = std::stack<Item>;
-    using container_type = ygm::container::workqueue_tag;
+    using container_type = ygm::container::work_queue_tag;
     
     static void push(queue_type& q, const Item& item) {
       q.push(item);
