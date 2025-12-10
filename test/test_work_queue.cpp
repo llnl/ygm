@@ -6,7 +6,7 @@
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
-#include <ygm/container/workqueue.hpp>
+#include <ygm/container/work_queue.hpp>
 #include <ygm/container/array.hpp>
 
 #include <vector>
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
   // priority queue tests
   {
-    // test local priority workqueue ordering and size checks
+    // test local priority work queue ordering and size checks
     {
       size_t test_size = 64;
 
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
-      auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+      auto wq = ygm::container::make_priority_work_queue<size_t, std::less<size_t>> (world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
-      auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
-      auto wq2 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+      auto wq1 = ygm::container::make_priority_work_queue<size_t, std::less<size_t>> (world, work_lambda);
+      auto wq2 = ygm::container::make_priority_work_queue<size_t, std::less<size_t>> (world, work_lambda);
 
       for (size_t item : work_items) {
         wq1.local_insert(item);
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
-      auto wq1 = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+      auto wq1 = ygm::container::make_priority_work_queue<size_t, std::less<size_t>> (world, work_lambda);
       
       for (size_t item : work_items) {
         wq1.local_insert(item);
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
         test_size += queued_item;
       };
 
-      auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>> (world, work_lambda);
+      auto wq = ygm::container::make_priority_work_queue<size_t, std::less<size_t>> (world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
         }
       };
 
-      auto wq = ygm::container::make_priority_workqueue<size_t, std::greater<size_t>> (world, work_lambda);
+      auto wq = ygm::container::make_priority_work_queue<size_t, std::greater<size_t>> (world, work_lambda);
 
       wq.local_insert(0);
 
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
         arr.async_visit(item, recv_enqueue_lambda, p_wq);
       };
 
-      auto wq = ygm::container::make_priority_workqueue<int, std::greater<int>> (world, work_lambda);
+      auto wq = ygm::container::make_priority_work_queue<int, std::greater<int>> (world, work_lambda);
 
       if (world.rank0()) {
         wq.local_insert(0);
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
         total_processed++;
       };
 
-      auto wq = ygm::container::make_priority_workqueue<size_t, std::less<size_t>>(world, work_lambda);
+      auto wq = ygm::container::make_priority_work_queue<size_t, std::less<size_t>>(world, work_lambda);
       
       // First batch
       for (size_t i = 0; i < 10; i++) wq.local_insert(i);
@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
 
   // FIFO queue tests
   {
-    // test local workqueue ordering integrity and size checks
+    // test local work queue ordering integrity and size checks
     {
       size_t test_size = 64;
 
@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
-      auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_fifo_work_queue<size_t>(world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
         test_size += queued_item;
       };
 
-      auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_fifo_work_queue<size_t>(world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
         xref++;
       };
 
-      auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_fifo_work_queue<size_t>(world, work_lambda);
 
       wq.local_insert(0);
 
@@ -375,7 +375,7 @@ int main(int argc, char **argv) {
         arr.async_visit(item, recv_enqueue_lambda, p_wq);
       };
 
-      auto wq = ygm::container::make_fifo_workqueue<int>(world, work_lambda);
+      auto wq = ygm::container::make_fifo_work_queue<int>(world, work_lambda);
 
       if (world.rank0()) {
         wq.local_insert(0);
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
       auto work_lambda = [&total_processed] (size_t) {
         total_processed++;
       };
-      auto wq = ygm::container::make_fifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_fifo_work_queue<size_t>(world, work_lambda);
       
       // First batch
       for (size_t i = 0; i < 10; i++) wq.local_insert(i);
@@ -415,7 +415,7 @@ int main(int argc, char **argv) {
 
   // LIFO queue tests
   {
-    // test local LIFO workqueue ordering and size checks
+    // test local LIFO work queue ordering and size checks
     {
       size_t test_size = 64;
 
@@ -428,7 +428,7 @@ int main(int argc, char **argv) {
         YGM_ASSERT_RELEASE(test_size == p_work_queue->local_size());
       };
 
-      auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_lifo_work_queue<size_t>(world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -458,7 +458,7 @@ int main(int argc, char **argv) {
         test_size += queued_item;
       };
 
-      auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_lifo_work_queue<size_t>(world, work_lambda);
 
       for (size_t item : work_items) {
         wq.local_insert(item);
@@ -498,7 +498,7 @@ int main(int argc, char **argv) {
         xref++;
       };
 
-      auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_lifo_work_queue<size_t>(world, work_lambda);
 
       wq.local_insert(0);
 
@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
         arr.async_visit(item, recv_enqueue_lambda, p_wq);
       };
 
-      auto wq = ygm::container::make_lifo_workqueue<int> (world, work_lambda);
+      auto wq = ygm::container::make_lifo_work_queue<int> (world, work_lambda);
 
       if (world.rank0()) {
         wq.local_insert(0);
@@ -554,7 +554,7 @@ int main(int argc, char **argv) {
       auto work_lambda = [&total_processed] (size_t) {
         total_processed++;
       };
-      auto wq = ygm::container::make_lifo_workqueue<size_t>(world, work_lambda);
+      auto wq = ygm::container::make_lifo_work_queue<size_t>(world, work_lambda);
       
       // First batch
       for (size_t i = 0; i < 10; i++) wq.local_insert(i);
