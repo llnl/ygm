@@ -32,15 +32,12 @@ concept pair_like_and_convertible_to_weighted_item =
 template <typename Item, typename RNG>
 class alias_table {
 
-
-
  public: 
   using self_type = alias_table<Item, RNG>;
-  using weight_t  = double;
 
   struct item {
       Item id;
-      weight_t weight;
+      double weight;
 
       template <typename Archive>
       void serialize(Archive& ar) { // Needed for cereal serialization
@@ -138,7 +135,7 @@ class alias_table {
         item item_to_send = {local_item.id, weight_to_send};
         items_to_send.push_back(item_to_send);
 
-        if ((curr_weight > 0.0001) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
+        if ((curr_weight > m_tolerance) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
           // Moves weights to dest_rank's new_local_items
           m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
             new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
@@ -164,7 +161,7 @@ class alias_table {
     }
     
     // Need to handle items left in items to send. Must also account for floating point errors.
-    if (items_to_send.size() > 0 && curr_weight > 0.00001 && dest_rank < m_comm.size()) {
+    if (items_to_send.size() > 0 && curr_weight > m_tolerance && dest_rank < m_comm.size()) {
       m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
         new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
       }, items_to_send, ptr_new_items);
@@ -183,7 +180,7 @@ class alias_table {
     } 
     m_comm.barrier();
     auto equal = [](double a, double b){
-      return (std::abs(a - b) < 0.00001);
+      return (std::abs(a - b) < m_tolerance);
     }; 
     bool balanced = ygm::is_same(local_weight, m_comm, equal);
     return balanced;
@@ -203,9 +200,7 @@ class alias_table {
       new_total_weight += itm.weight;
     }
     double new_avg_weight = new_total_weight / m_local_items.size(); // Should be 1
-    if (std::abs((new_avg_weight - 1.0)) < 0.0001) {
-      YGM_ASSERT_RELEASE(std::abs((new_avg_weight - 1.0)) < 0.00001);
-    }                
+    YGM_ASSERT_RELEASE(std::abs((new_avg_weight - 1.0)) < m_tolerance);
 
     // Implementation of Vose's algorithm, utilized Keith Schwarz numerically stable version
     // https://www.keithschwarz.com/darts-dice-coins/
@@ -253,9 +248,9 @@ class alias_table {
  public:
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_sample([[maybe_unused]] Visitor visitor, const VisitorArgs &...args) { // Sample should be provided a lambda/functor that takes as an argument the item type 
+  void async_sample(Visitor&& visitor, const VisitorArgs &...args) {
 
-    auto sample_wrapper = [](auto ptr_a_tbl, const VisitorArgs &...args) {
+    auto sample_wrapper = [visitor](auto ptr_a_tbl, const VisitorArgs &...args) {
       table_item tbl_itm = ptr_a_tbl->m_local_alias_table[ptr_a_tbl->m_num_items_uniform_dist(ptr_a_tbl->m_rng)];
       Item s;
       if (tbl_itm.p == 1) {
@@ -268,8 +263,7 @@ class alias_table {
           s = tbl_itm.b;
         }
       }
-      Visitor *vis = nullptr;
-      ygm::meta::apply_optional(*vis, std::make_tuple(ptr_a_tbl), std::forward_as_tuple(s, args...));
+      ygm::meta::apply_optional(visitor, std::make_tuple(ptr_a_tbl), std::forward_as_tuple(s, args...));
     };
 
     uint32_t dest_rank = m_rank_dist(m_rng);
@@ -282,10 +276,10 @@ class alias_table {
   RNG&                                                m_rng;
   std::vector<item>                                   m_local_items;
   std::vector<table_item>                             m_local_alias_table;
-
   std::uniform_int_distribution<uint32_t>             m_rank_dist;
   std::uniform_int_distribution<uint64_t>             m_num_items_uniform_dist;
   std::uniform_real_distribution<float>               m_zero_one_dist;
+  double                                              m_tolerance = 1e-6;
 };
 
 }  // namespace ygm::random
