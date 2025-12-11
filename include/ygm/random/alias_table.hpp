@@ -15,41 +15,24 @@
 namespace ygm::random {
 
 template <typename T>
-concept second_within_convertable_to_double = 
+concept second_within_convertible_to_double = 
   std::convertible_to<std::tuple_element_t<1, std::tuple_element_t<0,T>>,double>;
 
-// convertable_to_double<std::tuple_element_t<1, std::tuple_element_t<0, typename YGMContainer::for_all_args>>>
-
-template<typename T>
-concept is_associative_container = requires {
-    typename T::key_type;
-    typename T::mapped_type;
-};
-
-// template<typename T>
-// concept is_value_container = requires {
-//     typename T::value_type;
-// };
-
-template<typename T>
-concept valid_stl_associative_container = requires {
-    typename T::key_type;
-    typename T::value_type;
-};
-
-
-// template<typename T>
-// concept valid_stl_value_container = requires {
-//     typename T::value_type;
-//     requires ygm::container::detail::DoubleItemTuple<T::value_type>;
-// };
-
-// template<typename T>
-// concept valid_stl_container =
-//     is_associative_container<T> || valid_stl_value_container<T>;
+template<typename Item, typename T>
+concept pair_like_and_convertible_to_weighted_item = 
+    (requires { typename T::first_type; typename T::second_type; } &&
+      std::is_convertible_v<T, std::pair<Item, double>>) ||
+    (std::tuple_size_v<T> == 2 &&
+      std::is_convertible_v<std::tuple_element_t<0,T>, Item> &&
+      std::is_convertible_v<std::tuple_element_t<1,T>, double>);
+// template <typename T>
+// concept second_within_convertible_to_double = 
+//   std::convertible_to<std::tuple_element_t<1, std::tuple_element_t<0,T>>,double>;
 
 template <typename Item, typename RNG>
 class alias_table {
+
+
 
  public: 
   using self_type = alias_table<Item, RNG>;
@@ -71,54 +54,56 @@ class alias_table {
       Item b;
   };
 
-  // template<typename Container>
-  // requires ygm::container::detail::HasForAll<Container> &&
-  //           is_value_container<Container> &&
-  //           ygm::container::detail::DoubleItemTuple<typename Container::value_type> && 
-  //           convertable_to_double<std::tuple_element_t<1, typename Container::value_type>>
-  // template <typename YGMContainer>
-  // requires ygm::container::detail::DoubleItemTuple<typename YGMContainer::value_type> &&
-  //           convertable_to_double<std::tuple_element_t<1, typename YGMContainer::value_type>> 
-  
   template <typename YGMContainer>
   requires ygm::container::detail::HasForAll<YGMContainer> &&
-                ygm::container::detail::SingleItemTuple<typename YGMContainer::for_all_args> &&
-                second_within_convertable_to_double<typename YGMContainer::for_all_args>
+           ygm::container::detail::SingleItemTuple<typename YGMContainer::for_all_args> &&
+           pair_like_and_convertible_to_weighted_item<Item,
+            std::tuple_element_t<0,typename YGMContainer::for_all_args>>
   alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng), 
       m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
-
     c.for_all([&](const auto& id_weight_pair){
         m_local_items.push_back({std::get<0>(id_weight_pair), std::get<1>(id_weight_pair)});
     });
-    comm.barrier();
-    balance_weight();
-    comm.barrier();
-    YGM_ASSERT_RELEASE(is_balanced());
     build_alias_table();
-    m_local_items.clear();
   }
 
-  // // template<typename Container>
-  // template <typename YGMContainer>
-  // requires ygm::container::detail::SingleItemTuple<typename YGMContainer::value_type> &&
-  //           convertable_to_double<typename YGMContainer::mapped_type>> 
-  // alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
-  //   : m_comm(comm), pthis(this), m_rng(rng),
-  //     m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+  template <typename YGMContainer>
+  requires ygm::container::detail::HasForAll<YGMContainer> &&
+           ygm::container::detail::DoubleItemTuple<typename YGMContainer::for_all_args> &&
+           pair_like_and_convertible_to_weighted_item<Item, typename YGMContainer::for_all_args>
+  alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
+    : m_comm(comm), pthis(this), m_rng(rng),
+      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+    c.for_all([&](const auto &id, const auto &weight){
+        m_local_items.push_back({id, weight});
+    });
+    build_alias_table();
+  }
 
-  //   c.for_all([&](const auto &key, const auto &value){
-  //       m_local_items.push_back({key, value});
-  //   });
-  //   comm.barrier();
-  //   balance_weight();
-  //   comm.barrier();
-  //   YGM_ASSERT_RELEASE(is_balanced());
-  //   build_alias_table();
-  //   m_local_items.clear();
-  // }
+  template <typename STLContainer>
+  requires ygm::container::detail::STLContainer<STLContainer> &&
+           pair_like_and_convertible_to_weighted_item<
+            Item, typename STLContainer::value_type>
+  alias_table(ygm::comm &comm, RNG &rng, STLContainer &c) 
+    : m_comm(comm), pthis(this), m_rng(rng),
+      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+    for (const auto& [id, weight] : c) {
+      m_local_items.push_back({id, weight});
+    }
+    build_alias_table();
+  }
 
  private:
+
+  void build_alias_table() {
+    m_comm.barrier();
+    balance_weight();
+    m_comm.barrier();
+    YGM_ASSERT_RELEASE(is_balanced());
+    build_local_alias_table();
+    m_local_items.clear();
+  }
 
   void balance_weight() { 
     MPI_Comm comm = m_comm.get_mpi_comm();
@@ -135,7 +120,7 @@ class alias_table {
 
 
     double target_weight = global_weight / m_comm.size(); // target weight per rank
-    uint32_t dest_rank = prfx_sum_weight / target_weight; 
+    int dest_rank = prfx_sum_weight / target_weight; 
     double curr_weight = std::fmod(prfx_sum_weight, target_weight); // Spillage weight
 
     std::vector<item> new_local_items;
@@ -204,7 +189,7 @@ class alias_table {
     return balanced;
   }
 
-  void build_alias_table() {
+  void build_local_alias_table() {
     // Make average weight of items 1. Makes random number generated for each sample be in [0,1]
     double local_weight = 0.0;
     for (const auto& itm : m_local_items) {
