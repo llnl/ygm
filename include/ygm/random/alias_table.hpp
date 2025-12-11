@@ -14,10 +14,6 @@
 
 namespace ygm::random {
 
-template <typename T>
-concept second_within_convertible_to_double = 
-  std::convertible_to<std::tuple_element_t<1, std::tuple_element_t<0,T>>,double>;
-
 template<typename Item, typename T>
 concept pair_like_and_convertible_to_weighted_item = 
     (requires { typename T::first_type; typename T::second_type; } &&
@@ -25,9 +21,6 @@ concept pair_like_and_convertible_to_weighted_item =
     (std::tuple_size_v<T> == 2 &&
       std::is_convertible_v<std::tuple_element_t<0,T>, Item> &&
       std::is_convertible_v<std::tuple_element_t<1,T>, double>);
-// template <typename T>
-// concept second_within_convertible_to_double = 
-//   std::convertible_to<std::tuple_element_t<1, std::tuple_element_t<0,T>>,double>;
 
 template <typename Item, typename RNG>
 class alias_table {
@@ -40,13 +33,14 @@ class alias_table {
       double weight;
 
       template <typename Archive>
-      void serialize(Archive& ar) { // Needed for cereal serialization
+      void serialize(Archive& ar) {
           ar(id, weight);
       }
   };
 
   struct table_item { 
-      double p; // prob item a is selected = p, prob item b is selected = (1 - p)
+      // prob item a is selected = p, prob item b is selected = (1 - p)
+      double p; 
       Item a;
       Item b;
   };
@@ -58,9 +52,10 @@ class alias_table {
             std::tuple_element_t<0,typename YGMContainer::for_all_args>>
   alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng), 
-      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+      m_rank_dist(0, comm.size()-1), 
+      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
     c.for_all([&](const auto& id_weight_pair){
-        m_local_items.push_back({std::get<0>(id_weight_pair), std::get<1>(id_weight_pair)});
+      m_local_items.emplace_back(std::get<0>(id_weight_pair), std::get<1>(id_weight_pair));
     });
     build_alias_table();
   }
@@ -71,9 +66,10 @@ class alias_table {
            pair_like_and_convertible_to_weighted_item<Item, typename YGMContainer::for_all_args>
   alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng),
-      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+      m_rank_dist(0, comm.size()-1), 
+      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
     c.for_all([&](const auto &id, const auto &weight){
-        m_local_items.push_back({id, weight});
+      m_local_items.emplace_back(id,weight);
     });
     build_alias_table();
   }
@@ -84,9 +80,10 @@ class alias_table {
             Item, typename STLContainer::value_type>
   alias_table(ygm::comm &comm, RNG &rng, STLContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng),
-      m_rank_dist(0, comm.size()-1), m_zero_one_dist(0.0, 1.0) {
+      m_rank_dist(0, comm.size()-1), 
+      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
     for (const auto& [id, weight] : c) {
-      m_local_items.push_back({id, weight});
+      m_local_items.emplace_back(id, weight);
     }
     build_alias_table();
   }
@@ -108,25 +105,25 @@ class alias_table {
     for (uint32_t i = 0; i < m_local_items.size(); i++) {
       local_weight += m_local_items[i].weight;
     }
-
     double global_weight;
     MPI_Allreduce(&local_weight, &global_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
-
     double prfx_sum_weight;
     MPI_Exscan(&local_weight, &prfx_sum_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
 
-
-    double target_weight = global_weight / m_comm.size(); // target weight per rank
+    // target_weight = Amount of weight each rank should have after balancing
+    double target_weight = global_weight / m_comm.size();
     int dest_rank = prfx_sum_weight / target_weight; 
-    double curr_weight = std::fmod(prfx_sum_weight, target_weight); // Spillage weight
+    // Spillage weight i.e. weight being contributed by other processors to dest's rank local distribution
+    double curr_weight = std::fmod(prfx_sum_weight, target_weight); 
 
     std::vector<item> new_local_items;
     using ygm_items_ptr = ygm::ygm_ptr<std::vector<item>>;
     ygm_items_ptr ptr_new_items = m_comm.make_ygm_ptr(new_local_items); 
-    m_comm.barrier(); // ensure ygm_ptr is created on every rank
+    m_comm.barrier();
 
     std::vector<item> items_to_send;
-    for (uint64_t i = 0; i < m_local_items.size(); i++) { // WARNING: size of m_local_items can grow during loop
+    // WARNING: size of m_local_items can grow during loop. Do not use iterators or pointers in the loop.
+    for (uint64_t i = 0; i < m_local_items.size(); i++) { 
       item local_item = m_local_items[i]; 
       if (curr_weight + local_item.weight >= target_weight) { 
         double remaining_weight = curr_weight + local_item.weight - target_weight;
@@ -179,8 +176,8 @@ class alias_table {
       local_weight += itm.weight;
     } 
     m_comm.barrier();
-    auto equal = [](double a, double b){
-      return (std::abs(a - b) < m_tolerance);
+    auto equal = [this](double a, double b){
+      return (std::abs(a - b) < this->m_tolerance);
     }; 
     bool balanced = ygm::is_same(local_weight, m_comm, equal);
     return balanced;
@@ -194,7 +191,7 @@ class alias_table {
     } 
     double avg_weight = local_weight / m_local_items.size(); 
 
-    double new_total_weight = 0;
+    double new_total_weight = 0.0;
     for (auto& itm : m_local_items) {
       itm.weight /= avg_weight;
       new_total_weight += itm.weight;
@@ -215,13 +212,13 @@ class alias_table {
     }
 
     while (!light_items.empty() && !heavy_items.empty()) {
-      item l = light_items.back();
-      item h = heavy_items.back(); 
+      item& l = light_items.back();
+      item& h = heavy_items.back(); 
       table_item tbl_itm = {l.weight, l.id, h.id};
       m_local_alias_table.push_back(tbl_itm);
       h.weight = (h.weight + l.weight) - 1;
       light_items.pop_back(); 
-      if (h.weight < 1) {
+      if (h.weight < 1.0) {
         light_items.push_back(h);
         heavy_items.pop_back();
       }   
@@ -230,14 +227,14 @@ class alias_table {
     // Either heavy items or light_items is empty, need to flush the non empty 
     // vector and add them to the alias table with a p value of 1
     while (!heavy_items.empty()) {
-      item h = heavy_items.back();
-      table_item tbl_itm = {1.0, h.id, 0};
+      item& h = heavy_items.back();
+      table_item tbl_itm = {1.0, h.id, Item()};
       m_local_alias_table.push_back(tbl_itm);
       heavy_items.pop_back();
     }
     while (!light_items.empty()) {
-      item l = light_items.back();
-      table_item tbl_itm = {1.0, l.id, 0};
+      item& l = light_items.back();
+      table_item tbl_itm = {1.0, l.id, Item()};
       m_local_alias_table.push_back(tbl_itm);
       light_items.pop_back();
     }
@@ -252,14 +249,10 @@ class alias_table {
 
     auto sample_wrapper = [visitor](auto ptr_a_tbl, const VisitorArgs &...args) {
       table_item tbl_itm = ptr_a_tbl->m_local_alias_table[ptr_a_tbl->m_num_items_uniform_dist(ptr_a_tbl->m_rng)];
-      Item s;
-      if (tbl_itm.p == 1) {
-        s = tbl_itm.a;
-      } else {
-        float f = ptr_a_tbl->m_zero_one_dist(ptr_a_tbl->m_rng);
-        if (f < tbl_itm.p) {
-          s = tbl_itm.a;
-        } else {
+      Item s = tbl_itm.a;
+      if (tbl_itm.p < 1) {
+        double f = ptr_a_tbl->m_zero_one_dist(ptr_a_tbl->m_rng);
+        if (f > tbl_itm.p) {
           s = tbl_itm.b;
         }
       }
@@ -278,8 +271,8 @@ class alias_table {
   std::vector<table_item>                             m_local_alias_table;
   std::uniform_int_distribution<uint32_t>             m_rank_dist;
   std::uniform_int_distribution<uint64_t>             m_num_items_uniform_dist;
-  std::uniform_real_distribution<float>               m_zero_one_dist;
-  double                                              m_tolerance = 1e-6;
+  std::uniform_real_distribution<double>              m_zero_one_dist;
+  double                                              m_tolerance;
 };
 
 }  // namespace ygm::random
