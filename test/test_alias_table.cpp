@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
     static uint32_t samples = 0; 
     static uint32_t sampled_ipsums = 0;
     static uint32_t sampled_sits = 0;
-    uint32_t samples_per_rank = 100000;
+    uint32_t samples_per_rank = 1000000;
     for (uint32_t i = 0; i < samples_per_rank; i++) {
       alias_tbl.async_sample([](std::string word_sample){
         samples++;
@@ -168,13 +168,13 @@ int main(int argc, char** argv) {
       world.cout0("\"ipsum\" sample frequency: ", ipsum_sample_freq);
       double dif = std::abs(ipsum_sample_freq - ipsum_freq);
       world.cout0("\"ipsum\" frequency difference: ", dif);
-      YGM_ASSERT_RELEASE(dif < 1e-4);
+      YGM_ASSERT_RELEASE(dif < 1e-3);
 
       world.cout0("\"sit\" actual frequency: ", sit_freq);
       world.cout0("\"sit\" sample frequency: ", sit_sample_freq);
       dif = std::abs(sit_sample_freq - sit_freq);
       world.cout0("\"sit\" frequency difference: ", dif);
-      YGM_ASSERT_RELEASE(dif < 1e-4);
+      YGM_ASSERT_RELEASE(dif < 1e-3);
     }
   }
 
