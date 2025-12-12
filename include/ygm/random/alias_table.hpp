@@ -132,7 +132,7 @@ class alias_table {
         item item_to_send = {local_item.id, weight_to_send};
         items_to_send.push_back(item_to_send);
 
-        if ((curr_weight > m_tolerance) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
+        if ((curr_weight > 1e-6) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
           // Moves weights to dest_rank's new_local_items
           m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
             new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
@@ -158,7 +158,7 @@ class alias_table {
     }
     
     // Need to handle items left in items to send. Must also account for floating point errors.
-    if (items_to_send.size() > 0 && curr_weight > m_tolerance && dest_rank < m_comm.size()) {
+    if (items_to_send.size() > 0 && curr_weight > 1e-6 && dest_rank < m_comm.size()) {
       m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
         new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
       }, items_to_send, ptr_new_items);
