@@ -9,7 +9,7 @@
 #error BOOST >= 1.75 is required for Boost.JSON
 #endif
 
-#include <boost/json/src.hpp>
+#include <boost/json.hpp>
 #include <cereal/cereal.hpp>
 #include <string>
 
