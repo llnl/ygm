@@ -17,7 +17,7 @@
 #include <ygm/io/line_parser.hpp>
 #include <ygm/io/multi_output.hpp>
 #include <ygm/io/ndjson_parser.hpp>
-// #include <ygm/io/parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
 #include <ygm/utility/progress_indicator.hpp>
 #include <ygm/utility/timer.hpp>

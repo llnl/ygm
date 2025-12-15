@@ -80,7 +80,7 @@ struct parquet_data_type {
   friend std::ostream &operator<<(std::ostream &, const parquet_data_type &);
 };
 
-std::ostream &operator<<(std::ostream &os, const parquet_data_type &t) {
+inline std::ostream &operator<<(std::ostream &os, const parquet_data_type &t) {
   os << parquet::TypeToString(t.type);
   if (!t.supported()) {
     os << " (unsupported)";

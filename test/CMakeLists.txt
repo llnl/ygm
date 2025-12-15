@@ -83,12 +83,14 @@ add_ygm_test(test_work_queue)
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_parquet_reader)
     link_arrow_parquet(MPI_test_parquet_reader)
-endif ()
 
-add_library(test_multi_compilation_unit_lib test_multi_compilation_unit_lib.cpp)
-target_link_libraries(test_multi_compilation_unit_lib PUBLIC ygm::ygm)
-add_ygm_test(test_multi_compilation_unit_driver)
-target_link_libraries(MPI_test_multi_compilation_unit_driver PRIVATE test_multi_compilation_unit_lib)
+    add_library(test_multi_compilation_unit_lib test_multi_compilation_unit_lib.cpp)
+    target_link_libraries(test_multi_compilation_unit_lib PUBLIC ygm::ygm)
+    link_arrow_parquet(test_multi_compilation_unit_lib)
+    add_ygm_test(test_multi_compilation_unit_driver)
+    target_link_libraries(MPI_test_multi_compilation_unit_driver PRIVATE test_multi_compilation_unit_lib)
+    link_arrow_parquet(MPI_test_multi_compilation_unit_driver)
+endif ()
 
 #
 # Copy the testing data directory
