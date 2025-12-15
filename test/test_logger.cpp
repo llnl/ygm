@@ -22,7 +22,7 @@ int main() {
     std::filesystem::path p("./test_log");
     file_cleanup          c(p);
 
-    ygm::detail::logger l(p);
+    ygm::detail::logger l(0, p);
 
     YGM_ASSERT_RELEASE(std::filesystem::exists(l.get_path()) == false);
 
@@ -42,7 +42,7 @@ int main() {
     std::filesystem::path p("./test_log");
     file_cleanup          c(p);
 
-    ygm::detail::logger l(p);
+    ygm::detail::logger l(0, p);
 
     YGM_ASSERT_RELEASE(std::filesystem::exists(l.get_path()) == false);
 
@@ -60,7 +60,7 @@ int main() {
     std::filesystem::path p("./test_log");
     file_cleanup          c(p);
 
-    ygm::detail::logger l(p);
+    ygm::detail::logger l(0, p);
 
     YGM_ASSERT_RELEASE(std::filesystem::exists(l.get_path()) == false);
 
@@ -88,7 +88,7 @@ int main() {
     std::filesystem::path p("./test_log");
     file_cleanup          c(p);
 
-    ygm::detail::logger l(p);
+    ygm::detail::logger l(0, p);
 
     YGM_ASSERT_RELEASE(std::filesystem::exists(l.get_path()) == false);
 
@@ -115,7 +115,7 @@ int main() {
   {
     std::filesystem::path p("./test_log");
 
-    ygm::detail::logger l(p);
+    ygm::detail::logger l(8, p);
 
     l.set_logger_target(ygm::logger_target::stdout);
     l.set_log_level(ygm::log_level::debug);

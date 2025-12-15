@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "spdlog/pattern_formatter.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_sinks.h"
 #include "spdlog/spdlog.h"
@@ -32,6 +33,26 @@ static std::vector<spdlog::level::level_enum> ygm_level_to_spdlog_level{
     spdlog::level::level_enum::err,  spdlog::level::level_enum::warn,
     spdlog::level::level_enum::info, spdlog::level::level_enum::debug};
 
+class rank_formatter_flag : public spdlog::custom_flag_formatter {
+ public:
+  rank_formatter_flag(const int rank) : m_rank(rank) {
+    m_rank_msg = std::string("Rank ") + std::to_string(m_rank);
+  }
+
+  void format(const spdlog::details::log_msg &, const std::tm &,
+              spdlog::memory_buf_t &dest) override {
+    dest.append(m_rank_msg.data(), m_rank_msg.data() + m_rank_msg.size());
+  }
+
+  std::unique_ptr<custom_flag_formatter> clone() const override {
+    return spdlog::details::make_unique<rank_formatter_flag>(m_rank);
+  }
+
+ private:
+  int         m_rank;
+  std::string m_rank_msg;
+};
+
 /**
  * @brief Simple logger for applications using YGM
  */
@@ -42,9 +63,9 @@ class logger {
   using rank_cout_sink_t = spdlog::sinks::stdout_sink_st;
   using rank_cerr_sink_t = spdlog::sinks::stderr_sink_st;
 
-  logger() : logger(std::filesystem::path("./log/")) {}
+  logger(const int rank) : logger(rank, std::filesystem::path("./log/")) {}
 
-  logger(const std::filesystem::path &path)
+  logger(const int rank, const std::filesystem::path &path)
       : m_logger_target(logger_target::file),
         m_cout_logger("ygm_cout_logger", std::make_shared<rank_cout_sink_t>()),
         m_cerr_logger("ygm_cerr_logger", std::make_shared<rank_cerr_sink_t>()),
@@ -52,6 +73,18 @@ class logger {
     if (std::filesystem::is_directory(path)) {
       m_path += "/ygm_logs";
     }
+
+    // Set custom logging message format for stdout and stderr to include MPI
+    // rank
+    auto stdout_formatter = std::make_unique<spdlog::pattern_formatter>();
+    stdout_formatter->add_flag<rank_formatter_flag>('k', rank).set_pattern(
+        "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%k] %v");
+    m_cout_logger.set_formatter(std::move(stdout_formatter));
+
+    auto stderr_formatter = std::make_unique<spdlog::pattern_formatter>();
+    stderr_formatter->add_flag<rank_formatter_flag>('k', rank).set_pattern(
+        "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%k] %v");
+    m_cerr_logger.set_formatter(std::move(stderr_formatter));
 
     // We will control logging levels
     m_cout_logger.set_level(spdlog::level::trace);
