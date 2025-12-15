@@ -39,7 +39,7 @@ class alias_table {
   };
 
   struct table_item { 
-      // prob item a is selected = p, prob item b is selected = (1 - p)
+      // p / m_avg_weight = prob item a is selected. 1 - (p/m_avg_weight) is prob b is selected.
       double p; 
       Item a;
       Item b;
@@ -53,7 +53,7 @@ class alias_table {
   alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng), 
       m_rank_dist(0, comm.size()-1), 
-      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
+      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
     c.for_all([&](const auto& id_weight_pair){
       m_local_items.emplace_back(std::get<0>(id_weight_pair), std::get<1>(id_weight_pair));
     });
@@ -67,7 +67,7 @@ class alias_table {
   alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng),
       m_rank_dist(0, comm.size()-1), 
-      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
+      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
     c.for_all([&](const auto &id, const auto &weight){
       m_local_items.emplace_back(id,weight);
     });
@@ -81,7 +81,7 @@ class alias_table {
   alias_table(ygm::comm &comm, RNG &rng, STLContainer &c) 
     : m_comm(comm), pthis(this), m_rng(rng),
       m_rank_dist(0, comm.size()-1), 
-      m_zero_one_dist(0.0, 1.0), m_tolerance(1e-4) {
+      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
     for (const auto& [id, weight] : c) {
       m_local_items.emplace_back(id, weight);
     }
@@ -94,7 +94,6 @@ class alias_table {
     m_comm.barrier();
     balance_weight();
     m_comm.barrier();
-    YGM_ASSERT_RELEASE(is_balanced());
     build_local_alias_table();
     m_local_items.clear();
   }
@@ -166,45 +165,56 @@ class alias_table {
 
     m_comm.barrier();
     std::swap(new_local_items, m_local_items);
+
+    YGM_ASSERT_RELEASE(is_balanced(target_weight));
   } 
 
-  bool is_balanced() { 
-    // Not a perfect check. Will check if every rank has the same weight for each table
-    // but does not confirm that the actual target weight is met on each rank
+  bool is_balanced(double target) { 
+
+
     double local_weight = 0.0;
     for (const auto& itm : m_local_items) {
       local_weight += itm.weight;
     } 
+
+    double dif = std::abs(target - local_weight);
+    if (dif > this->m_tolerance) {
+        std::cerr << "rank " << m_comm.rank() << "***********local weight: " << local_weight << ", target: " << target << ", dif: " << dif << "*************\n";
+    }
+    
     m_comm.barrier();
     auto equal = [this](double a, double b){
-      return (std::abs(a - b) < this->m_tolerance);
+      // return (std::abs(a - b) < this->m_tolerance);
+      double dif = std::abs(a - b);
+      if (dif > this->m_tolerance) {
+        std::cerr << "rank " << this->m_comm.rank() << "=================a: " << a << ", b: " << b << ", dif: " << dif << "==================\n";
+        return false;
+      } else {
+        return true;
+      }
+      // return (std::abs(a - b) < this->m_tolerance);
     }; 
     bool balanced = ygm::is_same(local_weight, m_comm, equal);
+    if (!balanced) {
+      std::cerr << "Rank: " << m_comm.rank() << ", local weight: " << local_weight << "\n"; 
+      std::cerr << "Rank: " << m_comm.rank() << ", total local items: " << m_local_items.size() << "\n"; 
+    }
     return balanced;
   }
 
   void build_local_alias_table() {
-    // Make average weight of items 1. Makes random number generated for each sample be in [0,1]
     double local_weight = 0.0;
     for (const auto& itm : m_local_items) {
       local_weight += itm.weight;
     } 
     double avg_weight = local_weight / m_local_items.size(); 
 
-    double new_total_weight = 0.0;
-    for (auto& itm : m_local_items) {
-      itm.weight /= avg_weight;
-      new_total_weight += itm.weight;
-    }
-    double new_avg_weight = new_total_weight / m_local_items.size(); // Should be 1
-    YGM_ASSERT_RELEASE(std::abs((new_avg_weight - 1.0)) < m_tolerance);
-
     // Implementation of Vose's algorithm, utilized Keith Schwarz numerically stable version
     // https://www.keithschwarz.com/darts-dice-coins/
     std::vector<item> heavy_items;
     std::vector<item> light_items;
     for (auto& itm : m_local_items) {
-      if (itm.weight < 1.0) {
+      if (itm.weight < avg_weight) {
           light_items.push_back(itm);
       } else {
           heavy_items.push_back(itm);
@@ -216,30 +226,32 @@ class alias_table {
       item& h = heavy_items.back(); 
       table_item tbl_itm = {l.weight, l.id, h.id};
       m_local_alias_table.push_back(tbl_itm);
-      h.weight = (h.weight + l.weight) - 1;
+      h.weight = (h.weight + l.weight) - avg_weight;
       light_items.pop_back(); 
-      if (h.weight < 1.0) {
+      if (h.weight < avg_weight) {
         light_items.push_back(h);
         heavy_items.pop_back();
       }   
     }
 
     // Either heavy items or light_items is empty, need to flush the non empty 
-    // vector and add them to the alias table with a p value of 1
+    // vector and add them to the alias table with a p value of avg_weight
     while (!heavy_items.empty()) {
       item& h = heavy_items.back();
-      table_item tbl_itm = {1.0, h.id, Item()};
+      table_item tbl_itm = {avg_weight, h.id, Item()};
       m_local_alias_table.push_back(tbl_itm);
       heavy_items.pop_back();
     }
     while (!light_items.empty()) {
       item& l = light_items.back();
-      table_item tbl_itm = {1.0, l.id, Item()};
+      table_item tbl_itm = {avg_weight, l.id, Item()};
       m_local_alias_table.push_back(tbl_itm);
       light_items.pop_back();
     }
     m_comm.barrier();
     m_num_items_uniform_dist = std::uniform_int_distribution<uint64_t>(0,m_local_alias_table.size()-1);
+    m_bucket_weight_dist = std::uniform_real_distribution<double>(0,avg_weight);
+    m_avg_weight = avg_weight;
   }
   
  public:
@@ -250,8 +262,8 @@ class alias_table {
     auto sample_wrapper = [visitor](auto ptr_a_tbl, const VisitorArgs &...args) {
       table_item tbl_itm = ptr_a_tbl->m_local_alias_table[ptr_a_tbl->m_num_items_uniform_dist(ptr_a_tbl->m_rng)];
       Item s = tbl_itm.a;
-      if (tbl_itm.p < 1) {
-        double f = ptr_a_tbl->m_zero_one_dist(ptr_a_tbl->m_rng);
+      if (tbl_itm.p < ptr_a_tbl->m_avg_weight) {
+        double f = ptr_a_tbl->m_bucket_weight_dist(ptr_a_tbl->m_rng);
         if (f > tbl_itm.p) {
           s = tbl_itm.b;
         }
@@ -272,7 +284,9 @@ class alias_table {
   std::uniform_int_distribution<uint32_t>             m_rank_dist;
   std::uniform_int_distribution<uint64_t>             m_num_items_uniform_dist;
   std::uniform_real_distribution<double>              m_zero_one_dist;
+  std::uniform_real_distribution<double>              m_bucket_weight_dist; 
   double                                              m_tolerance;
+  double                                              m_avg_weight;
 };
 
 }  // namespace ygm::random

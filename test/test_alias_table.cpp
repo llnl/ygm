@@ -26,8 +26,8 @@ int main(int argc, char** argv) {
   //
   // Testing various constructors 
   {
-    uint32_t n_items_per_rank = 100;
-    const int max_item_weight = 10;
+    uint32_t n_items_per_rank = 1000;
+    const int max_item_weight = 100;
     std::uniform_real_distribution<double> dist(0, max_item_weight);
     { // Constructing from ygm::container::bag
       ygm::container::bag<std::pair<uint32_t,double>> bag_of_items(world);
@@ -84,11 +84,12 @@ int main(int argc, char** argv) {
   // 
   // Testing the construction of many distributions. Balancing capabilities being tested.
   {
-    uint32_t alias_tables_to_construct = 1000;
-    uint32_t n_items_per_rank = 10000;
+    uint32_t alias_tables_to_construct = 20000;
+    uint32_t n_items_per_rank = 5000;
     { // Testing uniform weight distribution
       std::uniform_int_distribution<uint32_t> max_item_weight_dist(50, 100);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
+        world.cout0("uniform distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         uint32_t max_item_weight = max_item_weight_dist(ygm_rng);
         std::uniform_real_distribution<double> weight_dist(0, max_item_weight);
@@ -100,11 +101,13 @@ int main(int argc, char** argv) {
         world.barrier();
         ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
       }
+      world.cout0("Finished uniform distribution alias table test");
     }
     { // Testing normal weight distribution
       std::uniform_int_distribution<uint32_t> mean_dist(50, 100);
       std::uniform_int_distribution<uint32_t> std_dev_dist(5, 20);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
+        world.cout0("Normal distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         uint32_t mean = mean_dist(ygm_rng);
         uint32_t std_dev = std_dev_dist(ygm_rng);
@@ -117,11 +120,13 @@ int main(int argc, char** argv) {
         world.barrier();
         ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
       }
+      world.cout0("Finished normal distribution alias table test");
     }
     { // Testing gamma weight distribution
       std::uniform_real_distribution<double> alpha_dist(0.1, 10);
       std::uniform_real_distribution<double> theta_dist(10, 100);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
+        world.cout0("Gamma distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         double alpha = alpha_dist(ygm_rng);
         double theta = theta_dist(ygm_rng);
@@ -134,6 +139,7 @@ int main(int argc, char** argv) {
         world.barrier();
         ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
       }
+      world.cout0("Finished gamma distribution alias table test");
     }
   }
 
