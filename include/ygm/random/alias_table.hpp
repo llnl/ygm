@@ -104,9 +104,9 @@ class alias_table {
     for (uint32_t i = 0; i < m_local_items.size(); i++) {
       local_weight += m_local_items[i].weight;
     }
-    double global_weight;
+    double global_weight = 0;
     MPI_Allreduce(&local_weight, &global_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double prfx_sum_weight;
+    double prfx_sum_weight = 0;
     MPI_Exscan(&local_weight, &prfx_sum_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
 
     // target_weight = Amount of weight each rank should have after balancing
@@ -131,7 +131,7 @@ class alias_table {
         item item_to_send = {local_item.id, weight_to_send};
         items_to_send.push_back(item_to_send);
 
-        if ((curr_weight > 1e-6) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
+        if ((curr_weight > 1e-8) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
           // Moves weights to dest_rank's new_local_items
           m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
             new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
@@ -157,7 +157,7 @@ class alias_table {
     }
     
     // Need to handle items left in items to send. Must also account for floating point errors.
-    if (items_to_send.size() > 0 && curr_weight > 1e-6 && dest_rank < m_comm.size()) {
+    if (items_to_send.size() > 0 && curr_weight > 1e-8 && dest_rank < m_comm.size()) {
       m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
         new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
       }, items_to_send, ptr_new_items);
@@ -166,39 +166,21 @@ class alias_table {
     m_comm.barrier();
     std::swap(new_local_items, m_local_items);
 
+    YGM_ASSERT_RELEASE(m_local_items.size() > 0);
     YGM_ASSERT_RELEASE(is_balanced(target_weight));
   } 
 
-  bool is_balanced(double target) { 
-
-
+  bool is_balanced(double target) {
     double local_weight = 0.0;
     for (const auto& itm : m_local_items) {
       local_weight += itm.weight;
     } 
-
-    double dif = std::abs(target - local_weight);
-    if (dif > this->m_tolerance) {
-        std::cerr << "rank " << m_comm.rank() << "***********local weight: " << local_weight << ", target: " << target << ", dif: " << dif << "*************\n";
-    }
-    
+    YGM_ASSERT_RELEASE(std::abs(target - local_weight) < m_tolerance); 
     m_comm.barrier();
     auto equal = [this](double a, double b){
-      // return (std::abs(a - b) < this->m_tolerance);
-      double dif = std::abs(a - b);
-      if (dif > this->m_tolerance) {
-        std::cerr << "rank " << this->m_comm.rank() << "=================a: " << a << ", b: " << b << ", dif: " << dif << "==================\n";
-        return false;
-      } else {
-        return true;
-      }
-      // return (std::abs(a - b) < this->m_tolerance);
+      return (std::abs(a - b) < this->m_tolerance);
     }; 
     bool balanced = ygm::is_same(local_weight, m_comm, equal);
-    if (!balanced) {
-      std::cerr << "Rank: " << m_comm.rank() << ", local weight: " << local_weight << "\n"; 
-      std::cerr << "Rank: " << m_comm.rank() << ", total local items: " << m_local_items.size() << "\n"; 
-    }
     return balanced;
   }
 

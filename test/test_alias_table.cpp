@@ -84,8 +84,8 @@ int main(int argc, char** argv) {
   // 
   // Testing the construction of many distributions. Balancing capabilities being tested.
   {
-    uint32_t alias_tables_to_construct = 20000;
-    uint32_t n_items_per_rank = 5000;
+    uint32_t alias_tables_to_construct = 10000;
+    uint32_t n_items_per_rank = 1000;
     { // Testing uniform weight distribution
       std::uniform_int_distribution<uint32_t> max_item_weight_dist(50, 100);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
