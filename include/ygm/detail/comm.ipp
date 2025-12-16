@@ -37,7 +37,7 @@ inline comm::comm(int *argc, char ***argv)
     : pimpl_if(std::make_shared<detail::mpi_init_finalize>(argc, argv)),
       m_layout(MPI_COMM_WORLD),
       m_router(m_layout, config.routing),
-      m_logger(m_layout.size()) {
+      m_logger(m_layout.rank()) {
   // pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
   comm_setup(MPI_COMM_WORLD);
 }
@@ -51,7 +51,7 @@ inline comm::comm(int *argc, char ***argv)
 inline comm::comm(MPI_Comm mcomm)
     : m_layout(mcomm),
       m_router(m_layout, config.routing),
-      m_logger(m_layout.size()) {
+      m_logger(m_layout.rank()) {
   pimpl_if.reset();
   int flag(0);
   YGM_ASSERT_MPI(MPI_Initialized(&flag));
