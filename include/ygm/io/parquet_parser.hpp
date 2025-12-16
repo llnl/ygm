@@ -513,6 +513,8 @@ class parquet_parser {
       const stdfs::path &file_path, Function fn,
       const size_t                            max_num_rows_to_read,
       std::optional<std::vector<std::string>> columns_to_read = std::nullopt) {
+    m_comm.log(log_level::info,
+               std::string("Beginning to read file ") + file_path.string());
     size_t num_read_rows = 0;
     try {
       // Create a ParquetReader instance
@@ -632,7 +634,14 @@ class parquet_parser {
           ++num_read_rows;
         }
       }
+      std::string msg("Finished reading file ");
+      m_comm.log(log_level::info, msg + file_path.string());
+      // m_comm.log(log_level::info, "{}", msg);
     } catch (const std::exception &e) {
+      std::string msg("Error while reading file ");
+      m_comm.log(
+          log_level::error,
+          msg + file_path.string() + std::string(": ") + std::string(e.what()));
       // rethrow the exception
       std::cerr << "Error reading Parquet file: " << file_path << " "
                 << e.what() << std::endl;
