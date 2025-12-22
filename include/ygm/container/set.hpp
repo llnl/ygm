@@ -12,6 +12,7 @@
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_contains.hpp>
 #include <ygm/container/detail/base_batch_erase.hpp>
+#include <ygm/container/detail/base_contains.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
@@ -27,6 +28,7 @@ class set
       public detail::base_batch_erase_key<set<Value>, std::tuple<Value>>,
       public detail::base_async_contains<set<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
+      public detail::base_contains<set<Value>, std::tuple<Value>>,
       public detail::base_count<set<Value>, std::tuple<Value>>,
       public detail::base_misc<set<Value>, std::tuple<Value>>,
       public detail::base_iterators<set<Value>>,
@@ -226,6 +228,16 @@ class set
    */
   size_t local_count(const value_type &val) const {
     return m_local_set.count(val);
+  }
+
+  /**
+   * @brief Check if a value exists locally
+   *
+   * @param val Value to check for
+   * @return True if value exists locally, false otherwise
+   */
+  bool local_contains(const value_type &val) const {
+    return m_local_set.contains(val);
   }
 
   /**

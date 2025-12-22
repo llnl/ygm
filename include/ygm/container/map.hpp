@@ -13,6 +13,7 @@
 #include <ygm/container/detail/base_async_reduce.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
 #include <ygm/container/detail/base_batch_erase.hpp>
+#include <ygm/container/detail/base_contains.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
@@ -28,6 +29,7 @@ class map
       public detail::base_async_insert_or_assign<map<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_contains<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_count<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_reduce<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_erase_key<map<Key, Value>,
@@ -560,6 +562,16 @@ class map
    */
   size_t local_count(const key_type& key) const {
     return m_local_map.count(key);
+  }
+
+  /**
+   * @brief Check if a key exists locally
+   *
+   * @param key key to check for
+   * @return True if `key` exists locally, false otherwise
+   */
+  bool local_contains(const key_type& key) const {
+    return m_local_map.contains(key);
   }
 
   // void serialize(const std::string& fname) { m_impl.serialize(fname); }
