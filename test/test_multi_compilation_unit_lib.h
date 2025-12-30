@@ -1,7 +1,9 @@
 
 // Including all of YGM (except parquet_parser)
 #include <ygm/comm.hpp>
-#include <ygm/random.hpp>
+
+#include <ygm/random/random.hpp>
+#include <ygm/random/alias_table.hpp>
 
 #include <ygm/container/array.hpp>
 #include <ygm/container/bag.hpp>
