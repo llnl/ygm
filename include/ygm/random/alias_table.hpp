@@ -22,11 +22,11 @@ concept pair_like_and_convertible_to_weighted_item =
       std::is_convertible_v<std::tuple_element_t<0,T>, Item> &&
       std::is_convertible_v<std::tuple_element_t<1,T>, double>);
 
-template <typename Item, typename RNG>
+template <typename Item>
 class alias_table {
 
  public: 
-  using self_type = alias_table<Item, RNG>;
+  using self_type = alias_table<Item>;
 
   struct item {
       Item id;
@@ -39,7 +39,7 @@ class alias_table {
   };
 
   struct table_item { 
-      // p / m_avg_weight = prob item a is selected. 1 - (p/m_avg_weight) is prob b is selected.
+      // p / m_avg_weight = prob item a is selected. 1 - p / m_avg_weight is prob b is selected.
       double p; 
       Item a;
       Item b;
@@ -50,10 +50,13 @@ class alias_table {
            ygm::container::detail::SingleItemTuple<typename YGMContainer::for_all_args> &&
            pair_like_and_convertible_to_weighted_item<Item,
             std::tuple_element_t<0,typename YGMContainer::for_all_args>>
-  alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
-    : m_comm(comm), pthis(this), m_rng(rng), 
-      m_rank_dist(0, comm.size()-1), 
-      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
+  alias_table(ygm::comm &comm, YGMContainer &c,
+    std::optional<std::uint32_t> seed = std::nullopt) 
+    : m_comm(comm), pthis(this), m_rank_dist(0, comm.size()-1), 
+      m_bucket_weight_dist(0.0, 1.0), m_rng(comm) {
+    if (seed) {
+      m_rng = default_random_engine<>(comm, *seed);
+    }
     c.for_all([&](const auto& id_weight_pair){
       m_local_items.emplace_back(std::get<0>(id_weight_pair), std::get<1>(id_weight_pair));
     });
@@ -64,10 +67,13 @@ class alias_table {
   requires ygm::container::detail::HasForAll<YGMContainer> &&
            ygm::container::detail::DoubleItemTuple<typename YGMContainer::for_all_args> &&
            pair_like_and_convertible_to_weighted_item<Item, typename YGMContainer::for_all_args>
-  alias_table(ygm::comm &comm, RNG &rng, YGMContainer &c) 
-    : m_comm(comm), pthis(this), m_rng(rng),
-      m_rank_dist(0, comm.size()-1), 
-      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
+  alias_table(ygm::comm &comm, YGMContainer &c, 
+    std::optional<std::uint32_t> seed = std::nullopt) 
+    : m_comm(comm), pthis(this), m_rank_dist(0, comm.size()-1), 
+      m_bucket_weight_dist(0.0, 1.0), m_rng(comm) {
+    if (seed) {
+      m_rng = default_random_engine<>(comm, *seed);
+    }
     c.for_all([&](const auto &id, const auto &weight){
       m_local_items.emplace_back(id,weight);
     });
@@ -78,10 +84,13 @@ class alias_table {
   requires ygm::container::detail::STLContainer<STLContainer> &&
            pair_like_and_convertible_to_weighted_item<
             Item, typename STLContainer::value_type>
-  alias_table(ygm::comm &comm, RNG &rng, STLContainer &c) 
-    : m_comm(comm), pthis(this), m_rng(rng),
-      m_rank_dist(0, comm.size()-1), 
-      m_bucket_weight_dist(0.0, 1.0), m_tolerance(1e-4) {
+  alias_table(ygm::comm &comm, STLContainer &c, 
+    std::optional<std::uint32_t> seed = std::nullopt) 
+    : m_comm(comm), pthis(this), m_rank_dist(0, comm.size()-1),
+      m_bucket_weight_dist(0.0, 1.0), m_rng(comm) {  
+    if (seed) {
+      m_rng = default_random_engine<>(comm, *seed);
+    }
     for (const auto& [id, weight] : c) {
       m_local_items.emplace_back(id, weight);
     }
@@ -131,7 +140,7 @@ class alias_table {
         item item_to_send = {local_item.id, weight_to_send};
         items_to_send.push_back(item_to_send);
 
-        if ((curr_weight > 1e-8) && (dest_rank < m_comm.size())) { // Accounts for rounding errors
+        if (dest_rank < m_comm.size()) {
           // Moves weights to dest_rank's new_local_items
           m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
             new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
@@ -157,7 +166,7 @@ class alias_table {
     }
     
     // Need to handle items left in items to send. Must also account for floating point errors.
-    if (items_to_send.size() > 0 && curr_weight > 1e-8 && dest_rank < m_comm.size()) {
+    if (items_to_send.size() > 0 && dest_rank < m_comm.size()) {
       m_comm.async(dest_rank, [](std::vector<item> items, ygm_items_ptr new_items_ptr) {
         new_items_ptr->insert(new_items_ptr->end(), items.begin(), items.end()); 
       }, items_to_send, ptr_new_items);
@@ -175,10 +184,12 @@ class alias_table {
     for (const auto& itm : m_local_items) {
       local_weight += itm.weight;
     } 
-    YGM_ASSERT_RELEASE(std::abs(target - local_weight) < m_tolerance); 
+    double dif = std::abs(target - local_weight);
+    YGM_ASSERT_RELEASE(dif < 1e-6);  
+
     m_comm.barrier();
     auto equal = [this](double a, double b){
-      return (std::abs(a - b) < this->m_tolerance);
+      return (std::abs(a - b) < 1e-6);
     }; 
     bool balanced = ygm::is_same(local_weight, m_comm, equal);
     return balanced;
@@ -260,15 +271,14 @@ class alias_table {
  private:
   ygm::comm&                                          m_comm;
   ygm::ygm_ptr<self_type>                             pthis;
-  RNG&                                                m_rng;
   std::vector<item>                                   m_local_items;
   std::vector<table_item>                             m_local_alias_table;
   std::uniform_int_distribution<uint32_t>             m_rank_dist;
   std::uniform_int_distribution<uint64_t>             m_num_items_uniform_dist;
   std::uniform_real_distribution<double>              m_zero_one_dist;
   std::uniform_real_distribution<double>              m_bucket_weight_dist; 
-  double                                              m_tolerance;
   double                                              m_avg_weight;
+  ygm::random::default_random_engine<>                m_rng;
 };
 
 }  // namespace ygm::random

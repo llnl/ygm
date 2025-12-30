@@ -19,9 +19,8 @@
 int main(int argc, char** argv) {
 
   ygm::comm world(&argc, &argv);
-  using YGM_RNG = ygm::random::default_random_engine<>;
   int seed = 42;
-  YGM_RNG ygm_rng(world, seed);
+  ygm::random::default_random_engine<> ygm_rng(world, seed);
 
   //
   // Testing various constructors 
@@ -37,7 +36,7 @@ int main(int argc, char** argv) {
         bag_of_items.async_insert({id, w});
       }
       world.barrier();
-      ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, bag_of_items);
+      ygm::random::alias_table<uint32_t> alias_tbl(world, bag_of_items, ygm_rng());
     }
     { // Constructing from ygm::container::map
       ygm::container::map<uint32_t,double> map_of_items(world);
@@ -47,7 +46,7 @@ int main(int argc, char** argv) {
         map_of_items.async_insert({id, w});
       }
       world.barrier();
-      ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
+      ygm::random::alias_table<uint32_t> alias_tbl(world, map_of_items, ygm_rng());
     }
     { // Constructing from ygm::container::array
       ygm::container::array<double> array_of_weights(world, n_items_per_rank*world.size());
@@ -57,7 +56,7 @@ int main(int argc, char** argv) {
         array_of_weights.async_set(id,w);
       }
       world.barrier();
-      ygm::random::alias_table<uint64_t, YGM_RNG> alias_tbl(world, ygm_rng, array_of_weights);
+      ygm::random::alias_table<uint64_t> alias_tbl(world, array_of_weights, ygm_rng());
     }
     { // Constructing from std::vector
       std::vector<std::pair<uint32_t,double>> vec_of_items;
@@ -67,7 +66,7 @@ int main(int argc, char** argv) {
         vec_of_items.push_back({id,w});
       }
       world.barrier();
-      ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, vec_of_items);
+      ygm::random::alias_table<uint32_t> alias_tbl(world, vec_of_items, ygm_rng());
     }
     { // Constructing from std::map
       std::map<uint32_t,double> items_map;
@@ -77,14 +76,14 @@ int main(int argc, char** argv) {
         items_map[id] = w;
       }
       world.barrier();
-      ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, items_map);
+      ygm::random::alias_table<uint32_t> alias_tbl(world, items_map, ygm_rng());
     }
   }
 
   // 
   // Testing the construction of many distributions. Balancing capabilities being tested.
   {
-    uint32_t alias_tables_to_construct = 10000;
+    uint32_t alias_tables_to_construct = 1000;
     uint32_t n_items_per_rank = 1000;
     { // Testing uniform weight distribution
       std::uniform_int_distribution<uint32_t> max_item_weight_dist(50, 100);
@@ -99,7 +98,7 @@ int main(int argc, char** argv) {
           map_of_items.async_insert(id,w);
         }
         world.barrier();
-        ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
+        ygm::random::alias_table<uint32_t> alias_tbl(world, map_of_items);
       }
       world.cout0("Finished uniform distribution alias table test");
     }
@@ -118,7 +117,7 @@ int main(int argc, char** argv) {
           map_of_items.async_insert(id,w);
         }
         world.barrier();
-        ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
+        ygm::random::alias_table<uint32_t> alias_tbl(world, map_of_items, ygm_rng());
       }
       world.cout0("Finished normal distribution alias table test");
     }
@@ -137,7 +136,7 @@ int main(int argc, char** argv) {
           map_of_items.async_insert(id,w);
         }
         world.barrier();
-        ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
+        ygm::random::alias_table<uint32_t> alias_tbl(world, map_of_items, ygm_rng());
       }
       world.cout0("Finished gamma distribution alias table test");
     }
@@ -157,7 +156,7 @@ int main(int argc, char** argv) {
       map_of_items.async_insert(id,w);
     }
     world.barrier();
-    ygm::random::alias_table<uint32_t, YGM_RNG> alias_tbl(world, ygm_rng, map_of_items);
+    ygm::random::alias_table<uint32_t> alias_tbl(world, map_of_items, ygm_rng());
 
     static uint32_t samples = 0; 
     uint32_t samples_per_rank = 100000;
@@ -195,14 +194,14 @@ int main(int argc, char** argv) {
         }
       }
     }
-    ygm::random::alias_table<std::string, YGM_RNG> alias_tbl(world, ygm_rng, word_counts);
+    ygm::random::alias_table<std::string> alias_tbl(world, word_counts);
     world.barrier();
     file.close();
 
-    static uint32_t samples = 0; 
-    static uint32_t sampled_ipsums = 0;
-    static uint32_t sampled_sits = 0;
-    uint32_t samples_per_rank = 1000000;
+    static uint64_t samples = 0; 
+    static uint64_t sampled_ipsums = 0;
+    static uint64_t sampled_sits = 0;
+    uint32_t samples_per_rank = 10000000;
     for (uint32_t i = 0; i < samples_per_rank; i++) {
       alias_tbl.async_sample([](std::string word_sample){
         samples++;
@@ -214,9 +213,9 @@ int main(int argc, char** argv) {
       });
     }
     world.barrier();
-    uint32_t total_samples = ygm::sum(samples, world);
-    uint32_t total_ipsums = ygm::sum(sampled_ipsums, world);
-    uint32_t total_sits = ygm::sum(sampled_sits, world);
+    uint64_t total_samples = ygm::sum(samples, world);
+    uint64_t total_ipsums = ygm::sum(sampled_ipsums, world);
+    uint64_t total_sits = ygm::sum(sampled_sits, world);
 
     YGM_ASSERT_RELEASE(total_samples == (samples_per_rank * world.size()));
 
