@@ -1,0 +1,19 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "YGM (No Docs)",
+	"build": {
+		"dockerfile": "../Dockerfile",
+		"target": "no_docs"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"llvm-vs-code-extensions.vscode-clangd"
+			]
+		}
+	},
+	"mounts": [
+		"source=${localEnv:HOME}${localEnv:USERPROFILE},target=/host-home,type=bind,consistency=cached"
+	]
+}

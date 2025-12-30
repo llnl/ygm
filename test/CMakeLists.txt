@@ -50,7 +50,7 @@ add_ygm_test(test_set)
 add_ygm_test(test_bag)
 #add_ygm_test(test_tagged_bag)
 add_ygm_test(test_array)
-#add_ygm_test(test_counting_set)
+# add_ygm_test(test_counting_set)
 add_ygm_test(test_disjoint_set)
 #add_ygm_test(test_container_serialization)
 add_ygm_test(test_line_parser)
@@ -78,11 +78,19 @@ add_ygm_test(test_boost_string)
 add_ygm_test(test_wout_werr)
 add_ygm_test(test_ndjson_parser)
 add_ygm_test(test_stats)
+add_ygm_test(test_work_queue)
 
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_parquet_reader)
     link_arrow_parquet(MPI_test_parquet_reader)
+
+    add_library(test_multi_compilation_unit_lib test_multi_compilation_unit_lib.cpp)
+    target_link_libraries(test_multi_compilation_unit_lib PUBLIC ygm::ygm)
+    link_arrow_parquet(test_multi_compilation_unit_lib)
+    add_ygm_test(test_multi_compilation_unit_driver)
+    target_link_libraries(MPI_test_multi_compilation_unit_driver PRIVATE test_multi_compilation_unit_lib)
+    link_arrow_parquet(MPI_test_multi_compilation_unit_driver)
 endif ()
 
 #

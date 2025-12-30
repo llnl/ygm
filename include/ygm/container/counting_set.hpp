@@ -7,6 +7,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/detail/base_contains.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
@@ -25,6 +26,7 @@ namespace ygm::container {
 template <typename Key>
 class counting_set
     : public detail::base_count<counting_set<Key>, std::tuple<Key, size_t>>,
+      public detail::base_contains<counting_set<Key>, std::tuple<Key, size_t>>,
       public detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>,
       public detail::base_iterators<counting_set<Key>>,
       public detail::base_iteration_key_value<counting_set<Key>,
@@ -284,6 +286,16 @@ class counting_set
       local_count += v;
     }
     return local_count;
+  }
+
+  /**
+   * @brief Check if a locally-held item exists
+   *
+   * @param val Value to check for
+   * @return true if value exists locally, false otherwise
+   */
+  bool local_contains(const key_type &key) const {
+    return m_map.local_contains(key);
   }
 
   /**

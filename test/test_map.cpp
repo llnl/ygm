@@ -40,6 +40,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap.count("dog") == 1);
     YGM_ASSERT_RELEASE(smap.count("apple") == 1);
     YGM_ASSERT_RELEASE(smap.count("red") == 1);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(smap.contains("dog"));
+    YGM_ASSERT_RELEASE(smap.contains("apple"));
+    YGM_ASSERT_RELEASE(smap.contains("red"));
+    YGM_ASSERT_RELEASE(!smap.contains("blue"));
   }
 
   //
@@ -54,6 +60,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap.count("dog") == 1);
     YGM_ASSERT_RELEASE(smap.count("apple") == 1);
     YGM_ASSERT_RELEASE(smap.count("red") == 1);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(smap.contains("dog"));
+    YGM_ASSERT_RELEASE(smap.contains("apple"));
+    YGM_ASSERT_RELEASE(smap.contains("red"));
+    YGM_ASSERT_RELEASE(!smap.contains("blue"));
   }
 
   //
@@ -142,13 +154,21 @@ int main(int argc, char **argv) {
 
     YGM_ASSERT_RELEASE(smap.size() == 2);
 
+    // test contains.
+    YGM_ASSERT_RELEASE(smap.contains("dog"));
+    YGM_ASSERT_RELEASE(smap.contains("cat"));
+    YGM_ASSERT_RELEASE(!smap.contains("red"));
+    YGM_ASSERT_RELEASE(!smap.contains("blue"));
+
     if (world.rank() == 0) {
       smap.async_erase("dog");
     }
     YGM_ASSERT_RELEASE(smap.count("dog") == 0);
     YGM_ASSERT_RELEASE(smap.size() == 1);
+    YGM_ASSERT_RELEASE(!smap.contains("dog"));
     smap.async_erase("cat");
     YGM_ASSERT_RELEASE(smap.count("cat") == 0);
+    YGM_ASSERT_RELEASE(!smap.contains("cat"));
 
     YGM_ASSERT_RELEASE(smap.size() == 0);
   }
@@ -268,9 +288,17 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap.count("dog") == 1);
     YGM_ASSERT_RELEASE(smap.count("apple") == 1);
     YGM_ASSERT_RELEASE(smap.count("red") == 1);
+
+    YGM_ASSERT_RELEASE(!smap.contains("car"));
     smap.async_insert_or_assign("car", "truck");
     YGM_ASSERT_RELEASE(smap.size() == 4);
     YGM_ASSERT_RELEASE(smap.count("car") == 1);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(smap.contains("dog"));
+    YGM_ASSERT_RELEASE(smap.contains("car"));
+    YGM_ASSERT_RELEASE(smap.contains("red"));
+    YGM_ASSERT_RELEASE(!smap.contains("blue"));
   }
 
   // Test batch erase from set

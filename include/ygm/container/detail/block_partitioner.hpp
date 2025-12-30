@@ -91,7 +91,7 @@ struct block_partitioner {
    * @param global_index Index into global container
    * @return Index into local storage
    */
-  index_type local_index(const index_type &global_index) {
+  index_type local_index(const index_type &global_index) const {
     index_type to_return = global_index - m_local_start_index;
     YGM_ASSERT_RELEASE((to_return >= 0) && (to_return < m_local_size));
     return to_return;
@@ -104,7 +104,7 @@ struct block_partitioner {
    * @param local_index Index into locally-held items
    * @return Global index associated to local item index
    */
-  index_type global_index(const index_type &local_index) {
+  index_type global_index(const index_type &local_index) const {
     index_type to_return = m_local_start_index + local_index;
     YGM_ASSERT_RELEASE(to_return < m_partitioned_size);
     return to_return;
@@ -115,14 +115,14 @@ struct block_partitioner {
    *
    * @return Number of items stored on this rank
    */
-  index_type local_size() { return m_local_size; }
+  index_type local_size() const { return m_local_size; }
 
   /**
    * @brief Global index of first local item
    *
    * @return Beginning of global index space assigned to current rank
    */
-  index_type local_start() { return m_local_start_index; }
+  index_type local_start() const { return m_local_start_index; }
 
  private:
   int        m_comm_size;

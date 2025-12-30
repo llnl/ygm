@@ -262,6 +262,31 @@ class comm {
   }
 
   /**
+   * @brief Get the log level currently used in YGM
+   *
+   * @return Current log level
+   */
+  log_level get_log_level() { return m_logger.get_log_level(); }
+
+  /**
+   * @brief Set the logger target to use in YGM
+   *
+   * @param target Logger target to use. Possible values are
+   * ygm::logger_target::file, ygm::logger_target::stdout, and
+   * ygm::logger_target::stderr
+   */
+  void set_logger_target(const ygm::logger_target target) {
+    m_logger.set_logger_target(target);
+  }
+
+  /**
+   * @brief Get the logger target currently used in YGM
+   *
+   * @return Current logger target
+   */
+  logger_target get_logger_target() { return m_logger.get_logger_target(); }
+
+  /**
    * @brief Add a message to the YGM logs
    *
    * @tparam Args... Variadic types to add to log
@@ -278,9 +303,33 @@ class comm {
     m_logger.log(level, args...);
   }
 
+  /**
+   * @brief Add a message to the YGM logs written to multiple targets
+   *
+   * @tparam Args... Variadic types to add to log
+   * @param targets Vector of targets to write logs to
+   * @param Minimum log level for logging message
+   * @args Variadic arguments add to log
+   */
+  template <typename... Args>
+  void log(const std::vector<logger_target> &targets,
+           const ygm::log_level              level, Args &&...args) const {
+    m_logger.log(targets, level, args...);
+  }
+
+  /**
+   * @brief Set the log location to use when logging to files
+   *
+   * @param s Log location
+   */
   template <typename StringType>
   void set_log_location(const StringType &s);
 
+  /**
+   * @brief Set the log location to use when logging to files
+   *
+   * @param p Log location
+   */
   void set_log_location(std::filesystem::path p);
 
   // Private member functions

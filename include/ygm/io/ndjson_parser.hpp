@@ -23,8 +23,8 @@ namespace ygm::io {
  * @param keys Keys to erase
  * @return Number of keys erased
  */
-std::size_t json_erase(boost::json::object            &obj,
-                       const std::vector<std::string> &keys) {
+inline std::size_t json_erase(boost::json::object            &obj,
+                              const std::vector<std::string> &keys) {
   std::size_t num_erased = 0;
   for (const auto &key : keys) {
     num_erased += obj.erase(key);
@@ -39,8 +39,8 @@ std::size_t json_erase(boost::json::object            &obj,
  * @param include_keys Keys to leave in JSON object
  * @return Number of keys filtered from JSON object
  */
-std::size_t json_filter(boost::json::object            &obj,
-                        const std::vector<std::string> &include_keys) {
+inline std::size_t json_filter(boost::json::object            &obj,
+                               const std::vector<std::string> &include_keys) {
   std::set<std::string>    include_keys_set{include_keys.begin(),
                                          include_keys.end()};
   std::vector<std::string> keys_to_erase;

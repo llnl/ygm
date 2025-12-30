@@ -12,6 +12,7 @@
 #include <initializer_list>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
+#include <ygm/container/detail/base_contains.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
@@ -28,6 +29,7 @@ namespace ygm::container {
  */
 template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
+            public detail::base_contains<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
             public detail::base_iterators<bag<Item>>,
@@ -257,6 +259,17 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
    */
   size_t local_count(const value_type &val) const {
     return std::count(m_local_bag.begin(), m_local_bag.end(), val);
+  }
+
+  /**
+   * @brief Check if a value exists locally
+   *
+   * @param val Value to check for
+   * @return True if value exists locally, false otherwise
+   */
+  bool local_contains(const value_type &val) const {
+    return std::find(m_local_bag.begin(), m_local_bag.end(), val) !=
+           m_local_bag.end();
   }
 
   /**

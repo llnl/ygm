@@ -15,6 +15,7 @@
 #include <ygm/container/detail/base_async_visit.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/block_partitioner.hpp>
 
@@ -36,11 +37,13 @@ class array
       public detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>,
       public detail::base_async_visit<array<Value, Index>,
                                       std::tuple<Index, Value>>,
+      public detail::base_iterators<array<Value, Index>>,
       public detail::base_iteration_key_value<array<Value, Index>,
                                               std::tuple<Index, Value>>,
       public detail::base_async_reduce<array<Value, Index>,
                                        std::tuple<Index, Value>> {
-  friend struct detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>;
+  friend struct detail::base_misc<array<Value, Index>,
+                                  std::tuple<Index, Value>>;
 
  public:
   using self_type      = array<Value, Index>;
@@ -56,6 +59,86 @@ class array
                                  std::tuple<Index, Value>>::async_visit;
   using detail::base_async_insert_key_value<array<Value, Index>,
                                             for_all_args>::async_insert;
+
+  /*
+   * @brief Proxy class for returning pair-like objects that contain references
+   */
+  template <typename T, bool IsConst>
+  struct iterator_proxy {
+   public:
+    using value_ref_type = std::conditional_t<IsConst, const T&, T&>;
+
+    iterator_proxy(const key_type i, value_ref_type v) : index(i), value(v) {};
+
+    /*
+     * @brief `get()` method for tuple-like access
+     *
+     * Allows use of structured bindings
+     */
+    template <std::size_t N>
+    decltype(auto) get() const {
+      if constexpr (N == 0)
+        return index;
+      else if constexpr (N == 1)
+        return value;
+    }
+
+    const key_type index;
+    value_ref_type value;
+  };
+
+  /*
+   * @brief Iterator for array that gives access to items and their indices
+   */
+  template <typename T, bool IsConst>
+  class array_iterator {
+   public:
+    using value_type          = std::pair<key_type, mapped_type&>;
+    using iterator_proxy_type = iterator_proxy<T, IsConst>;
+
+    array_iterator(self_type* arr, const key_type offset, const key_type index)
+        : p_arr(arr), m_offset(offset), m_index(index) {};
+
+    iterator_proxy_type operator*() const {
+      return iterator_proxy_type(m_index + m_offset,
+                                 p_arr->m_local_vec[m_index]);
+    }
+
+    struct arrow_proxy {
+      iterator_proxy_type  m_proxy;
+      iterator_proxy_type* operator->() { return &m_proxy; }
+    };
+
+    arrow_proxy operator->() const { return arrow_proxy{**this}; }
+
+    array_iterator& operator++() {
+      m_index++;
+
+      return *this;
+    }
+
+    array_iterator operator++(int) {
+      iterator tmp(*this);
+      ++(*this);
+      return tmp;
+    }
+
+    bool operator==(const array_iterator& other) {
+      return m_index == other.m_index;
+    }
+
+    bool operator!=(const array_iterator& other) {
+      return m_index != other.m_index;
+    }
+
+   private:
+    self_type* p_arr;
+    key_type   m_offset;
+    key_type   m_index;
+  };
+
+  using iterator       = array_iterator<mapped_type, false>;
+  using const_iterator = array_iterator<mapped_type, true>;
 
   array() = delete;
 
@@ -402,6 +485,69 @@ class array
     other.m_global_size = 0;
 
     return *this;
+  }
+
+  /**
+   * @brief Access to begin iterator of locally-held items
+   *
+   * @return Local iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_begin() {
+    return iterator(this, partitioner.local_start(), 0);
+  }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const array
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_begin() const {
+    return const_iterator(this, partitioner.local_start(), 0);
+  }
+
+  /**
+   * @brief Access to begin const_iterator of locally-held items for const array
+   *
+   * @return Local const iterator to beginning of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_cbegin() const {
+    return const_iterator(const_cast<self_type*>(this),
+                          partitioner.local_start(), 0);
+  }
+
+  /**
+   * @brief Access to end iterator of locally-held items
+   *
+   * @return Local iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  iterator local_end() {
+    return iterator(this, partitioner.local_start(), partitioner.local_size());
+  }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const array
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_end() const {
+    return const_iterator(this, partitioner.local_start(),
+                          partitioner.local_size());
+  }
+
+  /**
+   * @brief Access to end const_iterator of locally-held items for const array
+   *
+   * @return Local const iterator to ending of items held by process.
+   * @details Does not call `barrier()`.
+   */
+  const_iterator local_cend() const {
+    return const_iterator(const_cast<self_type*>(this),
+                          partitioner.local_start(), partitioner.local_size());
   }
 
   /**

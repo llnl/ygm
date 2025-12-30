@@ -46,6 +46,22 @@ int main(int argc, char **argv) {
     arr.for_all([](const auto index, const auto value) {
       YGM_ASSERT_RELEASE(index == size_t(value));
     });
+
+    // test range-based for
+    for (const auto &index_item : arr) {
+      YGM_ASSERT_RELEASE(index_item.index == size_t(index_item.value));
+    }
+
+    for (auto iter = arr.cbegin(); iter != arr.cend(); ++iter) {
+      YGM_ASSERT_RELEASE(iter->index == size_t(iter->value));
+    }
+
+    auto const_for_loop = [](const ygm::container::array<int> &c_arr) {
+      for (const auto &index_item : c_arr) {
+        YGM_ASSERT_RELEASE(index_item.index == size_t(index_item.value));
+      }
+    };
+    const_for_loop(arr);
   }
 
   // Test async_binary_op_update_value
@@ -306,9 +322,8 @@ int main(int argc, char **argv) {
     });
 
     // Double all values in copy
-    arr_copy.for_all([]([[maybe_unused]] const auto &index, auto &value) {
-      value *= 2;
-    });
+    arr_copy.for_all(
+        []([[maybe_unused]] const auto &index, auto &value) { value *= 2; });
 
     world.barrier();
 

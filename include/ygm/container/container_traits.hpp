@@ -15,6 +15,7 @@ struct disjoint_set_tag;
 struct map_tag;
 struct multimap_tag;
 struct set_tag;
+struct work_queue_tag;
 
 // General template used as a base case
 template <class Container, typename = void>
@@ -73,6 +74,11 @@ constexpr bool is_multimap([[maybe_unused]] Container &c) {
 template <class Container>
 constexpr bool is_set([[maybe_unused]] Container &c) {
   return check_container_type<Container, set_tag>();
+}
+
+template <class Container>
+constexpr bool is_work_queue([[maybe_unused]] Container &c) {
+  return check_container_type<Container, work_queue_tag>();
 }
 
 }  // namespace ygm::container

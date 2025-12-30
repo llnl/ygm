@@ -40,6 +40,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(bbag.count("red") == 1);
     YGM_ASSERT_RELEASE(bbag.size() == 3);
 
+    // test contains.
+    YGM_ASSERT_RELEASE(bbag.contains("dog"));
+    YGM_ASSERT_RELEASE(bbag.contains("apple"));
+    YGM_ASSERT_RELEASE(bbag.contains("red"));
+    YGM_ASSERT_RELEASE(!bbag.contains("blue"));
+
     for (auto& value : bbag) {
       world.cout(value);
     }
@@ -157,6 +163,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(bbag.count("dog") == (size_t)world.size());
     YGM_ASSERT_RELEASE(bbag.count("apple") == (size_t)world.size());
     YGM_ASSERT_RELEASE(bbag.count("red") == (size_t)world.size());
+
+    // test contains
+    YGM_ASSERT_RELEASE(bbag.contains("dog"));
+    YGM_ASSERT_RELEASE(bbag.contains("apple"));
+    YGM_ASSERT_RELEASE(bbag.contains("red"));
+    YGM_ASSERT_RELEASE(!bbag.contains("blue"));
 
     {
       std::vector<std::string> all_data;

@@ -39,6 +39,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(sset.count("apple") == 1);
     YGM_ASSERT_RELEASE(sset.size() == 3);
 
+    // test contains.
+    YGM_ASSERT_RELEASE(sset.contains("dog"));
+    YGM_ASSERT_RELEASE(sset.contains("apple"));
+    YGM_ASSERT_RELEASE(sset.contains("red"));
+    YGM_ASSERT_RELEASE(!sset.contains("blue"));
+
     ygm::container::set<int> iset(world);
     if (world.rank() == 0) {
       iset.async_insert(42);
@@ -49,6 +55,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(iset.count(7) == 1);
     YGM_ASSERT_RELEASE(iset.count(100) == 1);
     YGM_ASSERT_RELEASE(iset.size() == 3);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(iset.contains(42));
+    YGM_ASSERT_RELEASE(iset.contains(7));
+    YGM_ASSERT_RELEASE(iset.contains(100));
+    YGM_ASSERT_RELEASE(!iset.contains(3));
   }
 
   //
@@ -65,6 +77,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(sset.count("apple") == 1);
     YGM_ASSERT_RELEASE(sset.count("red") == 1);
     YGM_ASSERT_RELEASE(sset.size() == 3);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(sset.contains("dog"));
+    YGM_ASSERT_RELEASE(sset.contains("apple"));
+    YGM_ASSERT_RELEASE(sset.contains("red"));
+    YGM_ASSERT_RELEASE(!sset.contains("blue"));
   }
 
   //
@@ -83,6 +101,12 @@ int main(int argc, char** argv) {
     sset.async_erase("dog");
     YGM_ASSERT_RELEASE(sset.count("dog") == 0);
     YGM_ASSERT_RELEASE(sset.size() == 2);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(sset.contains("apple"));
+    YGM_ASSERT_RELEASE(sset.contains("red"));
+    YGM_ASSERT_RELEASE(!sset.contains("dog"));
+    YGM_ASSERT_RELEASE(!sset.contains("blue"));
   }
 
   //
@@ -264,6 +288,13 @@ int main(int argc, char** argv) {
     sset.async_insert("car");
     YGM_ASSERT_RELEASE(sset.size() == 4);
     YGM_ASSERT_RELEASE(sset.count("car") == 1);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(sset.contains("apple"));
+    YGM_ASSERT_RELEASE(sset.contains("red"));
+    YGM_ASSERT_RELEASE(sset.contains("dog"));
+    YGM_ASSERT_RELEASE(sset.contains("car"));
+    YGM_ASSERT_RELEASE(!sset.contains("blue"));
   }
 
   //
@@ -281,6 +312,12 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(sset2.count("dog") == 1);
     YGM_ASSERT_RELEASE(sset2.count("apple") == 1);
     YGM_ASSERT_RELEASE(sset2.count("red") == 1);
+
+    // test contains.
+    YGM_ASSERT_RELEASE(sset2.contains("apple"));
+    YGM_ASSERT_RELEASE(sset2.contains("red"));
+    YGM_ASSERT_RELEASE(sset2.contains("dog"));
+    YGM_ASSERT_RELEASE(!sset2.contains("blue"));
   }
 
   // //

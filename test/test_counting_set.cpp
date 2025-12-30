@@ -44,6 +44,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(count_map["dog"] == 1);
     YGM_ASSERT_RELEASE(count_map["apple"] == 1);
     YGM_ASSERT_RELEASE(count_map.count("cat") == 0);
+
+    // test contains
+    YGM_ASSERT_RELEASE(cset.contains("dog"));
+    YGM_ASSERT_RELEASE(cset.contains("apple"));
+    YGM_ASSERT_RELEASE(cset.contains("red"));
+    YGM_ASSERT_RELEASE(!cset.contains("blue"));
   }
 
   //
@@ -66,6 +72,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset.count("cat") == 0);
 
     YGM_ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
+
+    // test contains
+    YGM_ASSERT_RELEASE(cset.contains("dog"));
+    YGM_ASSERT_RELEASE(cset.contains("apple"));
+    YGM_ASSERT_RELEASE(cset.contains("red"));
+    YGM_ASSERT_RELEASE(!cset.contains("blue"));
   }
 
   //
@@ -113,6 +125,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset.count("dog") == 0);
     YGM_ASSERT_RELEASE(cset.count("apple") == 0);
     YGM_ASSERT_RELEASE(cset.count("red") == 0);
+
+    // test contains
+    YGM_ASSERT_RELEASE(!cset.contains("dog"));
+    YGM_ASSERT_RELEASE(!cset.contains("apple"));
+    YGM_ASSERT_RELEASE(!cset.contains("red"));
+    YGM_ASSERT_RELEASE(!cset.contains("blue"));
   }
 
   // //
@@ -166,6 +184,12 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("bird") == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset2.count("red") == 0);
     YGM_ASSERT_RELEASE(cset2.size() == 3);
+
+    // test contains
+    YGM_ASSERT_RELEASE(cset2.contains("dog"));
+    YGM_ASSERT_RELEASE(cset2.contains("cat"));
+    YGM_ASSERT_RELEASE(cset2.contains("bird"));
+    YGM_ASSERT_RELEASE(!cset2.contains("red"));
   }
 
   //
