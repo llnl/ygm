@@ -9,7 +9,6 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/collective.hpp> 
 #include <ygm/container/detail/base_concepts.hpp> 
-#include <mpi.h>
 #include <cmath>
 
 namespace ygm::random {
@@ -108,15 +107,12 @@ class alias_table {
   }
 
   void balance_weight() { 
-    MPI_Comm comm = m_comm.get_mpi_comm();
     double local_weight = 0.0;
     for (uint32_t i = 0; i < m_local_items.size(); i++) {
       local_weight += m_local_items[i].weight;
     }
-    double global_weight = 0;
-    MPI_Allreduce(&local_weight, &global_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
-    double prfx_sum_weight = 0;
-    MPI_Exscan(&local_weight, &prfx_sum_weight, 1, MPI_DOUBLE, MPI_SUM, comm);
+    double global_weight = ygm::sum(local_weight, m_comm);
+    double prfx_sum_weight = ygm::prefix_sum(local_weight, m_comm);
 
     // target_weight = Amount of weight each rank should have after balancing
     double target_weight = global_weight / m_comm.size();

@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     { // Testing uniform weight distribution
       std::uniform_int_distribution<uint32_t> max_item_weight_dist(50, 100);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
-        world.cout0("uniform distribution alias table ", i, " of ", alias_tables_to_construct);
+        // world.cout0("uniform distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         uint32_t max_item_weight = max_item_weight_dist(ygm_rng);
         std::uniform_real_distribution<double> weight_dist(0, max_item_weight);
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
       std::uniform_int_distribution<uint32_t> mean_dist(50, 100);
       std::uniform_int_distribution<uint32_t> std_dev_dist(5, 20);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
-        world.cout0("Normal distribution alias table ", i, " of ", alias_tables_to_construct);
+        // world.cout0("Normal distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         uint32_t mean = mean_dist(ygm_rng);
         uint32_t std_dev = std_dev_dist(ygm_rng);
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
       std::uniform_real_distribution<double> alpha_dist(0.1, 10);
       std::uniform_real_distribution<double> theta_dist(10, 100);
       for (uint32_t i = 0; i < alias_tables_to_construct; i++) {
-        world.cout0("Gamma distribution alias table ", i, " of ", alias_tables_to_construct);
+        // world.cout0("Gamma distribution alias table ", i, " of ", alias_tables_to_construct);
         ygm::container::map<uint32_t,double> map_of_items(world);
         double alpha = alpha_dist(ygm_rng);
         double theta = theta_dist(ygm_rng);
