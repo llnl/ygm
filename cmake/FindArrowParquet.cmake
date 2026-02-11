@@ -130,7 +130,7 @@ function(install_pyarrow_in_venv)
     upgrade_pip()
 
     # Install pyarrow
-    pip_install_python_package("pyarrow==20.0.*")
+    pip_install_python_package("pyarrow==23.0.*")
     if (PIP_INSTALL_SUCCEEDED)
         find_pyarrow_package()
         if (PYARROW_ROOT)
