@@ -4,6 +4,11 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
 #include <ygm/detail/collective.hpp>
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
@@ -93,6 +98,26 @@ inline void comm::comm_setup(MPI_Comm c) {
     if (rank0()) m_tracer.create_directory();
     cf_barrier();
     m_tracer.open_file();
+  }
+
+  if (config.stats_shm) {
+    std::string uuid;
+    if (rank0()) {
+      boost::uuids::random_generator gen;
+      uuid = boost::uuids::to_string(gen());
+    }
+
+    int uuid_len = static_cast<int>(uuid.size());
+    MPI_Bcast(&uuid_len, 1, MPI_INT, 0, m_comm_other);
+    uuid.resize(static_cast<size_t>(uuid_len));
+    MPI_Bcast(uuid.data(), uuid_len, MPI_CHAR, 0, m_comm_other);
+
+    m_stats.set_uuid(uuid);
+    m_stats.setup(rank(), size());
+
+    if (m_layout.local_id() == 0) {
+      m_stats.write_manifest(m_layout.local_ranks());
+    }
   }
 }
 
@@ -411,6 +436,7 @@ inline void comm::async_barrier() {
  * messages before any rank is able to return from the barrier() call.
  */
 inline void comm::barrier() {
+  m_stats.barrier();
   if (m_trace_ygm || m_trace_mpi) {
     m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count,
                                  m_recv_count, m_pending_isend_bytes,

@@ -108,7 +108,7 @@ if (NOT boost_POPULATED)
         Boost
         URL ${BOOST_FETCH_URL}
     )
-    set(BOOST_INCLUDE_LIBRARIES json unordered container static_string)
+    set(BOOST_INCLUDE_LIBRARIES json unordered container static_string uuid)
     FetchContent_MakeAvailable(Boost)
 endif ()
 
@@ -146,7 +146,7 @@ target_include_directories(
 target_link_libraries(
     ygm
     PUBLIC
-    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json
+    INTERFACE MPI::MPI_CXX Threads::Threads cereal spdlog_header_only Boost::container Boost::unordered Boost::static_string Boost::json Boost::uuid
 )
 
 if (YGM_DONT_USE_MREMAP)
