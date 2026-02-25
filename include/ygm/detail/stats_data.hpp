@@ -10,21 +10,14 @@
 namespace ygm::detail {
 
 /**
- * @brief Header for the per-node manifest POSIX shm segment.
- *
+ * @brief Records local ranks and info in the per-node manifest POSIX shm segment.
+ * 
  * @details Written by the lowest-local-rank on each node so ygm-top can
  * discover which global ranks are node-local. Layout in shm:
- *   [manifest_header][manifest_entry][manifest_entry]...
- */
-struct manifest_header {
-  uint64_t local_rank_count;
-};
-
-/**
- * @brief One entry per local rank in the manifest segment.
+ *   [manifest_entry][manifest_entry]...
  */
 struct manifest_entry {
-  uint64_t global_rank;
+  int global_rank;
   // uint64_t pid;  // future: add per-rank metadata here
 };
 

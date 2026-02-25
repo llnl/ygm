@@ -164,8 +164,7 @@ class comm_stats {
     m_manifest_path  = "/ygm_" + m_uuid + "_manifest";
     m_owns_manifest  = true;
 
-    size_t manifest_size = sizeof(manifest_header) +
-                           local_ranks.size() * sizeof(manifest_entry);
+    size_t manifest_size = local_ranks.size() * sizeof(manifest_entry);
 
     int mfd = shm_open(m_manifest_path.c_str(), O_CREAT | O_TRUNC | O_RDWR,
                         0600);
@@ -185,8 +184,8 @@ class comm_stats {
       return;
     }
 
-    void* region =
-        mmap(NULL, manifest_size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0);
+    auto* region = static_cast<manifest_entry*>(
+        mmap(NULL, manifest_size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0));
     if (region == MAP_FAILED) {
       std::cerr << "ygm::comm_stats: mmap failed for manifest: "
                 << strerror(errno) << std::endl;
@@ -196,16 +195,8 @@ class comm_stats {
       return;
     }
 
-    // Write header
-    auto* header             = static_cast<manifest_header*>(region);
-    header->local_rank_count = local_ranks.size();
-
-    // Write entries
-    auto* entries =
-        reinterpret_cast<manifest_entry*>(static_cast<char*>(region) +
-                                          sizeof(manifest_header));
     for (size_t i = 0; i < local_ranks.size(); ++i) {
-      entries[i].global_rank = static_cast<uint64_t>(local_ranks[i]);
+      region[i].global_rank = local_ranks[i];
     }
 
     munmap(region, manifest_size);
