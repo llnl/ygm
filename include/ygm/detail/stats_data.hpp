@@ -63,12 +63,12 @@ struct stats_data {
   /*
   Potential features to be implemented at a later date
 
-  // Buffer Utilization
-  uint64_t m_pending_isend_bytes;
-  uint64_t m_send_local_buffer_bytes;
-  uint64_t m_send_remote_buffer_bytes;
-  uint64_t m_send_queue_depth;
-  uint64_t m_recv_queue_depth;
+      // Buffer Utilization
+      uint64_t m_pending_isend_bytes;
+      uint64_t m_send_local_buffer_bytes;
+      uint64_t m_send_remote_buffer_bytes;
+      uint64_t m_send_queue_depth;
+      uint64_t m_recv_queue_depth;
   */
 };
 

@@ -14,6 +14,7 @@
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_uuids.hpp>
 #include <ygm/version.hpp>
 
 namespace ygm {
@@ -74,6 +75,16 @@ inline comm::comm(MPI_Comm mcomm)
  * send buffers, and posts initial receives.
  */
 inline void comm::comm_setup(MPI_Comm c) {
+
+  if (rank0()) {
+    boost::uuids::random_generator gen;
+    m_uuid = boost::uuids::to_string(gen());
+  }
+  int uuid_len = static_cast<int>(m_uuid.size());
+  MPI_Bcast(&uuid_len, 1, MPI_INT, 0, c);
+  m_uuid.resize(static_cast<size_t>(uuid_len));
+  MPI_Bcast(m_uuid.data(), uuid_len, MPI_CHAR, 0, c);
+
   m_logger.set_path(config.default_log_path + std::to_string(rank()));
   m_logger.set_log_level(config.default_log_level);
   m_logger.log(log_level::info, "Setting up ygm::comm");
@@ -101,23 +112,11 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   if (config.stats_shm) {
-    std::string uuid;
-    if (rank0()) {
-      boost::uuids::random_generator gen;
-      uuid = boost::uuids::to_string(gen());
-    }
-
-    int uuid_len = static_cast<int>(uuid.size());
-    MPI_Bcast(&uuid_len, 1, MPI_INT, 0, m_comm_other);
-    uuid.resize(static_cast<size_t>(uuid_len));
-    MPI_Bcast(uuid.data(), uuid_len, MPI_CHAR, 0, m_comm_other);
-
-    m_stats.set_uuid(uuid);
-    m_stats.setup(rank(), size());
-
+    m_stats.setup_shm(rank(), size(), m_uuid);
     if (m_layout.local_id() == 0) {
       m_stats.write_manifest(m_layout.local_ranks());
     }
+    ygm::detail::active_comm_uuids.insert(m_uuid);
   }
 }
 
@@ -235,6 +234,13 @@ inline comm::~comm() {
   YGM_ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
 
   pimpl_if.reset();
+
+  // This is kind of strange because the shm files have not been deleted yet,
+  // but this is the last ygm-side opportunity to remove from active uuid set.
+
+  if (config.stats_shm){
+    ygm::detail::active_comm_uuids.erase(m_uuid);
+  }
 }
 
 /**

@@ -45,7 +45,6 @@ class comm_stats {
   }
 
   ~comm_stats() {
-#ifdef __linux__
     if (stats != &m_local_stats) {
       munmap(stats, sizeof(stats_data));
       if (m_fd != -1) {
@@ -56,7 +55,6 @@ class comm_stats {
         shm_unlink(m_manifest_path.c_str());
       }
     }
-#endif
   }
 
   void reset() {
@@ -109,10 +107,10 @@ class comm_stats {
   double get_elapsed_time() const { return MPI_Wtime() - stats->m_time_start; }
 
  private:
-  void set_uuid(const std::string& uuid) { m_uuid = uuid; }
+  void setup_shm(int rank, int comm_size, std::string uuid) {
+    // set UUID for output
+    m_uuid = uuid;
 
-  void setup(int rank, int comm_size) {
-#ifdef __linux__
     // Build shm path: /ygm_<UUID>_rank<RANK>
     m_stats_path = "/ygm_" + m_uuid + "_rank" + std::to_string(rank);
 
@@ -153,14 +151,9 @@ class comm_stats {
     stats->m_rank      = static_cast<uint32_t>(rank);
     stats->m_comm_size = static_cast<uint32_t>(comm_size);
     stats->m_time_start = m_time_start;
-#else
-    (void)rank;
-    (void)comm_size;
-#endif
   }
 
   void write_manifest(const std::vector<int>& local_ranks) {
-#ifdef __linux__
     m_manifest_path  = "/ygm_" + m_uuid + "_manifest";
     m_owns_manifest  = true;
 
@@ -201,9 +194,6 @@ class comm_stats {
 
     munmap(region, manifest_size);
     close(mfd);
-#else
-    (void)local_ranks;
-#endif
   }
 
   void isend([[maybe_unused]] int dest, size_t bytes) {
