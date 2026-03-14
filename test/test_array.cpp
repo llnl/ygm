@@ -756,7 +756,7 @@ int main(int argc, char **argv) {
     }
 
     {
-      std::vector<std::pair<uint64_t, std::string>> local_vec;
+      std::vector<std::pair<size_t, std::string>> local_vec;
       str_array.gather(local_vec, 0);
       if (world.rank0()) {
         std::sort(local_vec.begin(), local_vec.end(), 
@@ -773,7 +773,7 @@ int main(int argc, char **argv) {
       }
     }
     {
-      std::map<uint64_t, std::string> local_map;
+      std::map<size_t, std::string> local_map;
       str_array.gather(local_map);
       YGM_ASSERT_RELEASE(local_map.size() == 6);
       YGM_ASSERT_RELEASE(local_map[0] == "dog");
