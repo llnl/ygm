@@ -504,6 +504,39 @@ int main(int argc, char** argv) {
   }
 
   //
+  // Test gather 
+  {
+    ygm::container::set<std::string> str_set(world);
+
+    std::vector<std::string> strings = {"dog", "cat", "apple",
+                                         "orange", "red", "green"};
+    for (auto& s : strings) {
+      str_set.async_insert(s);
+    }
+
+    {
+      std::set<std::string> local_set;
+      str_set.gather(local_set, 0);
+      if (world.rank0()) {
+        YGM_ASSERT_RELEASE(local_set.size() == 6);
+        for (auto& s : strings) {
+          YGM_ASSERT_RELEASE(std::find(local_set.begin(), local_set.end(),
+                                  s) != local_set.end());
+        }
+      }
+    }
+    {
+      std::vector<std::string> local_vec;
+      str_set.gather(local_vec);
+      YGM_ASSERT_RELEASE(local_vec.size() == 6);
+      for (auto& s : strings) {
+        YGM_ASSERT_RELEASE(std::find(local_vec.begin(), local_vec.end(),
+                                s) != local_vec.end());
+      }
+    }
+  }
+
+  //
   // Test gather_values
   {
     ygm::container::set<int> iset(world);
