@@ -131,7 +131,6 @@ class comm_environment {
     }
     if (const char* cc = std::getenv("YGM_DISABLE_STATS_SHM")) {
       stats_shm = false;
-      std::cout << "Success!" << std::endl;
     }
     if (const char* cc = std::getenv("YGM_DEFAULT_LOG_PATH")) {
       default_log_path = std::string(cc);

@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <csignal>
 #endif
 
 #include <ygm/detail/stats_data.hpp>
@@ -24,6 +25,12 @@ namespace ygm {
 class comm;
 
 namespace detail {
+
+struct sigaction old_SIGINT_action;
+struct sigaction old_SIGTERM_action;
+struct sigaction old_SIGSEGV_action;
+struct sigaction old_SIGHUP_action;
+
 class comm_stats {
  public:
   friend class ygm::comm;
@@ -41,6 +48,7 @@ class comm_stats {
 
   comm_stats()
       : stats(&m_local_stats), m_time_start(MPI_Wtime()) {
+    instance = this;
     reset();
   }
 
@@ -107,7 +115,125 @@ class comm_stats {
   double get_elapsed_time() const { return MPI_Wtime() - stats->m_time_start; }
 
  private:
+
+  /**************************************
+   * SIGNAL HANDLERS FOR CLEANUP
+   **************************************/
+
+  static void chained_SIGINT_handler(int sig) {
+    const char* msg = "Chained handler caught SIGINT. Initiating shm Unlink.\n";
+    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
+
+    if (instance) {
+      instance->unlinking_handler(sig);
+    }
+
+    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
+    if (old_SIGINT_action.sa_handler != SIG_DFL && old_SIGINT_action.sa_handler != SIG_IGN) {
+      old_SIGINT_action.sa_handler(sig);
+    }
+  }
+
+  static void chained_SIGTERM_handler(int sig) {
+    const char* msg = "Chained handler caught SIGTERM. Initiating Shm Unlink.\n";
+    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
+
+    if (instance) {
+      instance->unlinking_handler(sig);
+    }
+
+    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
+    if (old_SIGTERM_action.sa_handler != SIG_DFL && old_SIGTERM_action.sa_handler != SIG_IGN) {
+      old_SIGTERM_action.sa_handler(sig);
+    }
+  }
+
+  static void chained_SIGSEGV_handler(int sig) {
+    const char* msg = "Chained handler caught SIGSEGV. Initiating Shm Unlink.\n";
+    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
+
+    if (instance) {
+      instance->unlinking_handler(sig);
+    }
+
+    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
+    if (old_SIGSEGV_action.sa_handler != SIG_DFL && old_SIGSEGV_action.sa_handler != SIG_IGN) {
+      old_SIGSEGV_action.sa_handler(sig);
+    }
+  }
+
+  static void chained_SIGHUP_handler(int sig) {
+    const char* msg = "Chained handler caught SIGHUP. Initiating Shm Unlink.\n";
+    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
+
+    if (instance) {
+      instance->unlinking_handler(sig);
+    }
+
+    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
+    if (old_SIGHUP_action.sa_handler != SIG_DFL && old_SIGHUP_action.sa_handler != SIG_IGN) {
+      old_SIGHUP_action.sa_handler(sig);
+    }
+  }
+
+
+
+  void unlinking_handler(int) {
+    if (stats != &m_local_stats){
+      if (m_fd != -1) {
+        close(m_fd); // async signal safe
+        shm_unlink(m_stats_path.c_str()); // Not async signal safe but necessary
+      }
+      if (m_owns_manifest) {
+        shm_unlink(m_manifest_path.c_str()); // Not async signal safe but necessary
+      }
+    }
+  }
+
+  /**************************************
+   * END SIGNAL HANDLERS
+   **************************************/
+
   void setup_shm(int rank, int comm_size, std::string uuid) {
+    // register unexpected exit cleanups
+
+    // create structures to hold SIGINT cleanup routines
+    struct sigaction new_SIGINT_action;
+    memset(&new_SIGINT_action, 0, sizeof(new_SIGINT_action));
+    new_SIGINT_action.sa_handler = chained_SIGINT_handler;
+
+    // register & recapture old routines
+    if (sigaction(SIGINT, &new_SIGINT_action, &old_SIGINT_action) < 0) {
+      perror("sigaction failure.");
+      std::cout << "sigaction failure." << std::endl;
+      return;
+    }
+
+    // create structures to hold SIGTERM cleanup routines
+    struct sigaction new_SIGTERM_action;
+    memset(&new_SIGTERM_action, 0, sizeof(new_SIGTERM_action));
+    new_SIGTERM_action.sa_handler = chained_SIGTERM_handler;
+
+    // register & recapture
+    if (sigaction(SIGTERM, &new_SIGTERM_action, &old_SIGTERM_action) < 0) {
+      perror("sigaction failure on SIGTERM.");
+      std::cout << "sigaction failure on SIGTERM." << std::endl;
+      return;
+    }
+
+    // create structures to hold SIGSEGV cleanup routines
+    struct sigaction new_SIGSEGV_action;
+    memset(&new_SIGSEGV_action, 0, sizeof(new_SIGSEGV_action));
+    new_SIGSEGV_action.sa_handler = chained_SIGSEGV_handler;
+
+    // register & recapture
+    if (sigaction(SIGSEGV, &new_SIGSEGV_action, &old_SIGSEGV_action) < 0) {
+      perror("sigaction failure on SIGSEGV.");
+      std::cout << "sigaction failure on SIGSEGV." << std::endl;
+      return;
+    }
+
+
     // set UUID for output
     m_uuid = uuid;
 
@@ -230,23 +356,28 @@ class comm_stats {
     return timer(stats->m_waitsome_iallreduce_time);
   }
 
-  // Backing storage — used when monitor is disabled
+  // Backing storage when sharing via shm is disabled
   stats_data m_local_stats{};
 
-  // Active storage pointer — always valid, never null
+  // Active storage pointer to shm or backing storage
   stats_data* stats;
 
-  // Shm lifecycle (only meaningful when monitor enabled)
+  // Shm lifecycle components (only meaningful when monitor enabled)
   int         m_fd             = -1;
   std::string m_stats_path;
   std::string m_manifest_path;
   bool        m_owns_manifest  = false;
 
-  // UUID for job isolation (set during setup, empty when disabled)
-  std::string m_uuid;
+  std::string m_uuid; // set during setup, empty when shm disabled
 
   // Captured at construction for timing
   double m_time_start;
+
+  // instance storage for use with signal handling
+  static comm_stats* instance;
 };
+
+comm_stats* comm_stats::instance = nullptr;
+
 }  // namespace detail
 }  // namespace ygm

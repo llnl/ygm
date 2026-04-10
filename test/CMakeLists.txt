@@ -79,6 +79,7 @@ add_ygm_test(test_wout_werr)
 add_ygm_test(test_ndjson_parser)
 add_ygm_test(test_stats)
 add_ygm_test(test_work_queue)
+add_ygm_test(monitor_demo)
 
 
 if (Arrow_FOUND AND Parquet_FOUND)
