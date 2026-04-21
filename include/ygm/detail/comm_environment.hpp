@@ -129,7 +129,7 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_TRACE_PATH")) {
       trace_path = std::string(cc);
     }
-    if (const char* cc = std::getenv("YGM_DISABLE_STATS_SHM")) {
+    if (std::getenv("YGM_DISABLE_STATS_SHM_FLAG")) {
       stats_shm = false;
     }
     if (const char* cc = std::getenv("YGM_DEFAULT_LOG_PATH")) {

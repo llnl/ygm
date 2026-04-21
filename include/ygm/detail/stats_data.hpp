@@ -9,17 +9,17 @@
 
 namespace ygm::detail {
 
-/**
- * @brief Records local ranks and info in the per-node manifest POSIX shm segment.
- * 
- * @details Written by the lowest-local-rank on each node so ygm-top can
- * discover which global ranks are node-local. Layout in shm:
- *   [manifest_entry][manifest_entry]...
- */
-struct manifest_entry {
-  int global_rank;
-  // uint64_t pid;  // future: add per-rank metadata here
-};
+// /**
+//  * @brief Records local ranks and info in the per-node manifest POSIX shm segment.
+//  * 
+//  * @details Written by the lowest-local-rank on each node so ygm-top can
+//  * discover which global ranks are node-local. Layout in shm:
+//  *   [manifest_entry][manifest_entry]...
+//  */
+// struct manifest_entry {
+//   int global_rank;
+//   // uint64_t pid;  // future: add per-rank metadata here
+// };
 
 /**
  * @brief Shared memory layout for per-rank YGM performance counters.
@@ -32,6 +32,7 @@ struct manifest_entry {
 struct stats_data {
   // Identity
   uint32_t m_rank;
+  uint32_t m_local_ranks;
   uint32_t m_comm_size;
 
   // Communication counters

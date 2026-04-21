@@ -20,16 +20,109 @@
 #endif
 
 #include <ygm/detail/stats_data.hpp>
+#include <ygm/detail/ygm_uuids.hpp>
 
 namespace ygm {
 class comm;
 
 namespace detail {
 
-struct sigaction old_SIGINT_action;
-struct sigaction old_SIGTERM_action;
-struct sigaction old_SIGSEGV_action;
-struct sigaction old_SIGHUP_action;
+namespace shm {
+
+/* +++ SHM COMPONENT NOTES +++
+// ---------------------------------------------------------------------------
+// Process-wide signal handling for shm cleanup on abnormal exit.
+//
+// This is process-global state (one signal disposition per process), not
+// per-comm_stats state, so it lives at namespace scope rather than as class
+// members. comm_stats::setup_shm() calls register_signal_handlers() once per
+// process and sets process_mpi_rank before any signal can fire. All required 
+// info for cleanup is set before segments are created.
+// ---------------------------------------------------------------------------
+*/
+
+inline int process_mpi_rank = -1; 
+
+// Dev note: Storage method may need to change if there is churn in communicators.
+constexpr int MAX_SHM_UUIDS = 8;
+inline int num_active_uuids = 0;
+inline char active_shm_uuids[MAX_SHM_UUIDS][36] = {0};
+
+inline bool process_signal_handlers_registered = false;
+
+// Signals to intercept for shm cleanup on abnormal exit.
+// No SIGKILL or SIGSTOP - cannot be caught
+constexpr int tracked_signals[] = { 
+  SIGHUP,  SIGINT,  SIGQUIT, SIGILL,  SIGTRAP, 
+  SIGABRT, SIGBUS,  SIGFPE,  SIGSEGV, SIGPIPE, // SIGPIPE occasionally used by MPI on TCP. Disable if mpi handled
+  SIGTERM, SIGSTKFLT, SIGXCPU, SIGXFSZ, SIGVTALRM,
+  SIGPWR, SIGSYS
+};
+
+constexpr size_t num_tracked_signals =
+    sizeof(tracked_signals) / sizeof(tracked_signals[0]);
+
+// Saved previous handlers, parallel to tracked_signals[].
+inline struct sigaction old_actions[num_tracked_signals];
+
+inline void chained_ygm_unlink_handler(int sig) {
+  // Diagnostic via async-signal-safe write()
+  const char* usrmsg1 = "Caught signal ";
+  char signum[2] = {static_cast<char>(sig / 10 % 10 + '0'),
+                    static_cast<char>(sig % 10 + '0')};
+  const char* usrmsg2 =
+      " in chained handler. Initiating unlink for ygm shm segments.\n";
+
+  std::ignore = write(STDOUT_FILENO, usrmsg1, 15);
+  std::ignore = write(STDOUT_FILENO, signum, 2);
+  std::ignore = write(STDOUT_FILENO, usrmsg2, 61);
+
+  // Construct path string template in signal-safe way
+  char current_shm_path[49];
+  memcpy(&current_shm_path[0], "ygm_", 4);
+  memcpy(&current_shm_path[40], "_rank", 5);
+  current_shm_path[45] = static_cast<char>(process_mpi_rank / 100 % 10 + '0');
+  current_shm_path[46] = static_cast<char>(process_mpi_rank / 10 % 10 + '0');
+  current_shm_path[47] = static_cast<char>(process_mpi_rank % 10 + '0');
+  current_shm_path[48] = '\0';
+
+  // unlink with path template and uuid list
+  for (int i = 0; i < num_active_uuids; i++){
+    memcpy(&current_shm_path[4], shm::active_shm_uuids[i], 36);
+    shm_unlink(current_shm_path);
+  }
+
+  // Call previous handler if was not default or ignore.
+  for (size_t i = 0; i < num_tracked_signals; ++i) {
+    if (tracked_signals[i] == sig
+        && old_actions[i].sa_handler != SIG_DFL
+        && old_actions[i].sa_handler != SIG_IGN) {
+      old_actions[i].sa_handler(sig);
+      break;
+    }
+  }
+
+  // Restore default disposition and re-raise so process
+  // terminates with correct signal / exit status.
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+inline void register_signal_handlers() {
+  process_signal_handlers_registered = true;
+
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = chained_ygm_unlink_handler;
+
+  for (size_t i = 0; i < num_tracked_signals; ++i) {
+    if (sigaction(tracked_signals[i], &sa, &old_actions[i]) < 0) {
+      perror("ygm: sigaction registration failure.\n");
+    }
+  }
+}
+
+} // end namespace shm
 
 class comm_stats {
  public:
@@ -48,20 +141,13 @@ class comm_stats {
 
   comm_stats()
       : stats(&m_local_stats), m_time_start(MPI_Wtime()) {
-    instance = this;
     reset();
   }
 
   ~comm_stats() {
     if (stats != &m_local_stats) {
       munmap(stats, sizeof(stats_data));
-      if (m_fd != -1) {
-        close(m_fd);
-        shm_unlink(m_stats_path.c_str());
-      }
-      if (m_owns_manifest) {
-        shm_unlink(m_manifest_path.c_str());
-      }
+      shm_unlink(m_stats_path.c_str());
     }
   }
 
@@ -115,211 +201,64 @@ class comm_stats {
   double get_elapsed_time() const { return MPI_Wtime() - stats->m_time_start; }
 
  private:
-
-  /**************************************
-   * SIGNAL HANDLERS FOR CLEANUP
-   **************************************/
-
-  static void chained_SIGINT_handler(int sig) {
-    const char* msg = "Chained handler caught SIGINT. Initiating shm Unlink.\n";
-    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
-
-    if (instance) {
-      instance->unlinking_handler(sig);
-    }
-
-    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
-    if (old_SIGINT_action.sa_handler != SIG_DFL && old_SIGINT_action.sa_handler != SIG_IGN) {
-      old_SIGINT_action.sa_handler(sig);
-    }
-  }
-
-  static void chained_SIGTERM_handler(int sig) {
-    const char* msg = "Chained handler caught SIGTERM. Initiating Shm Unlink.\n";
-    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
-
-    if (instance) {
-      instance->unlinking_handler(sig);
-    }
-
-    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
-    if (old_SIGTERM_action.sa_handler != SIG_DFL && old_SIGTERM_action.sa_handler != SIG_IGN) {
-      old_SIGTERM_action.sa_handler(sig);
-    }
-  }
-
-  static void chained_SIGSEGV_handler(int sig) {
-    const char* msg = "Chained handler caught SIGSEGV. Initiating Shm Unlink.\n";
-    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
-
-    if (instance) {
-      instance->unlinking_handler(sig);
-    }
-
-    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
-    if (old_SIGSEGV_action.sa_handler != SIG_DFL && old_SIGSEGV_action.sa_handler != SIG_IGN) {
-      old_SIGSEGV_action.sa_handler(sig);
-    }
-  }
-
-  static void chained_SIGHUP_handler(int sig) {
-    const char* msg = "Chained handler caught SIGHUP. Initiating Shm Unlink.\n";
-    write(STDOUT_FILENO, msg, strlen(msg)); // Async-signal-safe methods
-
-    if (instance) {
-      instance->unlinking_handler(sig);
-    }
-
-    // Call the previous handler if exists unless SIG_DFL or SIG_IGN
-    if (old_SIGHUP_action.sa_handler != SIG_DFL && old_SIGHUP_action.sa_handler != SIG_IGN) {
-      old_SIGHUP_action.sa_handler(sig);
-    }
-  }
-
-
-
-  void unlinking_handler(int) {
-    if (stats != &m_local_stats){
-      if (m_fd != -1) {
-        close(m_fd); // async signal safe
-        shm_unlink(m_stats_path.c_str()); // Not async signal safe but necessary
-      }
-      if (m_owns_manifest) {
-        shm_unlink(m_manifest_path.c_str()); // Not async signal safe but necessary
-      }
-    }
-  }
-
-  /**************************************
-   * END SIGNAL HANDLERS
-   **************************************/
-
-  void setup_shm(int rank, int comm_size, std::string uuid) {
-    // register unexpected exit cleanups
-
-    // create structures to hold SIGINT cleanup routines
-    struct sigaction new_SIGINT_action;
-    memset(&new_SIGINT_action, 0, sizeof(new_SIGINT_action));
-    new_SIGINT_action.sa_handler = chained_SIGINT_handler;
-
-    // register & recapture old routines
-    if (sigaction(SIGINT, &new_SIGINT_action, &old_SIGINT_action) < 0) {
-      perror("sigaction failure.");
-      std::cout << "sigaction failure." << std::endl;
+  void setup_shm(int rank, int comm_size, int local_size, std::string uuid) {
+    // Prep signal handling support for abnormal exit cleanup
+    if (shm::num_active_uuids == shm::MAX_SHM_UUIDS) {
+      std::cerr << "Could not allocate additional shm_stats due to uuid limit." << std::endl;
+      std::cerr << "Increase max shm uuids in comm_stats.hpp." << std::endl;
       return;
     }
+    
+    shm::process_mpi_rank = rank;
+    memcpy(shm::active_shm_uuids[shm::num_active_uuids], uuid.c_str(), 36);
+    shm::num_active_uuids++;
 
-    // create structures to hold SIGTERM cleanup routines
-    struct sigaction new_SIGTERM_action;
-    memset(&new_SIGTERM_action, 0, sizeof(new_SIGTERM_action));
-    new_SIGTERM_action.sa_handler = chained_SIGTERM_handler;
-
-    // register & recapture
-    if (sigaction(SIGTERM, &new_SIGTERM_action, &old_SIGTERM_action) < 0) {
-      perror("sigaction failure on SIGTERM.");
-      std::cout << "sigaction failure on SIGTERM." << std::endl;
-      return;
+    if (!shm::process_signal_handlers_registered) {
+      shm::register_signal_handlers();
     }
-
-    // create structures to hold SIGSEGV cleanup routines
-    struct sigaction new_SIGSEGV_action;
-    memset(&new_SIGSEGV_action, 0, sizeof(new_SIGSEGV_action));
-    new_SIGSEGV_action.sa_handler = chained_SIGSEGV_handler;
-
-    // register & recapture
-    if (sigaction(SIGSEGV, &new_SIGSEGV_action, &old_SIGSEGV_action) < 0) {
-      perror("sigaction failure on SIGSEGV.");
-      std::cout << "sigaction failure on SIGSEGV." << std::endl;
-      return;
-    }
-
-
-    // set UUID for output
+    
+    // Continue to shm region initialization
     m_uuid = uuid;
-
-    // Build shm path: /ygm_<UUID>_rank<RANK>
-    m_stats_path = "/ygm_" + m_uuid + "_rank" + std::to_string(rank);
+    m_stats_path = "/ygm_" + m_uuid + "_rank" + std::format("{:03d}", rank);
 
     // Create and size the shm object
-    m_fd = shm_open(m_stats_path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
-    if (m_fd == -1) {
+    int fd = shm_open(m_stats_path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
+    if (fd == -1) {
       std::cerr << "ygm::comm_stats: shm_open failed for " << m_stats_path
                 << ": " << strerror(errno) << std::endl;
       return;
     }
 
-    if (ftruncate(m_fd, sizeof(stats_data)) == -1) {
+    if (ftruncate(fd, sizeof(stats_data)) == -1) {
       std::cerr << "ygm::comm_stats: ftruncate failed for " << m_stats_path
                 << ": " << strerror(errno) << std::endl;
-      close(m_fd);
+      close(fd);
       shm_unlink(m_stats_path.c_str());
-      m_fd = -1;
       return;
     }
 
     // Map into address space
     void* region = mmap(NULL, sizeof(stats_data), PROT_READ | PROT_WRITE,
-                        MAP_SHARED, m_fd, 0);
+                        MAP_SHARED, fd, 0);
     if (region == MAP_FAILED) {
       std::cerr << "ygm::comm_stats: mmap failed for " << m_stats_path << ": "
                 << strerror(errno) << std::endl;
-      close(m_fd);
+      close(fd);
       shm_unlink(m_stats_path.c_str());
-      m_fd = -1;
       return;
     }
 
-    // Swing the pointer — this is the only "switch" in the entire design
+    close(fd); // after mmapped, file descriptor isn't needed to access region.
+
+    // Swing pointer to shared memory region
     stats = static_cast<stats_data*>(region);
 
     // Initialize the shm region
     reset();
     stats->m_rank      = static_cast<uint32_t>(rank);
     stats->m_comm_size = static_cast<uint32_t>(comm_size);
+    stats->m_local_ranks = static_cast<uint32_t>(local_size);
     stats->m_time_start = m_time_start;
-  }
-
-  void write_manifest(const std::vector<int>& local_ranks) {
-    m_manifest_path  = "/ygm_" + m_uuid + "_manifest";
-    m_owns_manifest  = true;
-
-    size_t manifest_size = local_ranks.size() * sizeof(manifest_entry);
-
-    int mfd = shm_open(m_manifest_path.c_str(), O_CREAT | O_TRUNC | O_RDWR,
-                        0600);
-    if (mfd == -1) {
-      std::cerr << "ygm::comm_stats: shm_open failed for manifest: "
-                << strerror(errno) << std::endl;
-      m_owns_manifest = false;
-      return;
-    }
-
-    if (ftruncate(mfd, static_cast<off_t>(manifest_size)) == -1) {
-      std::cerr << "ygm::comm_stats: ftruncate failed for manifest: "
-                << strerror(errno) << std::endl;
-      close(mfd);
-      shm_unlink(m_manifest_path.c_str());
-      m_owns_manifest = false;
-      return;
-    }
-
-    auto* region = static_cast<manifest_entry*>(
-        mmap(NULL, manifest_size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0));
-    if (region == MAP_FAILED) {
-      std::cerr << "ygm::comm_stats: mmap failed for manifest: "
-                << strerror(errno) << std::endl;
-      close(mfd);
-      shm_unlink(m_manifest_path.c_str());
-      m_owns_manifest = false;
-      return;
-    }
-
-    for (size_t i = 0; i < local_ranks.size(); ++i) {
-      region[i].global_rank = local_ranks[i];
-    }
-
-    munmap(region, manifest_size);
-    close(mfd);
   }
 
   void isend([[maybe_unused]] int dest, size_t bytes) {
@@ -362,22 +301,13 @@ class comm_stats {
   // Active storage pointer to shm or backing storage
   stats_data* stats;
 
-  // Shm lifecycle components (only meaningful when monitor enabled)
-  int         m_fd             = -1;
+  // Shm lifecycle components (empty if shm disabled)
   std::string m_stats_path;
-  std::string m_manifest_path;
-  bool        m_owns_manifest  = false;
-
-  std::string m_uuid; // set during setup, empty when shm disabled
+  std::string m_uuid;
 
   // Captured at construction for timing
   double m_time_start;
-
-  // instance storage for use with signal handling
-  static comm_stats* instance;
 };
-
-comm_stats* comm_stats::instance = nullptr;
 
 }  // namespace detail
 }  // namespace ygm

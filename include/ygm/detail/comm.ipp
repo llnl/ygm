@@ -112,12 +112,10 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   if (config.stats_shm) {
-    m_stats.setup_shm(rank(), size(), m_uuid);
-    if (m_layout.local_id() == 0) {
-      m_stats.write_manifest(m_layout.local_ranks());
-    }
-    ygm::detail::active_comm_uuids.insert(m_uuid);
+    m_stats.setup_shm(rank(), size(), m_layout.local_size(), m_uuid);
   }
+
+  ygm::detail::active_comm_uuids.insert(m_uuid);
 }
 
 /**
@@ -235,12 +233,7 @@ inline comm::~comm() {
 
   pimpl_if.reset();
 
-  // This is kind of strange because the shm files have not been deleted yet,
-  // but this is the last ygm-side opportunity to remove from active uuid set.
-
-  if (config.stats_shm){
-    ygm::detail::active_comm_uuids.erase(m_uuid);
-  }
+  ygm::detail::active_comm_uuids.erase(m_uuid);
 }
 
 /**

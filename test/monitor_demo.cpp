@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 10; ++i) {
     // Send some async messages to generate stats
     for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(dest, [](int sender){}, world.rank());
+      world.async(dest, [](int){}, world.rank());
       std::this_thread::sleep_for(std::chrono::milliseconds(world.rank() * 250)); 
     }
 
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
       std::vector<int> overflow_vec;
   
       // flood vector until a process runs out of available mem
-      while(true) {
+      while (true) {
         overflow_vec.push_back(j++);
       }
 
@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
        * 
        * Cluster SRUN:
        * 
+       * Cluster SALLOC:
        */
     }
 
@@ -61,6 +62,8 @@ int main(int argc, char** argv) {
       std::cout << "Segfault requested." << std::endl;
       int* ptr = nullptr;
       *ptr = 42;
+
+      // TODO: ensure the same behavior for single rank failure      
 
       /**
        * Local MPIRUN:
@@ -70,6 +73,7 @@ int main(int argc, char** argv) {
        * Cluster SBATCH:
        * 
        * Cluster SRUN:
+       * 
        * 
        */
     }
