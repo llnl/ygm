@@ -112,10 +112,10 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   if (config.stats_shm) {
-    m_stats.setup_shm(rank(), size(), m_layout.local_size(), m_uuid);
+    m_stats.open_shm(rank(), size(), m_layout.local_size(), m_uuid);
   }
 
-  ygm::detail::active_comm_uuids.insert(m_uuid);
+  ygm::detail::live_comm_uuids.insert(m_uuid);
 }
 
 /**
@@ -233,7 +233,7 @@ inline comm::~comm() {
 
   pimpl_if.reset();
 
-  ygm::detail::active_comm_uuids.erase(m_uuid);
+  ygm::detail::live_comm_uuids.erase(m_uuid);
 }
 
 /**

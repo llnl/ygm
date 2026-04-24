@@ -9,18 +9,6 @@
 
 namespace ygm::detail {
 
-// /**
-//  * @brief Records local ranks and info in the per-node manifest POSIX shm segment.
-//  * 
-//  * @details Written by the lowest-local-rank on each node so ygm-top can
-//  * discover which global ranks are node-local. Layout in shm:
-//  *   [manifest_entry][manifest_entry]...
-//  */
-// struct manifest_entry {
-//   int global_rank;
-//   // uint64_t pid;  // future: add per-rank metadata here
-// };
-
 /**
  * @brief Shared memory layout for per-rank YGM performance counters.
  *
@@ -32,13 +20,13 @@ namespace ygm::detail {
 struct stats_data {
   // Identity
   uint32_t m_rank;
-  uint32_t m_local_ranks;
+  uint32_t m_local_size;
   uint32_t m_comm_size;
 
   // Communication counters
   uint64_t m_async_count;
   uint64_t m_barrier_count;
-  // uint64_t m_async_barrier_count;
+  // TODO: add m_async_barrier_count once async-barrier instrumentation lands.
   uint64_t m_rpc_count;
   uint64_t m_route_count;
 
@@ -59,18 +47,11 @@ struct stats_data {
   double m_waitsome_iallreduce_time;
   double m_time_start;
 
-  // double m_last_barrier_duration;
+  // TODO: add double m_last_barrier_duration once per-barrier timing is wired in.
 
-  /*
-  Potential features to be implemented at a later date
-
-      // Buffer Utilization
-      uint64_t m_pending_isend_bytes;
-      uint64_t m_send_local_buffer_bytes;
-      uint64_t m_send_remote_buffer_bytes;
-      uint64_t m_send_queue_depth;
-      uint64_t m_recv_queue_depth;
-  */
+  // TODO: u64 buffer-utilization counters (future). Candidates:
+  //   m_pending_isend_bytes, m_send_local_buffer_bytes,
+  //   m_send_remote_buffer_bytes, m_send_queue_depth, m_recv_queue_depth.
 };
 
 }  // namespace ygm::detail
