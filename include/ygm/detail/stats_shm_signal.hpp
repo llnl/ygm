@@ -153,6 +153,8 @@ inline void ensure_handlers_registered() {
   if (process_signal_handlers_registered) return;
   process_signal_handlers_registered = true;
 
+  // Default (no SA_NODEFER): POSIX blocks the same signal during its own
+  // handler, so the handler does not re-enter itself on the active rank.
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_flags     = SA_SIGINFO;
