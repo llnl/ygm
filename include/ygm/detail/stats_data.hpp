@@ -30,6 +30,9 @@ struct stats_data {
   uint64_t m_rpc_count;
   uint64_t m_route_count;
 
+  uint64_t m_large_buffer_send_count;
+  uint64_t m_large_buffer_recv_count;
+
   uint64_t m_isend_count;
   uint64_t m_isend_bytes;
   uint64_t m_isend_test_count;

@@ -56,8 +56,8 @@ class comm_stats {
     stats->m_barrier_count              = 0;
     stats->m_rpc_count                  = 0;
     stats->m_route_count                = 0;
-    m_large_buffer_send_count    = 0;
-    m_large_buffer_recv_count    = 0;
+    stats->m_large_buffer_send_count    = 0;
+    stats->m_large_buffer_recv_count    = 0;
     stats->m_isend_count                = 0;
     stats->m_isend_bytes                = 0;
     stats->m_isend_test_count           = 0;
@@ -86,10 +86,10 @@ class comm_stats {
   size_t get_irecv_test_count() const { return stats->m_irecv_test_count; }
 
   size_t get_large_buffer_send_count() const {
-    return m_large_buffer_send_count;
+    return stats->m_large_buffer_send_count;
   }
   size_t get_large_buffer_recv_count() const {
-    return m_large_buffer_recv_count;
+    return stats->m_large_buffer_recv_count;
   }
 
   double get_waitsome_isend_irecv_time() const {
@@ -191,11 +191,11 @@ class comm_stats {
   }
 
   void large_buffer_send([[maybe_unused]] int dest) {
-    m_large_buffer_send_count += 1;
+    stats->m_large_buffer_send_count += 1;
   }
 
   void large_buffer_recv([[maybe_unused]] int source) {
-    m_large_buffer_recv_count += 1;
+    stats->m_large_buffer_recv_count += 1;
   }
 
   void async([[maybe_unused]] int dest) { stats->m_async_count += 1; }
