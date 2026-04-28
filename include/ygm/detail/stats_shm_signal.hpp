@@ -4,12 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * TODOs: 
- *      * Review Lines 125 - 160 (end of handler and all ensure_ensure registered)
- *      * Rewrite blurb at top of file
- */
-
-/**
  * @file stats_shm_signal.hpp
  * @brief Process-wide signal handling for shm stats cleanup on abnormal exit.
  *
@@ -18,10 +12,10 @@
  *   segment (see comm_stats::open_shm). Those segments live in /dev/shm
  *   and are normally unlinked when the owning comm is destroyed, but a
  *   signal-terminated process would otherwise leak them. This module
- *   installs a chained signal handler that walks a table of staged shm
- *   paths and calls shm_unlink on each before forwarding to the
- *   previously installed handler and re-raising with the default
- *   disposition.
+ *   provides infrastructure and installs a chained signal handler that
+ *   walks a table of staged shm paths and calls shm_unlink on each 
+ *   before forwarding to the previously installed handler and re-raising
+ *   with the default disposition.
  *
  * Scope and linkage
  *   State here is process-global (one signal disposition per process),
@@ -38,6 +32,7 @@
  *   - comm_stats::~comm_stats calls unregister_path(path) after unlinking
  *     the segment, so a signal firing mid-teardown sees either an
  *     already-unlinked path (ENOENT) or the live tail of the array.
+ *   - Upon signal receipt, a graceful cleanup is attempted for tracked signals.
  *   - Signal handlers are never uninstalled; once present they stay for
  *     the life of the process.
  *
@@ -52,8 +47,6 @@
  */
 
 #pragma once
-
-#ifdef __linux__
 
 #include <csignal>
 #include <cstdio>
@@ -98,8 +91,7 @@ constexpr size_t num_tracked_signals =
 // ensure_handlers_registered().
 inline struct sigaction old_actions[num_tracked_signals];
 
-
-/* HANDLING AND SUPPORT FUNCTIONS BELOW */
+/* HANDLING AND SUPPORT FUNCTIONS */
 
 inline void chained_unlink_handler(int sig, siginfo_t* info,
                                    void* ucontext) {
@@ -111,7 +103,7 @@ inline void chained_unlink_handler(int sig, siginfo_t* info,
                     static_cast<char>(sig % 10 + '0')};
 
   // sizeof(msg)-1 for null term strings. Keeps byte count synced with msg length
-  // (void)! cast is kind of hacky warning supression, but if fails all is lost
+  // (void)! cast is warning supression; return not material if already in failure mode
   (void)!write(STDOUT_FILENO, prefix_msg, sizeof(prefix_msg) - 1);
   (void)!write(STDOUT_FILENO, signum, 2);
   (void)!write(STDOUT_FILENO, suffix_msg, sizeof(suffix_msg) - 1);
@@ -182,13 +174,9 @@ inline bool register_path(const char* path) {
 }
 
 // Remove a path from the signal-tracking array via swap-and-decrement.
-// Caller MUST have already unlinked the segment prior to unregistering.
-// The handler snapshots num_active_paths once, so a signal firing during
-// this function sees at worst a brief duplicate (slot i and the tail
-// slot holding the same path) which reduces to an extra shm_unlink that
-// returns ENOENT -- harmless. The caller must have already unlinked the
-// backing segment; otherwise a signal firing between the swap and the
-// decrement could leave a live segment at the vacated slot.
+// To adhere to lifecycle correctness, caller MUST have already unlinked
+// the segment prior to unregistering. Otherwise, a signal firing between
+// the swap and the decrement could leave a live segment at the vacated slot.
 inline void unregister_path(const char* path) {
   for (int i = 0; i < num_active_paths; ++i) {
     if (strcmp(active_shm_paths[i], path) == 0) {
@@ -203,5 +191,3 @@ inline void unregister_path(const char* path) {
 }
 
 }  // namespace ygm::detail::shm
-
-#endif  // __linux__
