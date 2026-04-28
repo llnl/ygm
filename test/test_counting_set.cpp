@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset1.size() == 3);
 
     cset1.for_all([&cset2](const auto &key, const auto &value) {
-      for (int i = 0; i < value; i++) {
+      for (size_t i = 0; i < value; i++) {
         cset2.async_insert(key);
       }
     });
@@ -228,7 +228,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
     YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
     YGM_ASSERT_RELEASE(cset2.count("red") == 2);
-    YGM_ASSERT_RELEASE(cset2.size() == 6);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
   }
 
   //
@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
     YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
     YGM_ASSERT_RELEASE(cset2.count("red") == 2);
-    YGM_ASSERT_RELEASE(cset2.size() == 6);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
   }
 
   //
@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
     YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
     YGM_ASSERT_RELEASE(cset2.count("red") == 2);
-    YGM_ASSERT_RELEASE(cset2.size() == 6);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
   }
 
   //
@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.count("dog") == 2);
     YGM_ASSERT_RELEASE(cset2.count("apple") == 2);
     YGM_ASSERT_RELEASE(cset2.count("red") == 2);
-    YGM_ASSERT_RELEASE(cset2.size() == 6);
+    YGM_ASSERT_RELEASE(cset2.size() == 3);
   }
 
   return 0;

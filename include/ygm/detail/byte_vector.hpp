@@ -95,11 +95,12 @@ class byte_vector {
   const_reference operator[](int i) const { return m_data[i]; }
   reference       operator[](int i) { return m_data[i]; }
 
-  pointer data() const { return m_data; }
-  bool    empty() const { return m_size == 0; }
-  void    clear() { m_size = 0; }
-  size_t  size() const { return m_size; }
-  size_t  capacity() const { return m_capacity; }
+  pointer       data() const { return m_data; }
+  bool          empty() const { return m_size == 0; }
+  void          clear() { m_size = 0; }
+  size_t        size() const { return m_size; }
+  const size_t& size_ref() const { return m_size; }
+  size_t        capacity() const { return m_capacity; }
 
   Byte_Iterator begin() { return Byte_Iterator(this, 0); }
   Byte_Iterator end() { return Byte_Iterator(this, m_size); }

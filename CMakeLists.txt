@@ -32,6 +32,7 @@ project(
 option(YGM_BUILD_TESTS "Build tests" OFF)
 option(YGM_BUILD_DOCS "Adds targets for generating Doxygen and Sphinx documentation" OFF)
 option(YGM_DOCS_ONLY "Run Cmake for only generating documentation (i.e. for Read the Docs)" OFF)
+option(YGM_FIND_PARQUET_IN_SYSTEM "Find Arrow Parquet installed in the system." OFF)
 option(YGM_INSTALL_PARQUET "Installs Arrow Parquet." OFF)
 set(YGM_PYTHON_VENV_ROOT CACHE PATH "Path to a Python virtual environment root. If set, YGM will use this virtual environment for Python dependencies.")
 option(YGM_DONT_USE_MREMAP "Do not try using mremap for managing memory." OFF)
@@ -129,6 +130,13 @@ endif ()
 # Arrow
 #
 include(FindArrowParquet)
+if (YGM_FIND_PARQUET_IN_SYSTEM)
+    if (YGM_INSTALL_PARQUET)
+        message(INFO "Both YGM_FIND_PARQUET_IN_SYSTEM and YGM_INSTALL_PARQUET are also ON. System-wide Arrow Parquet is used, if found.")
+    endif()
+    find_arrow_parquet_config()
+endif ()
+
 if (YGM_INSTALL_PARQUET)
     install_arrow_parquet()
 endif ()

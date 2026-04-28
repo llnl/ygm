@@ -7,6 +7,7 @@
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_or_assign.hpp>
@@ -32,6 +33,8 @@ class map
       public detail::base_contains<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_count<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_reduce<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_async_contains<map<Key, Value>,
+                                         std::tuple<Key, Value>>,
       public detail::base_async_erase_key<map<Key, Value>,
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<map<Key, Value>,
@@ -433,13 +436,14 @@ class map
   template <typename STLKeyContainer>
   std::map<key_type, mapped_type> gather_keys(const STLKeyContainer& keys) {
     std::map<key_type, mapped_type>         to_return;
-    static std::map<key_type, mapped_type>& sto_return = to_return;
+    static std::map<key_type, mapped_type>* sto_return;
+    sto_return = &to_return;
 
     auto fetcher = [](auto pcomm, int from, const key_type& key, auto pmap) {
       auto returner = [](const key_type&                 key,
                          const std::vector<mapped_type>& values) {
         for (const auto& v : values) {
-          sto_return.insert(std::make_pair(key, v));
+          sto_return->insert(std::make_pair(key, v));
         }
       };
       auto values = pmap->local_get(key);

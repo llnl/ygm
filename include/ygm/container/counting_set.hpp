@@ -89,10 +89,10 @@ class counting_set
    * @param cont STL container containing values to count
    */
   template <typename STLContainer>
-  counting_set(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Key>
-      : m_comm(comm), pthis(this), m_map(comm), partitioner(comm) {
+  counting_set(ygm::comm &comm, const STLContainer &cont) requires
+      detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Key>
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(m_map.partitioner) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -110,10 +110,10 @@ class counting_set
    * @param yc YGM container containing values to count
    */
   template <typename YGMContainer>
-  counting_set(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm), pthis(this), m_map(comm), partitioner(comm) {
+  counting_set(ygm::comm &comm, const YGMContainer &yc) requires
+      detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
+      : m_comm(comm), pthis(this), m_map(comm), partitioner(m_map.partitioner) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -132,9 +132,15 @@ class counting_set
         pthis(this),
         m_count_cache(other.m_count_cache),
         m_cache_empty(other.m_cache_empty),
-        m_map(other.m_map) {
+        m_map(other.m_map),
+        partitioner(other.partitioner) {
     m_comm.log(log_level::info, "Copying ygm::container::counting_set");
     pthis.check(m_comm);
+
+    if (not m_cache_empty) {
+      m_map.comm().register_pre_barrier_callback(
+          [this]() { this->count_cache_flush_all(); });
+    }
   }
 
   counting_set(self_type &&other)
@@ -142,9 +148,15 @@ class counting_set
         pthis(this),
         m_count_cache(std::move(other.m_count_cache)),
         m_cache_empty(other.m_cache_empty),
-        m_map(std::move(other.m_map)) {
+        m_map(std::move(other.m_map)),
+        partitioner(other.partitioner) {
     m_comm.log(log_level::info, "Moving ygm::container::counting_set");
     pthis.check(m_comm);
+
+    if (not m_cache_empty) {
+      m_map.comm().register_pre_barrier_callback(
+          [this]() { this->count_cache_flush_all(); });
+    }
   }
 
   counting_set &operator=(const self_type &other) {
@@ -157,7 +169,8 @@ class counting_set
     m_comm.log(log_level::info,
                "Calling ygm::container::counting_set move assignment operator");
     std::swap(m_count_cache, other.m_count_cache);
-    m_map = std::move(other.m_map);
+    m_map       = std::move(other.m_map);
+    partitioner = m_map.partitioner;
     return *this;
   }
 
@@ -305,8 +318,8 @@ class counting_set
    */
   mapped_type count_all() {
     mapped_type local_count{0};
-    local_for_all(
-        [&local_count]([[maybe_unused]]const auto &key, auto &value) { local_count += value; });
+    local_for_all([&local_count]([[maybe_unused]] const auto &key,
+                                 auto &value) { local_count += value; });
     return ::ygm::sum(local_count, m_map.comm());
   }
 

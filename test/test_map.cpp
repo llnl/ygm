@@ -301,6 +301,39 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(!smap.contains("blue"));
   }
 
+  //
+  // Test async_contains
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+    smap.async_insert("apple", "orange");
+
+    world.barrier();
+
+    auto contains_key_functor = [](const bool         is_present,
+                                   const std::string &key,
+                                   const std::string &sent_key) {
+      YGM_ASSERT_RELEASE(key == sent_key);
+      YGM_ASSERT_RELEASE(is_present == true);
+    };
+
+    auto does_not_contain_key_functor = [](const bool         is_present,
+                                           const std::string &key,
+                                           const std::string &sent_key) {
+      YGM_ASSERT_RELEASE(key == sent_key);
+      YGM_ASSERT_RELEASE(is_present == false);
+    };
+
+    smap.async_contains("dog", contains_key_functor, std::string("dog"));
+    smap.async_contains("apple", contains_key_functor, std::string("apple"));
+
+    smap.async_contains("fish", does_not_contain_key_functor,
+                        std::string("fish"));
+    smap.async_contains("tomato", does_not_contain_key_functor,
+                        std::string("tomato"));
+  }
+
   // Test batch erase from set
   {
     int                           num_items   = 100;

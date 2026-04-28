@@ -11,6 +11,7 @@
 int main(int argc, char** argv) {
   // Create comm for very small messages
   ::setenv("YGM_COMM_BUFFER_SIZE_KB", "1", 1);
+  ::setenv("YGM_COMM_IRECV_SIZE_KB", "1", 1);
   ygm::comm world(&argc, &argv);
 
   // Test Rank 0 large message to all ranks

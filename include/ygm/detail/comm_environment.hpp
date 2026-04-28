@@ -74,18 +74,21 @@ class comm_environment {
     }
     switch (routing) {
       case routing_type::NONE:
-        local_buffer_size =
-            round_to_nearest_kb((float)total_buffer_size / nodes);
-        remote_buffer_size = total_buffer_size - local_buffer_size;
+        local_buffer_size = std::max<size_t>(
+            round_to_nearest_kb((float)total_buffer_size / nodes), 1);
+        remote_buffer_size =
+            std::max<size_t>(total_buffer_size - local_buffer_size, 1);
         break;
       case routing_type::NR:
-        local_buffer_size  = round_to_nearest_kb((float)total_buffer_size / 2);
+        local_buffer_size = std::max<size_t>(
+            round_to_nearest_kb((float)total_buffer_size / 2), 1);
         remote_buffer_size = local_buffer_size;
         break;
       case routing_type::NLNR:
-        local_buffer_size =
-            round_to_nearest_kb(2 * (float)total_buffer_size / 3);
-        remote_buffer_size = round_to_nearest_kb((float)total_buffer_size / 3);
+        local_buffer_size = std::max<size_t>(
+            round_to_nearest_kb(2 * (float)total_buffer_size / 3), 1);
+        remote_buffer_size = std::max<size_t>(
+            round_to_nearest_kb((float)total_buffer_size / 3), 1);
         break;
     }
     if (const char* cc = std::getenv("YGM_COMM_LOCAL_BUFFER_SIZE_KB")) {
@@ -213,7 +216,7 @@ class comm_environment {
   size_t local_buffer_size;
   size_t remote_buffer_size;
 
-  size_t irecv_size = 1024 * 1024 * 1024;
+  size_t irecv_size = 1024 * 1024;
   size_t num_irecvs = 8;
 
   size_t num_isends_wait           = 4;

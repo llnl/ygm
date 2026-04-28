@@ -741,5 +741,50 @@ int main(int argc, char **argv) {
     });
   }
 
+  //
+  // Test gather 
+  {
+    ygm::container::array<std::string> str_array(world, 6);
+
+    if (world.rank0()) {
+      str_array.async_set(0, "dog");
+      str_array.async_set(1, "cat");
+      str_array.async_set(2, "apple");
+      str_array.async_set(3, "orange");
+      str_array.async_set(4, "red");
+      str_array.async_set(5, "green");
+    }
+
+    {
+      std::vector<std::pair<size_t, std::string>> local_vec;
+      str_array.gather(local_vec, 0);
+      if (world.rank0()) {
+        std::sort(local_vec.begin(), local_vec.end(), 
+                  [](const auto& a, const auto& b){
+                    return a.first < b.first;
+                  });
+        YGM_ASSERT_RELEASE(local_vec.size() == 6);
+        YGM_ASSERT_RELEASE(local_vec[0].second == "dog");
+        YGM_ASSERT_RELEASE(local_vec[1].second == "cat");
+        YGM_ASSERT_RELEASE(local_vec[2].second == "apple");
+        YGM_ASSERT_RELEASE(local_vec[3].second == "orange");
+        YGM_ASSERT_RELEASE(local_vec[4].second == "red");
+        YGM_ASSERT_RELEASE(local_vec[5].second == "green");
+      }
+    }
+    {
+      std::map<size_t, std::string> local_map;
+      str_array.gather(local_map);
+      YGM_ASSERT_RELEASE(local_map.size() == 6);
+      YGM_ASSERT_RELEASE(local_map[0] == "dog");
+      YGM_ASSERT_RELEASE(local_map[1] == "cat");
+      YGM_ASSERT_RELEASE(local_map[2] == "apple");
+      YGM_ASSERT_RELEASE(local_map[3] == "orange");
+      YGM_ASSERT_RELEASE(local_map[4] == "red");
+      YGM_ASSERT_RELEASE(local_map[5] == "green");
+    }
+  }
+
+
   return 0;
 }

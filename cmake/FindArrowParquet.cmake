@@ -147,10 +147,10 @@ endfunction()
 # Arrow_FOUND is set to TRUE if Arrow is found.
 # Parquet_FOUND is set to TRUE if Parquet is found.
 function(find_arrow_parquet_config)
-    # Find Arrow >= 8.0.
+    # Find Arrow >= 19.0.
     # Start major version from 100 so that we do not have to update
     # this code every time Arrow releases a major version.
-    foreach (MAJOR_VERSION RANGE 100 8 -1)
+    foreach (MAJOR_VERSION RANGE 100 19 -1)
         find_package(Arrow "${MAJOR_VERSION}.0" QUIET)
         if (Arrow_FOUND)
             break()
@@ -160,7 +160,7 @@ function(find_arrow_parquet_config)
 
     # Find Parquet
     if (Arrow_FOUND)
-        find_package(Parquet QUIET PATHS ${Arrow_DIR})
+        find_package(Parquet PATHS ${Arrow_DIR})
     endif ()
     set(Parquet_FOUND ${Parquet_FOUND} PARENT_SCOPE)
 

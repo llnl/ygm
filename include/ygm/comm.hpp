@@ -371,6 +371,7 @@ class comm {
   void queue_message_bytes(const ygm::detail::byte_vector &packed,
                            const int                       dest);
 
+  int  prepare_receive_data(mpi_irecv_request &req_buffer, MPI_Status &status);
   void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
                            const size_t buffer_size, const uint32_t from_rank);
 
@@ -387,6 +388,7 @@ class comm {
   std::shared_ptr<detail::mpi_init_finalize> pimpl_if;
 
   MPI_Comm m_comm_async;
+  MPI_Comm m_comm_async_large_buffer;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
 

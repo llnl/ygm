@@ -869,6 +869,35 @@ class array
   }
 
   /**
+   * @brief Apply a lambda to all const local elements
+   *
+   * @tparam Function functor type
+   * @param fn Functor object to apply to all elements locally stored in the
+   * array
+   * @details This operation can be called non-collectively.
+   */
+  template <typename Function>
+  void local_for_all(Function&& fn) const {
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    mapped_type&>()) {
+      for (size_t i = 0; i < m_local_vec.size(); ++i) {
+        key_type g_index = partitioner.global_index(i);
+        fn(g_index, m_local_vec[i]);
+      }
+    } else if constexpr (std::is_invocable<decltype(fn), mapped_type&>()) {
+      std::for_each(std::begin(m_local_vec), std::end(m_local_vec),
+                    std::forward<Function>(fn));
+    } else {
+      static_assert(ygm::detail::always_false<Function>,
+                    "local array lambda must be "
+                    "invocable with (const "
+                    "key_type, mapped_type &) or "
+                    "(mapped_type &) signatures");
+    }
+  }
+
+
+  /**
    * @brief Update a locally stored element by performing a binary operation
    * between it and a provided value
    *
