@@ -3,10 +3,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// TODO: add Doxygen docstrings on the getters and the `timer` inner class
-//       to match the coverage in comm.ipp. Deferred for now; easier to read
-//       without it during active edits.
-
 #pragma once
 
 #include <cstring>
