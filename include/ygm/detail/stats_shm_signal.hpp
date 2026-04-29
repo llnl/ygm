@@ -80,8 +80,13 @@ inline bool process_signal_handlers_registered = false;
 constexpr int tracked_signals[] = {
     SIGHUP,  SIGINT,   SIGQUIT, SIGILL,   SIGTRAP,
     SIGABRT, SIGBUS,   SIGFPE,  SIGSEGV,  SIGPIPE,
-    SIGTERM, SIGSTKFLT, SIGXCPU, SIGXFSZ, SIGVTALRM,
-    SIGPWR,  SIGSYS
+    SIGTERM, SIGSYS, SIGXCPU, SIGXFSZ, SIGVTALRM,
+    #ifdef __linux__ 
+    SIGPWR,  SIGSTKFLT 
+    #endif
+    #ifdef __APPLE__ 
+    SIGEMT
+    #endif
 };
 
 constexpr size_t num_tracked_signals =

@@ -12,11 +12,9 @@
 
 #include <mpi.h>
 
-#ifdef __linux__
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#endif
 
 #include <ygm/detail/stats_data.hpp>
 #include <ygm/detail/stats_shm_signal.hpp>
