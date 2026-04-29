@@ -55,7 +55,7 @@ jobs:
           $COMPILER --version
           mkdir build
           cd build
-          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=$COMPILER -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=OFF
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DCMAKE_CXX_COMPILER=$COMPILER -DBOOST_ROOT=~/boost_1_77_0 -DYGM_INSTALL_PARQUET=OFF -DBOOST_UUID_LINK_LIBATOMIC=Off
           make -j3
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
