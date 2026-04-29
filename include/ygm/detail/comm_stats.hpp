@@ -122,7 +122,14 @@ class comm_stats {
   }
 
   void open_shm(int rank, int comm_size, int local_size, std::string uuid) {
+
+    #ifdef __linux__ // Linux shm supports 255-char paths for file names.
     m_stats_path = "/ygm_" + uuid + "_rank" + std::to_string(rank);
+    #endif
+
+    #ifdef __APPLE__ // APPLE shm limited to 30-character paths. 
+    m_stats_path = "/ygm_" + uuid.substr(0, 8) + "_rank" + std::to_string(rank);
+    #endif
 
     // Register before creating the segment so a signal firing mid-setup
     // never sees a live segment with no tracking entry.
