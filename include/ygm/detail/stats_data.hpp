@@ -49,6 +49,7 @@ struct stats_data {
   double m_waitsome_isend_irecv_time;
   double m_waitsome_iallreduce_time;
   double m_time_start;
+  int64_t m_last_barrier_utc;
 
   // TODO: add double m_last_barrier_duration once per-barrier timing is wired in.
 

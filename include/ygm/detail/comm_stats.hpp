@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <ctime>
 
 #include <mpi.h>
 
@@ -205,7 +206,10 @@ class comm_stats {
 
   void async([[maybe_unused]] int dest) { stats->m_async_count += 1; }
 
-  void barrier() { stats->m_barrier_count += 1; }
+  void barrier() {
+    stats->m_barrier_count += 1;
+    stats->m_last_barrier_utc = static_cast<int64_t>(std::time(nullptr));
+  }
 
   void rpc_execute() { stats->m_rpc_count += 1; }
 
