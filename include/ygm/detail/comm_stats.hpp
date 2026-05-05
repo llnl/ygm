@@ -114,7 +114,7 @@ class comm_stats {
   // or rolls back fully on any failure. close_shm is called from
   // ~comm_stats only if open_shm previously succeeded.
 
-  void close_shm() {
+  void close_comm_stats_shm() {
     // Unlink before unregister so a signal firing mid-teardown doesn't 
     // leak an unregistered but still linked path
     shm_unlink(m_stats_path.c_str());
@@ -122,7 +122,7 @@ class comm_stats {
     shm::unregister_path(m_stats_path.c_str());
   }
 
-  void open_shm(int rank, int comm_size, int local_size, std::string uuid) {
+  void open_comm_stats_shm(int rank, int comm_size, int local_size, std::string uuid) {
 
     #ifdef __linux__ // Linux shm supports 255-char paths for file names.
     m_stats_path = "/ygm_" + uuid + "_rank" + std::to_string(rank);
