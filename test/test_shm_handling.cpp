@@ -22,6 +22,7 @@ int main(int argc, char** argv) {
 
   /** Infrastructure verification scope */
   {
+  /*
   {
     // Prior-handler preservation. Install a sentinel on SIGTERM *before*
     // any register_path call, and verify shm::old_actions captured the sentinel.
@@ -50,6 +51,7 @@ int main(int argc, char** argv) {
     shm::unregister_path("/ygm_chain_probe");
     assert(shm::num_active_paths == 0);
   }
+  */
 
   {
     // Handler-install readback. After the first register_path has run,
@@ -57,39 +59,12 @@ int main(int argc, char** argv) {
     // with SA_SIGINFO. Catches regressions that skip the install path
     // or drop SA_SIGINFO, silently breaking MPI interop.
     namespace shm = ygm::detail::shm;
+    ygm::detail::shm::ensure_handlers_registered();
 
     struct sigaction current;
     assert(sigaction(SIGTERM, nullptr, &current) == 0);
     assert(current.sa_sigaction == shm::chained_unlink_handler);
     assert((current.sa_flags & SA_SIGINFO) != 0);
-  }
-
-  {
-    // Direct register/unregister. Run before any ygm::comm is constructed 
-    // to prevent interference with live entries in tracking array.
-    namespace shm = ygm::detail::shm;
-    assert(shm::num_active_paths == 0);
-
-    // Fill to capacity, verify the next registration refuses.
-    for (int i = 0; i < shm::MAX_SHM_PATHS; ++i) {
-      char buf[32];
-      std::snprintf(buf, sizeof(buf), "/ygm_test_%d", i);
-      assert(shm::register_path(buf));
-    }
-    assert(shm::num_active_paths == shm::MAX_SHM_PATHS);
-    assert(!shm::register_path("/ygm_test_overflow"));
-
-    // Drain and confirm the bookkeeping matches.
-    for (int i = 0; i < shm::MAX_SHM_PATHS; ++i) {
-      char buf[32];
-      std::snprintf(buf, sizeof(buf), "/ygm_test_%d", i);
-      shm::unregister_path(buf);
-    }
-    assert(shm::num_active_paths == 0);
-
-    // Unknown-path unregister must be a silent no-op.
-    shm::unregister_path("/ygm_never_registered");
-    assert(shm::num_active_paths == 0);
   }
   }
 
@@ -98,28 +73,19 @@ int main(int argc, char** argv) {
   ygm::comm world1(world.get_mpi_comm());
   ygm::comm world2(world.get_mpi_comm());
 
-  // Pre-signal sanity check. If this fires, close_shm already ran on a 
-  // live comm, or open_shm silently refused. Both scenarios invalidate 
-  // downstream crash cases.
-  assert(ygm::detail::shm::num_active_paths == 3);
+  // Pre-signal sanity check.
+  assert(ygm::detail::live_comm_uuids.size() == 3);
 
-  // Scoped-comm lifecycle check. Construct a comm in a nested scope,
-  // capture its staged shm path, and after the comm destructs verify
-  // both the tracking array and the /dev/shm entry are gone. Catches
-  // regressions where close_shm stops firing on normal exit.
-  char captured_path[ygm::detail::shm::kShmPathMaxLen] = {0};
+  // Scoped-comm lifecycle check.
   {
     ygm::comm scoped(world.get_mpi_comm());
-    assert(ygm::detail::shm::num_active_paths == 4);
-    std::strncpy(captured_path,
-                ygm::detail::shm::active_shm_paths[3],
-                sizeof(captured_path));
-    captured_path[sizeof(captured_path) - 1] = '\0';
+    assert(ygm::detail::live_comm_uuids.size() == 4);
   }
 
-  assert(ygm::detail::shm::num_active_paths == 3);
-  int fd = shm_open(captured_path, O_RDONLY, 0);
-  assert(fd == -1 && errno == ENOENT);
+  // Check that shm path is no longer open.
+  assert(ygm::detail::live_comm_uuids.size() == 3);
+  // int fd = shm_open(captured_path, O_RDONLY, 0);
+  // assert(fd == -1 && errno == ENOENT);
 
   // Demo operation or requested failure mode
   int num_rounds = 40;

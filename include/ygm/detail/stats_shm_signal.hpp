@@ -12,41 +12,14 @@
  *   segment (see comm_stats::open_shm). Those segments live in /dev/shm
  *   and are normally unlinked when the owning comm is destroyed, but a
  *   signal-terminated process would otherwise leak them. This module
- *   provides infrastructure and installs a chained signal handler that
- *   walks a table of staged shm paths and calls shm_unlink on each 
- *   before forwarding to the previously installed handler and re-raising
- *   with the default disposition.
- *
- * Scope and linkage
- *   State here is process-global (one signal disposition per process),
- *   not per-comm_stats, so the tracking array, old_actions table, and
- *   handler live at namespace scope rather than as class members. All
- *   mutable storage is `inline` so every TU that includes this header
- *   shares a single definition.
- *
- * Lifecycle
- *   - comm_stats::open_shm calls register_path(path); the first call in
- *     a process lazily installs handlers for every tracked signal. The
- *     path is stored verbatim, so the handler only performs an
- *     async-signal-safe shm_unlink per live entry.
- *   - comm_stats::~comm_stats calls unregister_path(path) after unlinking
- *     the segment, so a signal firing mid-teardown sees either an
- *     already-unlinked path (ENOENT) or the live tail of the array.
- *   - Upon signal receipt, a graceful cleanup is attempted for tracked signals.
- *   - Signal handlers are never uninstalled; once present they stay for
- *     the life of the process.
- *
- * Async-signal-safety
- *   The handler uses only async-signal-safe syscalls (write, shm_unlink,
- *   signal, raise). No std::string, no heap, no stdio -- the path is
- *   supplied by the caller and stored up front, so the handler only
- *   dereferences a fixed-size buffer. The handler registers with
- *   SA_SIGINFO so it can forward (siginfo_t*, ucontext*) to previously
- *   installed handlers that used the three-argument form -- common with
- *   MPI backtrace machinery on SIGSEGV/SIGBUS/SIGFPE.
+ *   stores the tracked signals and installs a chained handler that
+ *   calls shm_unlink on each segment before forwarding to the previously
+ *   installed handler and re-raising with the default disposition.
  */
 
 #pragma once
+
+#include <ygm/detail/ygm_uuids.hpp>
 
 #include <csignal>
 #include <cstdio>
@@ -58,17 +31,7 @@ namespace ygm::detail::shm {
 
 /* STORAGE AND CONSTANTS FOR SIG HANDLING */
 
-// Max # of concurrent shm paths that can be tracked for signal cleanup.
-// Slots released at comm_stats destruction
-constexpr int MAX_SHM_PATHS = 8;
-
-// Max shm path: "/ygm_" (5) + uuid (36) + "_rank" (5) + int32 digits (11 w/ sign) + NUL.
-constexpr size_t kShmPathMaxLen = 64;
-
-// Tracking array. Mutated by register/unregister_path in main thread;
-// read by signal handler to unlink in case of abnormal behavior.
-inline int  num_active_paths                                = 0;
-inline char active_shm_paths[MAX_SHM_PATHS][kShmPathMaxLen] = {0};
+constexpr char shm_prefix[] = "/ygm_";
 
 // One-shot guard on handler installation.
 inline bool process_signal_handlers_registered = false;
@@ -113,11 +76,16 @@ inline void chained_unlink_handler(int sig, siginfo_t* info,
   (void)!write(STDOUT_FILENO, signum, 2);
   (void)!write(STDOUT_FILENO, suffix_msg, sizeof(suffix_msg) - 1);
 
-  // Snapshot count so a concurrent unregister swap+decrement doesn't
-  // create a skipped path
-  const int n = num_active_paths;
-  for (int i = 0; i < n; ++i) {
-    shm_unlink(active_shm_paths[i]);
+  // Create substrate to copy path_ids onto
+  char shm_path[64];
+
+  for (const std::string& path_id : ygm::detail::live_comm_uuids) {
+    // Construct Desired String Format: <shm_prefix><path_id+"\0"><remaining_endspace>
+    memset(shm_path, 0, sizeof(shm_path));
+    memcpy(shm_path, shm_prefix, strlen(shm_prefix));
+    strncpy(shm_path + (sizeof(shm_prefix) - 1), path_id.c_str(), path_id.size() + 1);
+
+    shm_unlink(shm_path);
   }
 
   // Forward to the previously installed handler.
@@ -161,36 +129,6 @@ inline void ensure_handlers_registered() {
   for (size_t i = 0; i < num_tracked_signals; ++i) {
     if (sigaction(tracked_signals[i], &sa, &old_actions[i]) < 0) {
       perror("ygm: sigaction registration failure.\n");
-    }
-  }
-}
-
-// Stage a shm path for signal-handler cleanup. Called before a
-// segment is created so a live segment always has a tracking entry. 
-inline bool register_path(const char* path) {
-  ensure_handlers_registered();
-  if (num_active_paths == MAX_SHM_PATHS) {
-    return false;
-  }
-  const size_t len = strlen(path);
-  memcpy(active_shm_paths[num_active_paths], path, len + 1);
-  num_active_paths++;
-  return true;
-}
-
-// Remove a path from the signal-tracking array via swap-and-decrement.
-// To adhere to lifecycle correctness, caller MUST have already unlinked
-// the segment prior to unregistering. Otherwise, a signal firing between
-// the swap and the decrement could leave a live segment at the vacated slot.
-inline void unregister_path(const char* path) {
-  for (int i = 0; i < num_active_paths; ++i) {
-    if (strcmp(active_shm_paths[i], path) == 0) {
-      const int last = num_active_paths - 1;
-      if (i != last) {
-        memcpy(active_shm_paths[i], active_shm_paths[last], kShmPathMaxLen);
-      }
-      num_active_paths--;
-      return;
     }
   }
 }

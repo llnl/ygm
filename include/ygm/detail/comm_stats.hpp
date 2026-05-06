@@ -47,7 +47,7 @@ class comm_stats {
   }
 
   ~comm_stats() {
-    if (stats != &m_local_stats) close_shm();
+    if (stats != &m_local_stats) close_comm_stats_shm();
   }
 
   void reset() {
@@ -115,39 +115,21 @@ class comm_stats {
   // ~comm_stats only if open_shm previously succeeded.
 
   void close_comm_stats_shm() {
-    // Unlink before unregister so a signal firing mid-teardown doesn't 
-    // leak an unregistered but still linked path
+    ygm::detail::live_comm_uuids.erase(m_stats_path.substr(5));
     shm_unlink(m_stats_path.c_str());
     munmap(stats, sizeof(stats_data));
-    shm::unregister_path(m_stats_path.c_str());
   }
 
-  void open_comm_stats_shm(int rank, int comm_size, int local_size, std::string uuid) {
+  void open_comm_stats_shm(int rank, int comm_size, int local_size, std::string path_id) {
 
-    #ifdef __linux__ // Linux shm supports 255-char paths for file names.
-    m_stats_path = "/ygm_" + uuid + "_rank" + std::to_string(rank);
-    #endif
-
-    #ifdef __APPLE__ // APPLE shm limited to 30-character paths. 
-    m_stats_path = "/ygm_" + uuid.substr(0, 8) + "_rank" + std::to_string(rank);
-    #endif
-
-    // Register before creating the segment so a signal firing mid-setup
-    // never sees a live segment with no tracking entry.
-    if (!shm::register_path(m_stats_path.c_str())) {
-      std::cerr << "Could not allocate additional shm_stats due to path limit."
-                << std::endl;
-      std::cerr << "Increase MAX_SHM_PATHS in stats_shm_signal.hpp."
-                << std::endl;
-      return;
-    }
+    shm::ensure_handlers_registered();
+    m_stats_path = shm::shm_prefix + path_id;
 
     // Open shm segment and cleanup if failure
     int fd = shm_open(m_stats_path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
     if (fd == -1) { 
       std::cerr << "ygm::comm_stats: shm_open failed for " << m_stats_path
                 << ": " << strerror(errno) << std::endl;
-      shm::unregister_path(m_stats_path.c_str());
       return;
     }
 
@@ -157,7 +139,6 @@ class comm_stats {
                 << ": " << strerror(errno) << std::endl;
       close(fd);
       shm_unlink(m_stats_path.c_str());
-      shm::unregister_path(m_stats_path.c_str());
       return;
     }
 
@@ -169,7 +150,6 @@ class comm_stats {
                 << strerror(errno) << std::endl;
       close(fd);
       shm_unlink(m_stats_path.c_str());
-      shm::unregister_path(m_stats_path.c_str());
       return;
     }
 

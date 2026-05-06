@@ -115,10 +115,24 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   if (config.stats_shm) {
-    m_stats.open_shm(rank(), size(), m_layout.local_size(), m_uuid);
+    #ifdef __APPLE__
+      std::string uuid_identifier = m_uuid.substr(0, 8) + "_" + std::to_string(rank());
+    #endif
+
+    #ifdef __linux__
+      std::string uuid_identifier = m_uuid + "_" + std::to_string(rank());
+    #endif
+
+    // Add to set of tracked UUID_rank pairs while blocking signals.
+    sigset_t newset, oldset;
+    sigfillset(&newset);
+    sigprocmask(SIG_BLOCK, &newset, &oldset);
+    ygm::detail::live_comm_uuids.insert(uuid_identifier);
+    sigprocmask(SIG_SETMASK, &oldset, NULL);
+
+    m_stats.open_comm_stats_shm(rank(), size(), m_layout.local_size(), uuid_identifier);
   }
 
-  ygm::detail::live_comm_uuids.insert(m_uuid);
 }
 
 /**
@@ -240,8 +254,6 @@ inline comm::~comm() {
   YGM_ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
 
   pimpl_if.reset();
-
-  ygm::detail::live_comm_uuids.erase(m_uuid);
 }
 
 /**
