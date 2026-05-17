@@ -1,4 +1,4 @@
-// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2026 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -63,7 +63,6 @@ inline struct sigaction old_actions[num_tracked_signals];
 
 inline void chained_unlink_handler(int sig, siginfo_t* info,
                                    void* ucontext) {
-  // Diagnostic via async-signal-safe write().
   constexpr char prefix_msg[] = "Caught signal ";
   constexpr char suffix_msg[] =
       " in chained handler. Initiating unlink for ygm shm segments.\n";
@@ -92,8 +91,8 @@ inline void chained_unlink_handler(int sig, siginfo_t* info,
   for (size_t i = 0; i < num_tracked_signals; ++i) {
     if (tracked_signals[i] == sig) {
       // MPI implementations commonly install SA_SIGINFO handlers on
-      // SIGSEGV/SIGBUS/SIGFPE for backtrace machinery. Calling
-      // sa_handler would invoke the wrong union member.
+      // SIGSEGV/SIGBUS/SIGFPE for backtrace machinery.
+      // Use sa_sigaction instead of sa_handler.
       if (old_actions[i].sa_flags & SA_SIGINFO) {
         if (old_actions[i].sa_sigaction != nullptr) {
           old_actions[i].sa_sigaction(sig, info, ucontext);
