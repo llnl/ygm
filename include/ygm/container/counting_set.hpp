@@ -313,26 +313,6 @@ class counting_set
   // bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
   /**
-   * @brief Gather the k "largest" item-count pairs according to provided
-   * comparison function
-   *
-   * @tparam Compare Type of comparison operator
-   * @param k Number of item-count pairs to gather
-   * @param comp Comparison function for identifying elements to gather
-   * @return vector of largest item-count pairs
-   */
-  template <typename CompareFunction>
-  std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
-                                                     CompareFunction cfn) {
-    return m_map.topk(k, cfn);
-  }
-
-  // template <typename STLKeyContainer>
-  // std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
-  //   return m_map.all_gather(keys);
-  // }
-
-  /**
    * @brief Collective operation to look up item counts from each rank
    *
    * @param keys Keys local rank wants to collect counts for
