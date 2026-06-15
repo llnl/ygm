@@ -350,5 +350,46 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset2.size() == 3);
   }
 
+  // Test basic tagging for custom CountValue
+  {
+    using CV = int16_t;
+    ygm::container::counting_set<std::string, CV> cset(world);
+
+    static_assert(std::is_same_v<decltype(cset)::self_type, decltype(cset)>);
+    static_assert(std::is_same_v<decltype(cset)::mapped_type, CV>);
+    static_assert(std::is_same_v<decltype(cset)::key_type, std::string>);
+    static_assert(std::is_same_v<decltype(cset)::size_type, size_t>);
+    static_assert(std::is_same_v<decltype(cset)::for_all_args,
+                                 std::tuple<decltype(cset)::key_type, CV> >);
+  }
+
+  //
+  // Test all ranks async_insert with custom CountValue
+  {
+    using CV = int16_t;
+    ygm::container::counting_set<std::string, CV> cset(world);
+
+    cset.async_insert("dog");
+    cset.async_insert("apple");
+    cset.async_insert("red");
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == static_cast<CV>(world.size()));
+    YGM_ASSERT_RELEASE(cset.count("apple") == static_cast<CV>(world.size()));
+    YGM_ASSERT_RELEASE(cset.count("red") == static_cast<CV>(world.size()));
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    auto count_map = cset.gather_keys({"dog", "cat", "apple"});
+    YGM_ASSERT_RELEASE(count_map["dog"] == static_cast<CV>(world.size()));
+    YGM_ASSERT_RELEASE(count_map["apple"] == static_cast<CV>(world.size()));
+    YGM_ASSERT_RELEASE(cset.count("cat") == 0);
+
+    YGM_ASSERT_RELEASE(cset.count_all() == 3 * static_cast<CV>(world.size()));
+
+    // test contains
+    YGM_ASSERT_RELEASE(cset.contains("dog"));
+    YGM_ASSERT_RELEASE(cset.contains("apple"));
+    YGM_ASSERT_RELEASE(cset.contains("red"));
+    YGM_ASSERT_RELEASE(!cset.contains("blue"));
+  }
   return 0;
 }

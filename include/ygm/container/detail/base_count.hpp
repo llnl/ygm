@@ -23,7 +23,7 @@ struct base_count {
    * containers with keys)
    * @return Count of times `value` is seen in container
    */
-  size_t count(
+  auto count(
       const typename std::tuple_element<0, for_all_args>::type& value) const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
