@@ -18,10 +18,10 @@ namespace ygm::container {
 
 /**
  * @brief `ygm::container::map` that is specialized for counting occurrences of
- * items in a stream.
+ * items in a stream. Mapped type can be specified if size_t is not appropriate.
  *
  * @details Adds a local cache of objects to reduce sends of
- * frequently-occurring items
+ * frequently-occurring items.
  */
 template <typename Key, typename CountValue = size_t>
   requires std::integral<CountValue>
