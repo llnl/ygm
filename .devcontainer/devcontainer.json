@@ -1,25 +1,35 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
-	"name": "YGM (No Docs)",
+	"name": "YGM",
 	"build": {
-		"dockerfile": "../Dockerfile",
-		"target": "no_docs"
+		"dockerfile": "Dockerfile",
 	},
 	"customizations": {
-		"vscode": {
-			"extensions": [
-				"llvm-vs-code-extensions.vscode-clangd"
-			],
-			"settings": {
-				"[cpp]": {
-					"editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-				},
-				"clangd.checkUpdates": true,
-				"cmake.debugConfig": { "MIMode": "lldb" },
-				"cmake.options.statusBarVisibility": "compact"
-			}
-		}
+        "vscode": {
+            "extensions": [
+                "llvm-vs-code-extensions.vscode-clangd",
+                "cschlosser.doxdocgen"
+            ],
+            "settings": {
+                "[cpp]": {
+                    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+                    "editor.formatOnSave": true
+                },
+                "[c]": {
+                    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+                    "editor.formatOnSave": true
+                },
+                "files.associations": {
+                    "*.ipp": "cpp",
+                    "*.tpp": "cpp",
+                    "*.inl": "cpp"
+                },
+                "clangd.checkUpdates": true,
+                "cmake.debugConfig": { "MIMode": "lldb" },
+                "cmake.options.statusBarVisibility": "compact"
+            }
+        }
 	},
 	"mounts": [
 		"source=${localEnv:HOME}${localEnv:USERPROFILE},target=/host-home,type=bind,consistency=cached"
