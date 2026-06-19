@@ -446,6 +446,7 @@ class map
    * @return `std::map` of provided keys and their values
    */
   template <typename ReturnMap = std::map<key_type, mapped_type>>
+    requires requires(ReturnMap s, key_type k, mapped_type v) { s.insert({k,v}); }
   ReturnMap gather_keys(std::ranges::input_range auto&& range) {
     ReturnMap         to_return;
     static ReturnMap* sto_return;
