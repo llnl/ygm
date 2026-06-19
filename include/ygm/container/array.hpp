@@ -270,9 +270,20 @@ class array
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
-    resize(t.size());
+    size_t global_size{};
+    size_t local_size{};
 
-    key_type local_index = prefix_sum(t.local_size(), m_comm);
+    if constexpr (requires { t.size(); }) {
+      global_size = t.size();
+      local_size = t.local_size();
+    } else {
+      local_size = std::distance(t.begin(), t.end());
+      global_size = sum(local_size, m_comm);
+    }
+
+    resize(global_size);
+
+    key_type local_index = prefix_sum(local_size, m_comm);
 
     t.for_all([this, &local_index](const auto& value) {
       this->async_insert(local_index++, value);
