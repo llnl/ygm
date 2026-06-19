@@ -19,8 +19,6 @@
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
-// #include <ranges>
-
 namespace ygm::container {
 
 template <typename Value>
