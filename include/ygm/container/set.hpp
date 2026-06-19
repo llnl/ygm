@@ -19,6 +19,8 @@
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
+// #include <ranges>
+
 namespace ygm::container {
 
 template <typename Value>
@@ -289,10 +291,11 @@ class set
    * @param values Values local rank wants to look up in set
    * @return `std::set` of provided values that exist within the YGM set
    */
-  template <typename STLValueContainer>
-  std::set<value_type> gather_values(const STLValueContainer &values) {
-    std::set<value_type>         to_return;
-    static std::set<value_type> *sp_to_return;
+  template <typename ReturnSet = std::set<value_type>>
+    requires requires(ReturnSet s, value_type v) { s.insert(v); }
+  ReturnSet gather_values(std::ranges::input_range auto &&range) {
+    ReturnSet         to_return;
+    static ReturnSet *sp_to_return;
     sp_to_return = &to_return;
 
     auto fetcher = [](auto pset, bool exists, const value_type &val, int from) {
@@ -304,7 +307,7 @@ class set
     };
 
     m_comm.barrier();
-    for (const auto &val : values) {
+    for (const auto &val : range) {
       async_contains(val, fetcher, m_comm.rank());
     }
     m_comm.barrier();
