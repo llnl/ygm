@@ -3,7 +3,7 @@
 {
 	"name": "YGM",
 	"build": {
-		"dockerfile": "Dockerfile",
+		"dockerfile": "Dockerfile"
 	},
 	"customizations": {
         "vscode": {

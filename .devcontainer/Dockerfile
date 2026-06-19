@@ -7,4 +7,4 @@ RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-
 RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt -y install python3-sphinx python3-breathe doxygen python3-sphinx-rtd-theme
 
 # Always build YGM tests in devcontainer
-ENV METALLDATA_BUILD_TESTS=ON
+ENV YGM_BUILD_TESTS=ON
