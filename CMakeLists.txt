@@ -26,6 +26,8 @@ project(
     LANGUAGES CXX
 )
 
+set(CMAKE_CXX_STANDARD 23)
+
 #
 # Configuration options for YGM
 #
@@ -146,7 +148,6 @@ endif ()
 #
 add_library(ygm INTERFACE)
 add_library(ygm::ygm ALIAS ygm)
-target_compile_features(ygm INTERFACE cxx_std_20)
 target_include_directories(
     ygm INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                   $<INSTALL_INTERFACE:include>

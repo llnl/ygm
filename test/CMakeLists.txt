@@ -82,7 +82,8 @@ add_ygm_test(test_work_queue)
 add_ygm_test(test_container_vectors)
 add_ygm_test(test_shm_handling)
 add_ygm_test(test_subcommunicators)
-
+add_ygm_test(test_simple_edgelist)
+add_ygm_test(test_static_graph)
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_parquet_reader)
