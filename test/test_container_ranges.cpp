@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <ranges>
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
@@ -31,10 +32,14 @@ int main(int argc, char** argv) {
   ygm::container::set<int> filtered_bag_set(world, filtered_bag);
   YGM_ASSERT_RELEASE(filtered_bag_set.size() == 5);
 
-  // this is broken
-  //   ygm::container::set<int> filtered_array_set(world, filtered_array);
+  // We should fix this
+  //   ygm::container::set<int> filtered_array_set(
+  //       world, filtered_array | std::views::transform([](const auto& pair)
+  //       {
+  //                return pair.second;
+  //              }));
   //   YGM_ASSERT_RELEASE(filtered_array_set.size() == 5);
 
-  // We should fix this too
+  // We should fix this
   // YGM_ASSERT_RELEASE(filtered_bag_set == filtered_set);
 }
