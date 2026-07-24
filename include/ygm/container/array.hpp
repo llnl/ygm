@@ -93,8 +93,13 @@ class array
   template <typename T, bool IsConst>
   class array_iterator {
    public:
-    using value_type          = std::pair<key_type, mapped_type&>;
     using iterator_proxy_type = iterator_proxy<T, IsConst>;
+    using value_type          = iterator_proxy_type;
+    using difference_type     = std::ptrdiff_t;
+    using iterator_concept    = std::forward_iterator_tag;
+    using iterator_category   = std::forward_iterator_tag;
+
+    array_iterator() = default;
 
     array_iterator(self_type* arr, const key_type offset, const key_type index)
         : p_arr(arr), m_offset(offset), m_index(index) {};
@@ -118,16 +123,16 @@ class array
     }
 
     array_iterator operator++(int) {
-      iterator tmp(*this);
+      array_iterator tmp(*this);
       ++(*this);
       return tmp;
     }
 
-    bool operator==(const array_iterator& other) {
+    bool operator==(const array_iterator& other) const {
       return m_index == other.m_index;
     }
 
-    bool operator!=(const array_iterator& other) {
+    bool operator!=(const array_iterator& other) const {
       return m_index != other.m_index;
     }
 
