@@ -94,49 +94,24 @@ class counting_set
   }
 
   /**
-   * @brief Construct counting_set by counting items in existing STL container
+   * @brief Construct counting_set from std::ranges::input_range of values
    *
-   * @tparam STLContainer Existing container type
    * @param comm Communicator to use for communication
-   * @param cont STL container containing values to count
+   * @param range Input range of values to put in counting_set
+   * @details Input range is assumed to be unique on all ranks.
    */
-  template <typename STLContainer>
-  counting_set(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Key>
+  counting_set(ygm::comm &comm, std::ranges::input_range auto &&range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>, Key>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_map(comm),
-        partitioner(m_map.partitioner) {
+        partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
-    m_count_cache.resize(count_cache_size, {key_type(), -1});
-    for (const Key &i : cont) {
-      this->async_insert(i);
+
+    for (const Key &k : range) {
+      this->async_insert(k);
     }
-    m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct counting_set by counting items in existing YGM container
-   *
-   * @tparam YGMContainer Existing container type
-   * @param comm Communicator to use for communication
-   * @param yc YGM container containing values to count
-   */
-  template <typename YGMContainer>
-  counting_set(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_map(comm),
-        partitioner(m_map.partitioner) {
-    m_comm.log(log_level::info, "Creating ygm::container::counting_set");
-    pthis.check(m_comm);
-    m_count_cache.resize(count_cache_size, {key_type(), -1});
-    yc.for_all([this](const Key &value) { this->async_insert(value); });
-
     m_comm.barrier();
   }
 

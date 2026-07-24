@@ -114,54 +114,25 @@ class map
   }
 
   /**
-   * @brief Construct map from existing STL container
+   * @brief Construct map from std::ranges::input_range of key-value pairs
    *
-   * @tparam T Existing container type
    * @param comm Communicator to use for communication
-   * @param cont STL container containing key-value pairs to put in map
+   * @param range Input range of key-value pairs to put in map
+   * @details Input range is assumed to be unique on all ranks.
    */
-  template <typename STLContainer>
-  map(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  map(ygm::comm& comm, std::ranges::input_range auto&& range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>,
+                 std::pair<Key, Value>>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_default_value(),
         partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::map");
     pthis.check(m_comm);
 
-    for (const std::pair<Key, Value>& i : cont) {
-      this->async_insert(i);
+    for (const std::pair<Key, Value>& kv : range) {
+      this->async_insert(kv);
     }
-    m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct map from existing YGM container of key-value pairs
-   *
-   * @tparam T Existing container type
-   * @param comm Communicator to use for communication
-   * @param yc YGM container of key-value pairs to put in map.
-   * @details Requires input container `for_all_args` to be a single item that
-   * is itself a key-value pair.
-   */
-  template <typename YGMContainer>
-  map(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_default_value(),
-        partitioner(comm) {
-    m_comm.log(log_level::info, "Creating ygm::container::map");
-    pthis.check(m_comm);
-
-    yc.for_all([this](const std::pair<Key, Value>& value) {
-      this->async_insert(value);
-    });
-
     m_comm.barrier();
   }
 
@@ -446,7 +417,9 @@ class map
    * @return `std::map` of provided keys and their values
    */
   template <typename ReturnMap = std::map<key_type, mapped_type>>
-    requires requires(ReturnMap s, key_type k, mapped_type v) { s.insert({k,v}); }
+    requires requires(ReturnMap s, key_type k, mapped_type v) {
+      s.insert({k, v});
+    }
   ReturnMap gather_keys(std::ranges::input_range auto&& range) {
     ReturnMap         to_return;
     static ReturnMap* sto_return;

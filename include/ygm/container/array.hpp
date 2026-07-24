@@ -195,7 +195,6 @@ class array
         m_global_size(l.size()),
         m_default_value{},
         partitioner(comm, l.size()) {
-    m_comm.cout0("initializer_list assumes all ranks are equal");
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
@@ -226,7 +225,6 @@ class array
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
         m_default_value{},
         partitioner(comm, 0) {
-    m_comm.cout0("initializer_list assumes all ranks are equal");
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
@@ -243,6 +241,69 @@ class array
       for (const auto& [index, value] : l) {
         async_insert(index, value);
       }
+    }
+
+    m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct array from std::ranges::forward_range of values
+   *
+   * @param comm Communicator to use for communication
+   * @param range Input range of values to put in array
+   * @details Input range is assumed to be unique on all ranks.
+   */
+  array(ygm::comm& comm, std::ranges::forward_range auto&& range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>, mapped_type>
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_default_value{},
+        partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
+    pthis.check(m_comm);
+
+    size_t local_size = std::ranges::distance(range);
+    m_global_size     = ::ygm::sum(local_size, m_comm);
+    partitioner       = detail::block_partitioner(m_comm, m_global_size);
+
+    key_type local_index = prefix_sum(local_size, m_comm);
+
+    for (const mapped_type& value : range) {
+      this->async_insert(local_index++, value);
+    }
+    m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct array from std::ranges::forward_range of values
+   *
+   * @param comm Communicator to use for communication
+   * @param range Input range of values to put in array
+   * @details Input range is assumed to be unique on all ranks.
+   */
+  array(ygm::comm& comm, std::ranges::forward_range auto&& range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>,
+                 std::tuple<key_type, mapped_type>>
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_default_value{},
+        partitioner(comm, 0) {
+    m_comm.log(log_level::info, "Creating ygm::container::array");
+    pthis.check(m_comm);
+
+    key_type local_max_index{0};
+    for (const auto& [index, value] : range) {
+      YGM_ASSERT_RELEASE(index >= 0);
+      local_max_index = std::max<key_type>(local_max_index, index);
+    }
+
+    m_global_size = ygm::max(local_max_index, m_comm) + 1;
+    resize(m_global_size);
+
+    for (const auto& [index, value] : range) {
+      async_insert(index, value);
     }
 
     m_comm.barrier();
@@ -370,83 +431,6 @@ class array
     });
 
     m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct array from existing STL container
-   *
-   * @tparam T Existing container type
-   * @param comm Communicator to use for communication
-   * @param t STL container containing values to put in array
-   * @details Existing container contains only values. Values are assumed to be
-   * distinct between ranks. Indices are assigned sequentially across ranks.
-   * Partitioning will likely not be the same between existing container and
-   * constructed array.
-   */
-  template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 (not detail::SingleItemTuple<typename T::value_type>) &&
-                 std::convertible_to<typename T::value_type, mapped_type>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_default_value{},
-        partitioner(comm, 0) {
-    m_comm.log(log_level::info, "Creating ygm::container::array");
-    pthis.check(m_comm);
-
-    auto global_size = sum(t.size(), m_comm);
-    resize(global_size);
-
-    key_type local_index = prefix_sum(t.size(), m_comm);
-
-    std::for_each(t.cbegin(), t.cend(),
-                  [this, &local_index](const auto& value) {
-                    this->async_insert(local_index++, value);
-                  });
-
-    m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct array from existing STL container of key-value pairs
-   *
-   * @tparam T Existing container type
-   * @param comm Communicator to use for communication
-   * @param t STL container of key-value pairs to put in array.
-   * @details Requires existing container to have a `value_type` that contains
-   * keys and values. Array size is determined by finding the largest index
-   * across all ranks.
-   */
-  template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 detail::DoubleItemTuple<typename T::value_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::value_type>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<1, typename T::value_type>,
-                     mapped_type>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        m_default_value{},
-        partitioner(comm, 0) {
-    m_comm.log(log_level::info, "Creating ygm::container::array");
-    pthis.check(m_comm);
-
-    key_type max_index{0};
-    std::for_each(t.begin(), t.end(), [&max_index](const auto& index_value) {
-      max_index = std::max<key_type>(std::get<0>(index_value), max_index);
-    });
-
-    max_index = ::ygm::max(max_index, m_comm);
-
-    resize(max_index + 1);
-
-    std::for_each(t.cbegin(), t.cend(), [this](const auto& index_value) {
-      this->async_insert(std::get<0>(index_value), std::get<1>(index_value));
-    });
   }
 
   ~array() {

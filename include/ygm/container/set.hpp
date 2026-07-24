@@ -66,7 +66,7 @@ class set
   }
 
   /**
-   * @brief Set constructor from std::initializer_list of sets
+   * @brief Construct set from std::initializer_list of values
    *
    * @param comm Communicator to use for communication
    * @param l Initializer list of values to put in set
@@ -79,55 +79,32 @@ class set
     m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
-      for (const Value &i : l) {
-        this->async_insert(i);
+      for (const Value &v : l) {
+        this->async_insert(v);
       }
     }
     m_comm.barrier();
   }
 
   /**
-   * @brief Construct set from existing STL container
+   * @brief Construct set from std::ranges::input_range of values
    *
-   * @tparam T Existing container type
    * @param comm Communicator to use for communication
-   * @param cont STL container containing values to put in set
+   * @param range Input range of values to put in set
+   * @details Input range is assumed to be unique on all ranks.
    */
-  template <typename STLContainer>
-  set(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Value>
+  set(ygm::comm &comm, std::ranges::input_range auto &&range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>, Value>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
         partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::set");
     pthis.check(m_comm);
 
-    for (const Value &i : cont) {
-      this->async_insert(i);
+    for (const Value &v : range) {
+      this->async_insert(v);
     }
-    m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct set from existing YGM container of values
-   *
-   * @tparam T Existing container type
-   * @param comm Communicator to use for communication
-   * @param yc YGM container of values to put in set.
-   */
-  template <typename YGMContainer>
-  set(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        partitioner(comm) {
-    m_comm.log(log_level::info, "Creating ygm::container::set");
-    pthis.check(m_comm);
-
-    yc.for_all([this](const Value &value) { this->async_insert(value); });
-
     m_comm.barrier();
   }
 

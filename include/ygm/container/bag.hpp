@@ -6,6 +6,7 @@
 #pragma once
 
 #include <fstream>
+#include <ranges>
 
 #include <boost/container/deque.hpp>
 #include <cereal/archives/json.hpp>
@@ -86,49 +87,24 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   /**
-   * @brief Construct bag from existing STL container
+   * @brief Construct bag from std::ranges::input_range of values
    *
-   * @tparam STLContainer Existing container type
    * @param comm Communicator to use for communication
-   * @param cont STL container containing values to put in bag
+   * @param range Input range of values to put in bag
+   * @details Input range is assumed to be unique on all ranks.
    */
-  template <typename STLContainer>
-  bag(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Item>
+  bag(ygm::comm &comm, std::ranges::input_range auto &&range)
+    requires std::convertible_to<
+                 std::ranges::range_reference_t<decltype(range)>, Item>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
         partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::bag");
     pthis.check(m_comm);
 
-    for (const Item &i : cont) {
+    for (const Item &i : range) {
       this->async_insert(i);
     }
-    m_comm.barrier();
-  }
-
-  /**
-   * @brief Construct bag from existing YGM container
-   *
-   * @tparam YGMContainer Existing container type
-   * @param comm Communicator to use for communication
-   * @param yc YGM container of values to put in bag
-   * @details Requires container's `for_all_args` to be a single item tuple to
-   * put in the bag
-   */
-  template <typename YGMContainer>
-  bag(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm),
-        pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        partitioner(comm) {
-    m_comm.log(log_level::info, "Creating ygm::container::bag");
-    pthis.check(m_comm);
-
-    yc.for_all([this](const Item &value) { this->async_insert(value); });
-
     m_comm.barrier();
   }
 
