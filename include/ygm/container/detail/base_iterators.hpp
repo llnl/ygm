@@ -59,7 +59,6 @@ struct base_iterators {
    */
   auto end() {
     derived_type* derived_this = static_cast<derived_type*>(this);
-    derived_this->comm().barrier();
     return derived_this->local_end();
   }
 
@@ -72,7 +71,6 @@ struct base_iterators {
    */
   auto end() const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
-    derived_this->comm().barrier();
     return derived_this->local_cend();
   }
 
@@ -85,7 +83,6 @@ struct base_iterators {
    */
   auto cend() const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
-    derived_this->comm().barrier();
     return derived_this->local_cend();
   }
 };
