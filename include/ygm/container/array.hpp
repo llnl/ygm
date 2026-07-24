@@ -223,6 +223,7 @@ class array
         std::initializer_list<std::tuple<key_type, mapped_type>> l)
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_global_size(0),
         m_default_value{},
         partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
@@ -234,7 +235,6 @@ class array
       max_index = std::max<key_type>(max_index, index);
     }
 
-    m_global_size = max_index + 1;
     resize(max_index + 1);
 
     if (m_comm.rank0()) {
@@ -258,16 +258,18 @@ class array
                  std::ranges::range_reference_t<decltype(range)>, mapped_type>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_global_size(0),
         m_default_value{},
         partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
     pthis.check(m_comm);
 
-    size_t local_size = std::ranges::distance(range);
-    m_global_size     = ::ygm::sum(local_size, m_comm);
-    partitioner       = detail::block_partitioner(m_comm, m_global_size);
+    // note:  we can't used std::ranges::distance(range) because it gets fooled
+    // by our global size()
+    size_t local_size = std::distance(range.begin(), range.end());
+    resize(::ygm::sum(local_size, m_comm));
 
-    key_type local_index = prefix_sum(local_size, m_comm);
+    size_t local_index = prefix_sum(local_size, m_comm);
 
     for (const mapped_type& value : range) {
       this->async_insert(local_index++, value);
@@ -288,6 +290,7 @@ class array
                  std::tuple<key_type, mapped_type>>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_global_size(0),
         m_default_value{},
         partitioner(comm, 0) {
     m_comm.log(log_level::info, "Creating ygm::container::array");
@@ -299,8 +302,7 @@ class array
       local_max_index = std::max<key_type>(local_max_index, index);
     }
 
-    m_global_size = ygm::max(local_max_index, m_comm) + 1;
-    resize(m_global_size);
+    resize(ygm::max(local_max_index, m_comm) + 1);
 
     for (const auto& [index, value] : range) {
       async_insert(index, value);

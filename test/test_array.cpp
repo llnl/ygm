@@ -608,6 +608,7 @@ int main(int argc, char **argv) {
 
     ygm::container::array<int> arr(world, b);
 
+    YGM_ASSERT_RELEASE(arr.size() == size_t(bag_size));
     arr.for_all([]([[maybe_unused]] const auto &index, const auto &value) {
       YGM_ASSERT_RELEASE(value == 1);
     });
@@ -742,7 +743,7 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test gather 
+  // Test gather
   {
     ygm::container::array<std::string> str_array(world, 6);
 
@@ -759,10 +760,9 @@ int main(int argc, char **argv) {
       std::vector<std::pair<size_t, std::string>> local_vec;
       str_array.gather(local_vec, 0);
       if (world.rank0()) {
-        std::sort(local_vec.begin(), local_vec.end(), 
-                  [](const auto& a, const auto& b){
-                    return a.first < b.first;
-                  });
+        std::sort(
+            local_vec.begin(), local_vec.end(),
+            [](const auto &a, const auto &b) { return a.first < b.first; });
         YGM_ASSERT_RELEASE(local_vec.size() == 6);
         YGM_ASSERT_RELEASE(local_vec[0].second == "dog");
         YGM_ASSERT_RELEASE(local_vec[1].second == "cat");
@@ -784,7 +784,6 @@ int main(int argc, char **argv) {
       YGM_ASSERT_RELEASE(local_map[5] == "green");
     }
   }
-
 
   return 0;
 }
