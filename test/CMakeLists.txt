@@ -82,6 +82,7 @@ add_ygm_test(test_work_queue)
 add_ygm_test(test_container_vectors)
 add_ygm_test(test_shm_handling)
 add_ygm_test(test_subcommunicators)
+add_ygm_test(test_container_ranges)
 
 
 if (Arrow_FOUND AND Parquet_FOUND)
