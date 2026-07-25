@@ -27,6 +27,15 @@ struct round_robin_partitioner {
     }
     return m_next;
   }
+
+  /**
+   * @brief Check if two partitioners are equal
+   *
+   * @param other Partitioner to compare with
+   * @return true if partitioners are equal, false otherwise
+   */
+  bool operator==(const round_robin_partitioner &other) const = default;
+
   int m_next;
   int m_comm_size;
 };

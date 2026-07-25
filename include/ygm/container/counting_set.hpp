@@ -168,6 +168,17 @@ class counting_set
   }
 
   /**
+   * @brief Check if two counting sets are equal
+   *
+   * @param other Counting set to compare with
+   * @return true if counting sets are equal, false otherwise
+   */
+  bool operator==(const self_type &other) const {
+    m_comm.barrier();
+    return m_map == other.m_map && partitioner == other.partitioner;
+  }
+
+  /**
    * @brief Access to begin iterator of locally-held items
    *
    * @return Local iterator to beginning of items held by process.

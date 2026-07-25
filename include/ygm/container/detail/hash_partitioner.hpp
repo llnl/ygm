@@ -43,6 +43,14 @@ struct hash_partitioner {
                          // function used by unordered_map
   }
 
+  /**
+   * @brief Check if two partitioners are equal
+   *
+   * @param other Partitioner to compare with
+   * @return true if partitioners are equal, false otherwise
+   */
+  bool operator==(const hash_partitioner<Hash> &other) const = default;
+
  private:
   int  m_comm_size;
   Hash m_hasher;

@@ -37,6 +37,5 @@ int main(int argc, char** argv) {
                  std::views::transform([](const auto& p) { return p.value; }));
   YGM_ASSERT_RELEASE(filtered_array_set.size() == 5);
 
-  // We should fix this
-  // YGM_ASSERT_RELEASE(filtered_bag_set == filtered_set);
+  YGM_ASSERT_RELEASE(filtered_bag_set == filtered_set);
 }

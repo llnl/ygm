@@ -47,6 +47,8 @@ struct hash {
       return 0;
     }
   }
+
+  bool operator==(const hash<T> &other) const = default;
 };
 
 }  // namespace ygm::container::detail

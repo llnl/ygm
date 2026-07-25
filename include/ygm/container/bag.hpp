@@ -415,10 +415,6 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
     global_shuffle(r);
   }
 
-  //  private:
-  //   template <typename Function∏>
-  //   void local_for_all_pair_types(Function fn);
-
  private:
   std::vector<value_type> local_pop(uint32_t n) {
     YGM_ASSERT_RELEASE(n <= local_size());

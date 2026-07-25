@@ -176,6 +176,19 @@ class map
   }
 
   /**
+   * @brief Check if two maps are equal
+   *
+   * @param other Map to compare with
+   * @return true if maps are equal, false otherwise
+   */
+  bool operator==(const self_type& other) const {
+    m_comm.barrier();
+    return m_local_map == other.m_local_map &&
+           m_default_value == other.m_default_value &&
+           partitioner == other.partitioner;
+  }
+
+  /**
    * @brief Access to begin iterator of locally-held items
    *
    * @return Local iterator to beginning of items held by process.

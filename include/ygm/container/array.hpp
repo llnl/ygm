@@ -373,6 +373,19 @@ class array
   }
 
   /**
+   * @brief Check if two arrays are equal
+   *
+   * @param other Array to compare with
+   * @return true if arrays are equal, false otherwise
+   */
+  bool operator==(const self_type& other) const {
+    m_comm.barrier();
+    return m_global_size == other.m_global_size &&
+           m_default_value == other.m_default_value &&
+           m_local_vec == other.m_local_vec && partitioner == other.partitioner;
+  }
+
+  /**
    * @brief Access to begin iterator of locally-held items
    *
    * @return Local iterator to beginning of items held by process.

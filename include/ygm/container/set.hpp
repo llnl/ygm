@@ -141,6 +141,17 @@ class set
   }
 
   /**
+   * @brief Check if two sets are equal
+   *
+   * @param other Set to compare with
+   * @return true if sets are equal, false otherwise
+   */
+  bool operator==(const self_type &other) const {
+    m_comm.barrier();
+    return m_local_set == other.m_local_set && partitioner == other.partitioner;
+  }
+
+  /**
    * @brief Access to begin iterator of locally-held items
    *
    * @return Local iterator to beginning of items held by process.
