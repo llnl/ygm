@@ -108,7 +108,7 @@ class counting_set
         partitioner(comm) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
-
+    m_count_cache.resize(count_cache_size, {key_type(), -1});
     for (const Key &k : range) {
       this->async_insert(k);
     }
