@@ -105,7 +105,8 @@ class counting_set
                  std::ranges::range_reference_t<decltype(range)>, Key>
       : m_comm(comm),
         pthis(this, ygm::max(ptr_type::next_index(), comm)),
-        partitioner(comm) {
+        m_map(comm),
+        partitioner(m_map.partitioner) {
     m_comm.log(log_level::info, "Creating ygm::container::counting_set");
     pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
