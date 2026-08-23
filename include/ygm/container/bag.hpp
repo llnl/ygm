@@ -228,7 +228,10 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   /**
    * @brief Clear the local storage of the bag
    */
-  void local_clear() { m_local_bag.clear(); }
+  void local_clear() {
+    m_local_bag.clear();
+    local_container_type().swap(m_local_bag);
+  }
 
   /**
    * @brief Get the number of items held locally

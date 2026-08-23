@@ -724,7 +724,10 @@ class array
    * @details Setting the local size to 0 cannot be performed independently of
    * other ranks. This operation needs to be called collectively for the array.
    */
-  void local_clear() { resize(0); }
+  void local_clear() {
+    resize(0);
+    std::vector<mapped_type>().swap(m_local_vec);
+  }
 
   /**
    * @brief Swap the local contents of an array.

@@ -218,7 +218,10 @@ class set
   /**
    * @brief Clear local storage
    */
-  void local_clear() { m_local_set.clear(); }
+  void local_clear() {
+    m_local_set.clear();
+    local_container_type().swap(m_local_set);
+  }
 
   /**
    * @brief Count the number of times a value is found locally

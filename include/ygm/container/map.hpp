@@ -295,7 +295,10 @@ class map
   /**
    * @brief Clear local storage
    */
-  void local_clear() { m_local_map.clear(); }
+  void local_clear() {
+    m_local_map.clear();
+    local_container_type().swap(m_local_map);
+  }
 
   /**
    * @brief Update a locally stored element by performing a binary operation
