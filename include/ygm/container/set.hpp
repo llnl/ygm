@@ -17,6 +17,7 @@
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/detail/base_save_load.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
 namespace ygm::container {
@@ -32,8 +33,10 @@ class set
       public detail::base_count<set<Value>, std::tuple<Value>>,
       public detail::base_misc<set<Value>, std::tuple<Value>>,
       public detail::base_iterators<set<Value>>,
-      public detail::base_iteration_value<set<Value>, std::tuple<Value>> {
+      public detail::base_iteration_value<set<Value>, std::tuple<Value>>,
+      public detail::base_save_load<set<Value>, std::tuple<Value>> {
   friend struct detail::base_misc<set<Value>, std::tuple<Value>>;
+  friend struct detail::base_save_load<set<Value>, std::tuple<Value>>;
 
   using local_container_type =
       boost::unordered::unordered_flat_set<Value, detail::hash<Value>>;
@@ -106,6 +109,25 @@ class set
       this->async_insert(v);
     }
     m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct set from set saved to disk
+   *
+   * @param comm Communicator to use for communication
+   * @param save_path Path to saved data
+   * @param check_types Whether or not to check manifest type information before
+   * loading into container (default: true)
+   */
+  set([[maybe_unused]] from_saved_tag_t f, ygm::comm &comm,
+      const std::filesystem::path &save_path, bool check_types = true)
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        partitioner(comm) {
+    m_comm.log(log_level::info,
+               "Creating ygm::container::set from saved files at " +
+                   save_path.string());
+    this->load(save_path, check_types);
   }
 
   ~set() {
@@ -304,22 +326,6 @@ class set
     sp_to_return = nullptr;
     return to_return;
   }
-
-  /**
-   * @brief Serialize a set to a collection of files to be read back in later
-   *
-   * @param fname Filename prefix to create filename used by every rank from
-   */
-  void serialize([[maybe_unused]] const std::string &fname) {}
-
-  /**
-   * @brief Deserialize a set from files
-   *
-   * @param fname Filename prefix to create filename used by every rank from
-   * @details Currently requires the number of ranks deserializing a bag to be
-   * the same as was used for serialization.
-   */
-  void deserialize([[maybe_unused]] const std::string &fname) {}
 
   /**
    * @brief Swap elements held locally between sets

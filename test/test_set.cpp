@@ -504,12 +504,12 @@ int main(int argc, char** argv) {
   }
 
   //
-  // Test gather 
+  // Test gather
   {
     ygm::container::set<std::string> str_set(world);
 
-    std::vector<std::string> strings = {"dog", "cat", "apple",
-                                         "orange", "red", "green"};
+    std::vector<std::string> strings = {"dog",    "cat", "apple",
+                                        "orange", "red", "green"};
     for (auto& s : strings) {
       str_set.async_insert(s);
     }
@@ -520,8 +520,8 @@ int main(int argc, char** argv) {
       if (world.rank0()) {
         YGM_ASSERT_RELEASE(local_set.size() == 6);
         for (auto& s : strings) {
-          YGM_ASSERT_RELEASE(std::find(local_set.begin(), local_set.end(),
-                                  s) != local_set.end());
+          YGM_ASSERT_RELEASE(std::find(local_set.begin(), local_set.end(), s) !=
+                             local_set.end());
         }
       }
     }
@@ -530,8 +530,8 @@ int main(int argc, char** argv) {
       str_set.gather(local_vec);
       YGM_ASSERT_RELEASE(local_vec.size() == 6);
       for (auto& s : strings) {
-        YGM_ASSERT_RELEASE(std::find(local_vec.begin(), local_vec.end(),
-                                s) != local_vec.end());
+        YGM_ASSERT_RELEASE(std::find(local_vec.begin(), local_vec.end(), s) !=
+                           local_vec.end());
       }
     }
   }
@@ -568,5 +568,57 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(will_find.count(found) == 1);
     }
   }
+
+  {
+    std::filesystem::path saving_path = "/tmp/saved_set";
+    constexpr int         size        = 1019;
+
+    //
+    // Test saving
+    {
+      ygm::container::set<std::string> sset(world);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          sset.async_insert(std::to_string(i));
+        }
+      }
+      world.barrier();
+
+      sset.save(saving_path);
+    }
+
+    //
+    // Test loading
+    {
+      ygm::container::set<std::string> sset(ygm::container::from_saved_tag,
+                                            world, saving_path);
+
+      YGM_ASSERT_RELEASE(sset.size() == size);
+
+      std::vector<std::string> to_gather;
+      for (int i = 0; i < size; ++i) {
+        to_gather.push_back(std::to_string(i));
+      }
+
+      std::set<std::string> gathered_strings = sset.gather_values(to_gather);
+      YGM_ASSERT_RELEASE(gathered_strings.size() == size);
+    }
+    {
+      auto sset = ygm::container::from_saved<ygm::container::set<std::string>>(
+          world, saving_path);
+
+      YGM_ASSERT_RELEASE(sset.size() == size);
+
+      std::vector<std::string> to_gather;
+      for (int i = 0; i < size; ++i) {
+        to_gather.push_back(std::to_string(i));
+      }
+
+      std::set<std::string> gathered_strings = sset.gather_values(to_gather);
+      YGM_ASSERT_RELEASE(gathered_strings.size() == size);
+    }
+  }
+
   return 0;
 }

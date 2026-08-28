@@ -8,14 +8,14 @@
 
 namespace ygm::container {
 // Identifiable ygm container tags usable for comparison
-struct array_tag;
-struct bag_tag;
-struct counting_set_tag;
-struct disjoint_set_tag;
-struct map_tag;
-struct multimap_tag;
-struct set_tag;
-struct work_queue_tag;
+struct array_tag {};
+struct bag_tag {};
+struct counting_set_tag {};
+struct disjoint_set_tag {};
+struct map_tag {};
+struct multimap_tag {};
+struct set_tag {};
+struct work_queue_tag {};
 
 // General template used as a base case
 template <class Container, typename = void>

@@ -19,6 +19,7 @@
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/detail/base_save_load.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
 namespace ygm::container {
@@ -44,8 +45,10 @@ class map
       public detail::base_async_visit<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_iterators<map<Key, Value>>,
       public detail::base_iteration_key_value<map<Key, Value>,
-                                              std::tuple<Key, Value>> {
+                                              std::tuple<Key, Value>>,
+      public detail::base_save_load<map<Key, Value>, std::tuple<Key, Value>> {
   friend struct detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
+  friend struct detail::base_save_load<map<Key, Value>, std::tuple<Key, Value>>;
 
   using local_container_type =
       boost::unordered::unordered_flat_map<Key, Value, detail::hash<Key>>;
@@ -134,6 +137,25 @@ class map
       this->async_insert(kv);
     }
     m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct map from map saved to disk
+   *
+   * @param comm Communicator to use for communication
+   * @param save_path Path to saved data
+   * @param check_types Whether or not to check manifest type information before
+   * loading into container (default: true)
+   */
+  map([[maybe_unused]] from_saved_tag_t f, ygm::comm& comm,
+      const std::filesystem::path& save_path, bool check_types = true)
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        partitioner(comm) {
+    m_comm.log(log_level::info,
+               "Creating ygm::container::map from saved files at " +
+                   save_path.string());
+    this->load(save_path, check_types);
   }
 
   ~map() {
@@ -580,9 +602,6 @@ class map
     return m_local_map.contains(key);
   }
 
-  // void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  // void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
-
   // template <typename STLKeyContainer>
   // std::map<key_type, mapped_type> all_gather(const STLKeyContainer& keys) {
   //   std::map<key_type, mapped_type> to_return;
@@ -618,5 +637,5 @@ class map
 
  public:
   detail::hash_partitioner<detail::hash<key_type>> partitioner;
-};
+};  // namespace ygm::container
 }  // namespace ygm::container

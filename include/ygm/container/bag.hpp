@@ -18,6 +18,7 @@
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_iterators.hpp>
 #include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/detail/base_save_load.hpp>
 #include <ygm/container/detail/round_robin_partitioner.hpp>
 #include <ygm/random/random.hpp>
 
@@ -34,8 +35,10 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
             public detail::base_iterators<bag<Item>>,
-            public detail::base_iteration_value<bag<Item>, std::tuple<Item>> {
+            public detail::base_iteration_value<bag<Item>, std::tuple<Item>>,
+            public detail::base_save_load<bag<Item>, std::tuple<Item>> {
   friend struct detail::base_misc<bag<Item>, std::tuple<Item>>;
+  friend struct detail::base_save_load<bag<Item>, std::tuple<Item>>;
 
   using block_32k_option_t = boost::container::deque_options<
       boost::container::block_size<32 * 1024u>>::type;
@@ -106,6 +109,25 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
       this->async_insert(i);
     }
     m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct bag from bag saved to disk
+   *
+   * @param comm Communicator to use for communication
+   * @param save_path Path to saved data
+   * @param check_types Whether or not to check manifest type information before
+   * loading into container (default: true)
+   */
+  bag([[maybe_unused]] from_saved_tag_t f, ygm::comm &comm,
+      const std::filesystem::path &save_path, bool check_types = true)
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        partitioner(comm) {
+    m_comm.log(log_level::info,
+               "Creating ygm::container::bag from saved files at " +
+                   save_path.string());
+    this->load(save_path, check_types);
   }
 
   ~bag() {
@@ -284,45 +306,6 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   /**
-   * @brief Serialize a bag to a collection of files to be read back in later
-   *
-   * @param fname Filename prefix to create filename used by every rank from
-   */
-  void serialize(const std::string &fname) {
-    m_comm.barrier();
-    std::string   rank_fname = fname + std::to_string(m_comm.rank());
-    std::ofstream os(rank_fname, std::ios::binary);
-    cereal::JSONOutputArchive oarchive(os);
-    // oarchive(m_local_bag, m_round_robin, m_comm.size());
-    oarchive(m_local_bag, m_comm.size());
-  }
-
-  /**
-   * @brief Deserialize a bag from files
-   *
-   * @param fname Filename prefix to create filename used by every rank from
-   * @details Currently requires the number of ranks deserializing a bag to be
-   * the same as was used for serialization.
-   */
-  void deserialize(const std::string &fname) {
-    m_comm.barrier();
-
-    std::string   rank_fname = fname + std::to_string(m_comm.rank());
-    std::ifstream is(rank_fname, std::ios::binary);
-
-    cereal::JSONInputArchive iarchive(is);
-    int                      comm_size;
-    // iarchive(m_local_bag, m_round_robin, comm_size);
-    iarchive(m_local_bag, comm_size);
-
-    if (comm_size != m_comm.size()) {
-      m_comm.cerr0(
-          "Attempting to deserialize bag_impl using communicator of "
-          "different size than serialized with");
-    }
-  }
-
-  /**
    * @brief Repartition data to hold approximately equal numbers of items on
    * every rank
    */
@@ -380,7 +363,8 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   /**
-   * @brief Shuffle elements held locally with a default random number generator
+   * @brief Shuffle elements held locally with a default random number
+   * generator
    */
   void local_shuffle() {
     ygm::random::default_random_engine<> r(m_comm, std::random_device()());
