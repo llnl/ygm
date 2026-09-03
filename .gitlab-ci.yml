@@ -18,22 +18,80 @@
 #    - salloc -N4 --ntasks-per-node=16 -ppdebug --mpibind=on ctest -VV -E SEQ
 
 
-Ruby-GCC-mvapich2-release:
- tags:
-  - ruby
-  - shell
- variables:
-   OMP_PROC_BIND: "false"
- script:
-   - . /usr/workspace/llamag/spack_2021.01.26/share/spack/setup-env.sh
-   - spack load gcc@9
-   - module load mvapich2
-   - spack load nlohmann-json
-   - mkdir build
-   - cd build
-   - cmake ../ -DTEST_WITH_SLURM=ON -DCMAKE_BUILD_TYPE=Release
-   - make VERBOSE=1
-   - ctest -VV -R SEQ
-   - salloc -N2 --ntasks-per-node=4  -ppdebug --mpibind=on ctest -VV -E SEQ
-   - salloc -N4 --ntasks-per-node=16 -ppdebug --mpibind=on ctest -VV -E SEQ
+#Ruby-GCC-mvapich2-release:
+# tags:
+#  - ruby
+#  - shell
+# variables:
+#   OMP_PROC_BIND: "false"
+# script:
+#   - . /usr/workspace/llamag/spack_2021.01.26/share/spack/setup-env.sh
+#   - spack load gcc@9
+#   - module load mvapich2
+#   - spack load nlohmann-json
+#   - mkdir build
+#   - cd build
+#   - cmake ../ -DTEST_WITH_SLURM=ON -DCMAKE_BUILD_TYPE=Release
+#   - make VERBOSE=1
+#   - ctest -VV -R SEQ
+#   - salloc -N2 --ntasks-per-node=4  -ppdebug --mpibind=on ctest -VV -E SEQ
+#   - salloc -N4 --ntasks-per-node=16 -ppdebug --mpibind=on ctest -VV -E SEQ
 
+###############################################################################
+# RADIUSS Shared CI - Minimal Component-Based Setup
+###############################################################################
+
+# Required: Define stages
+stages:
+  - prerequisites
+  - build-and-test
+
+# Configuration variables
+variables:
+  # GitHub project info
+  GITHUB_PROJECT_NAME: "ygm"
+  GITHUB_PROJECT_ORG: "LLNL"
+
+  # Build command (use your actual script path)
+  JOB_CMD:
+    value: "./scripts/build_and_test.sh"
+    expand: false
+
+  # Optional: Service user
+  LLNL_SERVICE_USER: ""  # Set if using service account
+
+  # Optional: Git submodules
+  GIT_SUBMODULE_STRATEGY: none  # or "none" if no submodules
+
+# Include RADIUSS Shared CI components
+include:
+  # Base orchestration component
+  - component: $CI_SERVER_FQDN/radiuss/radiuss-shared-ci/base-pipeline@v2026.02.2
+    inputs:
+      github_project_name: $GITHUB_PROJECT_NAME
+      github_project_org: $GITHUB_PROJECT_ORG
+      github_token: $GITHUB_STATUS_TOKEN
+
+# Machine availability check
+dane-up-check:
+  extends: [.dane, .machine-check]
+  variables:
+    ASSOCIATED_CHILD_PIPELINE: "dane-build-and-test"
+
+# Dane build and test pipeline
+dane-build-and-test:
+  needs: [dane-up-check]
+  extends: [.dane, .build-and-test]
+  trigger:
+    include:
+      # Dane machine component
+      - component: $CI_SERVER_FQDN/radiuss/radiuss-shared-ci/dane-pipeline@v2026.02.2
+        inputs:
+          job_cmd: $JOB_CMD
+          shared_alloc: "--reservation=ci --nodes=1 --exclusive --time=30"
+          job_alloc: "--reservation=ci --nodes=1 --ntasks-per-node 28"
+          github_project_name: $GITHUB_PROJECT_NAME
+          github_project_org: $GITHUB_PROJECT_ORG
+          llnl_service_user: $LLNL_SERVICE_USER
+      # Your Dane-specific jobs
+      - local: '.gitlab/jobs/dane.yml'
