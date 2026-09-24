@@ -355,6 +355,9 @@ class comm {
 
   void flush_to_capacity();
 
+  ygm::detail::byte_vector allocate_send_buffer(const size_t buffer_size) const;
+
+  ygm::detail::byte_vector allocate_recv_buffer(const size_t buffer_size) const;
   void post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer);
 
   template <typename Lambda, typename... PackArgs>
@@ -415,7 +418,7 @@ class comm {
   bool m_in_process_receive_queue = false;
 
   std::string                    m_uuid;
-  detail::comm_stats             m_stats;
+  mutable detail::comm_stats     m_stats;
   const detail::layout           m_layout;
   const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;

@@ -102,8 +102,9 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   for (size_t i = 0; i < config.num_irecvs; ++i) {
-    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{
-        new ygm::detail::byte_vector(config.irecv_size)};
+    std::shared_ptr<ygm::detail::byte_vector> recv_buffer =
+        std::make_shared<ygm::detail::byte_vector>(
+            allocate_recv_buffer(config.irecv_size));
     post_new_irecv(recv_buffer);
   }
 
@@ -198,23 +199,27 @@ inline void comm::stats_reset() { m_stats.reset(); }
 inline void comm::stats_print(const std::string &name, std::ostream &os) {
   std::stringstream sstr;
   sstr << "============== STATS =================\n"
-       << "NAME                     = " << name << "\n"
-       << "TIME                     = " << m_stats.get_elapsed_time() << "\n"
-       << "GLOBAL_ASYNC_COUNT       = "
+       << "NAME                        = " << name << "\n"
+       << "TIME                        = " << m_stats.get_elapsed_time() << "\n"
+       << "GLOBAL_ASYNC_COUNT          = "
        << ::ygm::sum(m_stats.get_async_count(), *this) << "\n"
-       << "GLOBAL_ISEND_COUNT       = "
+       << "GLOBAL_ISEND_COUNT          = "
        << ::ygm::sum(m_stats.get_isend_count(), *this) << "\n"
-       << "GLOBAL_ISEND_BYTES       = "
+       << "GLOBAL_ISEND_BYTES          = "
        << ::ygm::sum(m_stats.get_isend_bytes(), *this) << "\n"
-       << "MAX_LRG_BFR_SEND_COUNT   = "
+       << "MAX_LRG_BFR_SEND_COUNT      = "
        << ::ygm::max(m_stats.get_large_buffer_send_count(), *this) << "\n"
-       << "MAX_LRG_BFR_RECV_COUNT   = "
+       << "MAX_LRG_BFR_RECV_COUNT      = "
        << ::ygm::max(m_stats.get_large_buffer_recv_count(), *this) << "\n"
-       << "MAX_WAITSOME_ISEND_IRECV = "
+       << "MAX_SEND_BUFFER_ALLOCATIONS = "
+       << ::ygm::max(m_stats.get_send_buffer_allocation_count(), *this) << "\n"
+       << "MAX_RECV_BUFFER_ALLOCATIONS = "
+       << ::ygm::max(m_stats.get_recv_buffer_allocation_count(), *this) << "\n"
+       << "MAX_WAITSOME_ISEND_IRECV    = "
        << ::ygm::max(m_stats.get_waitsome_isend_irecv_time(), *this) << "\n"
-       << "MAX_WAITSOME_IALLREDUCE  = "
+       << "MAX_WAITSOME_IALLREDUCE     = "
        << ::ygm::max(m_stats.get_waitsome_iallreduce_time(), *this) << "\n"
-       << "COUNT_IALLREDUCE         = " << m_stats.get_iallreduce_count()
+       << "COUNT_IALLREDUCE            = " << m_stats.get_iallreduce_count()
        << "\n"
        << "======================================";
 
@@ -613,7 +618,7 @@ inline T comm::all_reduce(const T &in, MergeFunction merge) const {
 template <typename T>
 inline void comm::mpi_send(const T &data, int dest, int tag,
                            MPI_Comm comm) const {
-  ygm::detail::byte_vector packed;
+  ygm::detail::byte_vector packed = allocate_send_buffer(0);
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
   size_t packed_size = packed.size();
@@ -660,7 +665,7 @@ inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
  */
 template <typename T>
 inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-  ygm::detail::byte_vector packed;
+  ygm::detail::byte_vector packed = allocate_send_buffer(0);
   cereal::YGMOutputArchive oarchive(packed);
   if (rank() == root) {
     oarchive(to_bcast);
@@ -894,7 +899,8 @@ inline void comm::flush_send_buffer(int dest) {
     }
 
     if (m_free_send_buffers.empty()) {
-      request.buffer = std::make_shared<ygm::detail::byte_vector>();
+      request.buffer =
+          std::make_shared<ygm::detail::byte_vector>(allocate_send_buffer(0));
     } else {
       request.buffer = m_free_send_buffers.back();
       m_free_send_buffers.pop_back();
@@ -1132,6 +1138,36 @@ inline void comm::flush_to_capacity() {
     YGM_ASSERT_DEBUG(!m_send_remote_dest_queue.empty());
     flush_next_send(m_send_remote_dest_queue);
   }
+}
+
+/**
+ * @brief Allocates buffer space for a new send buffer
+ *
+ * @param buffer_size Size of buffer to allocate
+ *
+ * @return Returns a send buffer (relies on copy elision to avoid copies)
+ */
+inline ygm::detail::byte_vector comm::allocate_send_buffer(
+    const size_t buffer_size) const {
+  m_logger.log(log_level::debug, "Allocating send buffer of size " +
+                                     std::to_string(buffer_size) + " bytes");
+  m_stats.allocate_send_buffer();
+  return ygm::detail::byte_vector(buffer_size);
+}
+
+/**
+ * @brief Allocates buffer space for a new receive buffer
+ *
+ * @param buffer_size Size of buffer to allocate
+ *
+ * @return Returns a receive buffer (relies on copy elision to avoid copies)
+ */
+inline ygm::detail::byte_vector comm::allocate_recv_buffer(
+    const size_t buffer_size) const {
+  m_logger.log(log_level::debug, "Allocating recv buffer of size " +
+                                     std::to_string(buffer_size) + " bytes");
+  m_stats.allocate_recv_buffer();
+  return ygm::detail::byte_vector(buffer_size);
 }
 
 /**

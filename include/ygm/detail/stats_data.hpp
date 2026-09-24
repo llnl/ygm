@@ -45,13 +45,18 @@ struct stats_data {
   uint64_t m_waitsome_isend_irecv_count;
   uint64_t m_waitsome_iallreduce_count;
 
+  // Buffers
+  uint64_t m_send_buffer_allocation_count;
+  uint64_t m_recv_buffer_allocation_count;
+
   // Timing
-  double m_waitsome_isend_irecv_time;
-  double m_waitsome_iallreduce_time;
-  double m_time_start;
+  double  m_waitsome_isend_irecv_time;
+  double  m_waitsome_iallreduce_time;
+  double  m_time_start;
   int64_t m_last_barrier_utc;
 
-  // TODO: add double m_last_barrier_duration once per-barrier timing is wired in.
+  // TODO: add double m_last_barrier_duration once per-barrier timing is wired
+  // in.
 
   // TODO: u64 buffer-utilization counters (future). Candidates:
   //   m_pending_isend_bytes, m_send_local_buffer_bytes,
