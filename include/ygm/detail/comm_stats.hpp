@@ -7,9 +7,9 @@
 
 #include <mpi.h>
 
+#include <ctime>
 #include <iostream>
 #include <string>
-#include <ctime>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -39,34 +39,33 @@ class comm_stats {
     double  m_start_time;
   };
 
-  comm_stats()
-      : stats(&m_local_stats), m_time_start(MPI_Wtime()) {
-    reset();
-  }
+  comm_stats() : stats(&m_local_stats), m_time_start(MPI_Wtime()) { reset(); }
 
   ~comm_stats() {
     if (stats != &m_local_stats) close_comm_stats_shm();
   }
 
   void reset() {
-    stats->m_async_count                = 0;
-    stats->m_barrier_count              = 0;
-    stats->m_rpc_count                  = 0;
-    stats->m_route_count                = 0;
-    stats->m_large_buffer_send_count    = 0;
-    stats->m_large_buffer_recv_count    = 0;
-    stats->m_isend_count                = 0;
-    stats->m_isend_bytes                = 0;
-    stats->m_isend_test_count           = 0;
-    stats->m_irecv_count                = 0;
-    stats->m_irecv_bytes                = 0;
-    stats->m_irecv_test_count           = 0;
-    stats->m_iallreduce_count           = 0;
-    stats->m_waitsome_isend_irecv_count = 0;
-    stats->m_waitsome_iallreduce_count  = 0;
-    stats->m_waitsome_isend_irecv_time  = 0.0;
-    stats->m_waitsome_iallreduce_time   = 0.0;
-    stats->m_time_start                 = MPI_Wtime();
+    stats->m_async_count                  = 0;
+    stats->m_barrier_count                = 0;
+    stats->m_rpc_count                    = 0;
+    stats->m_route_count                  = 0;
+    stats->m_large_buffer_send_count      = 0;
+    stats->m_large_buffer_recv_count      = 0;
+    stats->m_isend_count                  = 0;
+    stats->m_isend_bytes                  = 0;
+    stats->m_isend_test_count             = 0;
+    stats->m_irecv_count                  = 0;
+    stats->m_irecv_bytes                  = 0;
+    stats->m_irecv_test_count             = 0;
+    stats->m_iallreduce_count             = 0;
+    stats->m_waitsome_isend_irecv_count   = 0;
+    stats->m_waitsome_iallreduce_count    = 0;
+    stats->m_send_buffer_allocation_count = 0;
+    stats->m_recv_buffer_allocation_count = 0;
+    stats->m_waitsome_isend_irecv_time    = 0.0;
+    stats->m_waitsome_iallreduce_time     = 0.0;
+    stats->m_time_start                   = MPI_Wtime();
   }
 
   size_t get_async_count() const { return stats->m_async_count; }
@@ -104,6 +103,13 @@ class comm_stats {
     return stats->m_waitsome_iallreduce_count;
   }
 
+  size_t get_recv_buffer_allocation_count() const {
+    return stats->m_recv_buffer_allocation_count;
+  }
+  size_t get_send_buffer_allocation_count() const {
+    return stats->m_send_buffer_allocation_count;
+  }
+
   double get_elapsed_time() const { return MPI_Wtime() - stats->m_time_start; }
 
  private:
@@ -118,14 +124,14 @@ class comm_stats {
     munmap(stats, sizeof(stats_data));
   }
 
-  void open_comm_stats_shm(int rank, int comm_size, int local_size, std::string path_id) {
-
+  void open_comm_stats_shm(int rank, int comm_size, int local_size,
+                           std::string path_id) {
     shm::ensure_handlers_registered();
     m_stats_path = shm::shm_prefix + path_id;
 
     // Open shm segment and cleanup if failure
     int fd = shm_open(m_stats_path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
-    if (fd == -1) { 
+    if (fd == -1) {
       std::cerr << "ygm::comm_stats: shm_open failed for " << m_stats_path
                 << ": " << strerror(errno) << std::endl;
       return;
@@ -151,15 +157,15 @@ class comm_stats {
       return;
     }
 
-    close(fd); // after mmapped, file descriptor isn't needed to access region.
+    close(fd);  // after mmapped, file descriptor isn't needed to access region.
 
     // Swing pointer to shared memory region
     stats = static_cast<stats_data*>(region);
 
     // Initialize the shm region
     reset();
-    stats->m_rank      = static_cast<uint32_t>(rank);
-    stats->m_comm_size = static_cast<uint32_t>(comm_size);
+    stats->m_rank       = static_cast<uint32_t>(rank);
+    stats->m_comm_size  = static_cast<uint32_t>(comm_size);
     stats->m_local_size = static_cast<uint32_t>(local_size);
     stats->m_time_start = m_time_start;
   }
@@ -198,6 +204,9 @@ class comm_stats {
   void irecv_test() { stats->m_irecv_test_count += 1; }
 
   void iallreduce() { stats->m_iallreduce_count += 1; }
+
+  void allocate_send_buffer() { stats->m_send_buffer_allocation_count += 1; }
+  void allocate_recv_buffer() { stats->m_recv_buffer_allocation_count += 1; }
 
   timer waitsome_isend_irecv() {
     stats->m_waitsome_isend_irecv_count += 1;
