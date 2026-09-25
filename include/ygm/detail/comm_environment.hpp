@@ -161,15 +161,17 @@ class comm_environment {
 
   void print(std::ostream& os = std::cout) const {
     os << "======== ENVIRONMENT SETTINGS ========\n"
-       << "YGM_COMM_LOCAL_BUFFER_SIZE_KB   = " << local_buffer_size / 1024
+       << "YGM_COMM_LOCAL_BUFFER_SIZE_KB      = " << local_buffer_size / 1024
        << "\n"
-       << "YGM_COMM_REMOTE_BUFFER_SIZE_KB  = " << remote_buffer_size / 1024
+       << "YGM_COMM_REMOTE_BUFFER_SIZE_KB     = " << remote_buffer_size / 1024
        << "\n"
-       << "YGM_COMM_NUM_IRECVS             = " << num_irecvs << "\n"
-       << "YGM_COMM_IRECVS_SIZE_KB         = " << irecv_size / 1024 << "\n"
-       << "YGM_COMM_NUM_ISENDS_WAIT        = " << num_isends_wait << "\n"
-       << "YGM_COMM_ISSEND_FREQ            = " << freq_issend << "\n"
-       << "YGM_COMM_ROUTING                = ";
+       << "YGM_COMM_NUM_IRECVS                = " << num_irecvs << "\n"
+       << "YGM_COMM_IRECVS_SIZE_KB            = " << irecv_size / 1024 << "\n"
+       << "YGM_COMM_NUM_ISENDS_WAIT           = " << num_isends_wait << "\n"
+       << "YGM_COMM_ISSEND_FREQ               = " << freq_issend << "\n"
+       << "YGM_COMM_SEND_BUFFER_FREE_LIST_LEN = " << send_buffer_free_list_len
+       << "\n"
+       << "YGM_COMM_ROUTING                   = ";
     switch (routing) {
       case routing_type::NONE:
         os << "NONE\n";
@@ -181,12 +183,12 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
-    os << "YGM_COMM_TRACE_YGM          = " << trace_ygm << "\n";
-    os << "YGM_COMM_TRACE_MPI          = " << trace_mpi << "\n";
-    os << "YGM_COMM_TRACE_PATH         = " << trace_path << "\n";
-    os << "YGM_COMM_STATS_SHM              = " << stats_shm << "\n";
-    os << "YGM_DEFAULT_LOG_PATH             = " << default_log_path << "\n"
-       << "YGM_DEFAULT_LOG_LEVEL            = ";
+    os << "YGM_COMM_TRACE_YGM                 = " << trace_ygm << "\n";
+    os << "YGM_COMM_TRACE_MPI                 = " << trace_mpi << "\n";
+    os << "YGM_COMM_TRACE_PATH                = " << trace_path << "\n";
+    os << "YGM_COMM_STATS_SHM                 = " << stats_shm << "\n";
+    os << "YGM_DEFAULT_LOG_PATH               = " << default_log_path << "\n"
+       << "YGM_DEFAULT_LOG_LEVEL              = ";
     switch (default_log_level) {
       case log_level::off:
         os << "off\n";
@@ -234,7 +236,7 @@ class comm_environment {
   bool        trace_mpi  = false;
   std::string trace_path = "trace/";
 
-  bool        stats_shm = true;
+  bool stats_shm = true;
 };
 
 }  // namespace detail
