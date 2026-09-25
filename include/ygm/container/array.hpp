@@ -453,7 +453,7 @@ class array
    *
    * @param key Local index to store value at
    * @param value Vale to store
-   * @details Assumes key (index) has already been converted to a local index.
+   * @details Assumes key (index) is a global index.
    */
   void local_insert(const key_type& key, const mapped_type& value) {
     m_local_vec[partitioner.local_index(key)] = value;
