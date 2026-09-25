@@ -206,6 +206,14 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
        << ::ygm::sum(m_stats.get_isend_count(), *this) << "\n"
        << "GLOBAL_ISEND_BYTES          = "
        << ::ygm::sum(m_stats.get_isend_bytes(), *this) << "\n"
+       << "MAX_ISEND_COUNT             = "
+       << ::ygm::max(m_stats.get_isend_count(), *this) << "\n"
+       << "MAX_ISEND_BYTES             = "
+       << ::ygm::max(m_stats.get_isend_bytes(), *this) << "\n"
+       << "MAX_IRECV_COUNT             = "
+       << ::ygm::max(m_stats.get_irecv_count(), *this) << "\n"
+       << "MAX_IRECV_BYTES             = "
+       << ::ygm::max(m_stats.get_irecv_bytes(), *this) << "\n"
        << "MAX_LRG_BFR_SEND_COUNT      = "
        << ::ygm::max(m_stats.get_large_buffer_send_count(), *this) << "\n"
        << "MAX_LRG_BFR_RECV_COUNT      = "
@@ -218,6 +226,12 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
        << ::ygm::max(m_stats.get_waitsome_isend_irecv_time(), *this) << "\n"
        << "MAX_WAITSOME_IALLREDUCE     = "
        << ::ygm::max(m_stats.get_waitsome_iallreduce_time(), *this) << "\n"
+       << "MAX_ISEND_TEST_COUNT        = "
+       << ::ygm::max(m_stats.get_isend_test_count(), *this) << "\n"
+       << "MAX_IRECV_TEST_COUNT        = "
+       << ::ygm::max(m_stats.get_irecv_test_count(), *this) << "\n"
+       << "COUNT_BARRIER               = " << m_stats.get_barrier_count()
+       << "\n"
        << "COUNT_IALLREDUCE            = " << m_stats.get_iallreduce_count()
        << "\n"
        << "======================================";
