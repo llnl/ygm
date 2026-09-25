@@ -75,6 +75,12 @@ class byte_vector {
   byte_vector() : m_data(nullptr), m_size(0), m_capacity(0) {}
 
   byte_vector(size_t set_capacity) : m_size(0) {
+    if (set_capacity == 0) {
+      m_data     = nullptr;
+      m_capacity = 0;
+      return;
+    }
+
     m_capacity = get_page_aligned_size(set_capacity);
     // now that the shm_file is the correct size we can memory map to it.
     m_data = (pointer)mmap(NULL, m_capacity, PROT_READ | PROT_WRITE,

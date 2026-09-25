@@ -355,9 +355,11 @@ class comm {
 
   void flush_to_capacity();
 
-  ygm::detail::byte_vector allocate_send_buffer(const size_t buffer_size) const;
+  std::shared_ptr<ygm::detail::byte_vector> allocate_send_buffer(
+      const size_t buffer_size) const;
 
-  ygm::detail::byte_vector allocate_recv_buffer(const size_t buffer_size) const;
+  std::shared_ptr<ygm::detail::byte_vector> allocate_recv_buffer(
+      const size_t buffer_size) const;
   void post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer);
 
   template <typename Lambda, typename... PackArgs>
