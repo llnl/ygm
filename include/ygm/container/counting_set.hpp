@@ -11,6 +11,7 @@
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/detail/base_save_load.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
@@ -34,9 +35,13 @@ class counting_set
                                std::tuple<Key, CountValue>>,
       public detail::base_iterators<counting_set<Key, CountValue>>,
       public detail::base_iteration_key_value<counting_set<Key, CountValue>,
-                                              std::tuple<Key, CountValue>> {
+                                              std::tuple<Key, CountValue>>,
+      public detail::base_save_load<counting_set<Key>,
+                                    std::tuple<Key, CountValue>> {
   friend struct detail::base_misc<counting_set<Key, CountValue>,
                                   std::tuple<Key, CountValue>>;
+  friend struct detail::base_save_load<counting_set<Key>,
+                                       std::tuple<Key, CountValue>>;
 
   using internal_container_type = map<Key, CountValue>;
 
@@ -114,6 +119,26 @@ class counting_set
       this->async_insert(k);
     }
     m_comm.barrier();
+  }
+
+  /**
+   * @brief Construct counting_set from counting_set saved to disk
+   *
+   * @param comm Communicator to use for communication
+   * @param save_path Path to saved data
+   * @param check_types Whether or not to check manifest type information before
+   * loading into container (default: true)
+   */
+  counting_set([[maybe_unused]] from_saved_tag_t f, ygm::comm &comm,
+               const std::filesystem::path &save_path, bool check_types = true)
+      : m_comm(comm),
+        pthis(this, ygm::max(ptr_type::next_index(), comm)),
+        m_map(comm),
+        partitioner(m_map.partitioner) {
+    m_comm.log(log_level::info,
+               "Creating ygm::container::counting_set from saved files at " +
+                   save_path.string());
+    this->load(save_path, check_types);
   }
 
   ~counting_set() {
@@ -241,6 +266,17 @@ class counting_set
   void async_insert(const key_type &key) { cache_insert(key); }
 
   /**
+   * @brief Asynchronously insert an item for counting
+   *
+   * @param key Item to count
+   * @details Inserts item into local cache before sending count to remote
+   * location
+   */
+  void async_insert(const key_type &key, const mapped_type count) {
+    cache_insert(key, count);
+  }
+
+  /**
    * @brief Execute a functor on every locally-held item and count
    *
    * @tparam Function functor type
@@ -349,20 +385,6 @@ class counting_set
    */
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
-  /**
-   * @brief Serialize counting set contents to collection of files
-   *
-   * @param fname Filename prefix to create names for files used by each rank
-   */
-  void serialize(const std::string &fname) { m_map.serialize(fname); }
-
-  /**
-   * @brief Deserialize counting set contents from collection of files
-   *
-   * @param fname Filename prefix to create names for files used by each rank
-   */
-  void deserialize(const std::string &fname) { m_map.deserialize(fname); }
-
  private:
   /**
    * @brief Remove key from local cache and distributed map
@@ -386,8 +408,20 @@ class counting_set
    * @brief Insert key into local cache. If key already exists, increment count
    * in local cache. If other key exists in desired cache slot, flush cached
    * value by sending to count to distributed `ygm::container::map`.
+   *
+   * @param key Key to increment count of
    */
-  void cache_insert(const key_type &key) {
+  void cache_insert(const key_type &key) { cache_insert(key, 1); }
+
+  /**
+   * @brief Insert key into local cache. If key already exists, increment count
+   * in local cache. If other key exists in desired cache slot, flush cached
+   * value by sending to count to distributed `ygm::container::map`.
+   *
+   * @param key Key to increase count of
+   * @param count Number to add to current cached count for key
+   */
+  void cache_insert(const key_type &key, const mapped_type count) {
     if (m_cache_empty) {
       m_cache_empty = false;
       m_map.comm().register_pre_barrier_callback(
@@ -396,20 +430,20 @@ class counting_set
     size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second == -1) {
       m_count_cache[slot].first  = key;
-      m_count_cache[slot].second = 1;
+      m_count_cache[slot].second = count;
     } else {
       // flush slot, fill with key
       YGM_ASSERT_DEBUG(m_count_cache[slot].second > 0);
       if (m_count_cache[slot].first == key) {
-        m_count_cache[slot].second++;
+        m_count_cache[slot].second += count;
       } else {
         count_cache_flush(slot);
         YGM_ASSERT_DEBUG(m_count_cache[slot].second == -1);
         m_count_cache[slot].first  = key;
-        m_count_cache[slot].second = 1;
+        m_count_cache[slot].second = count;
       }
     }
-    if (m_count_cache[slot].second == std::numeric_limits<int32_t>::max()) {
+    if (m_count_cache[slot].second >= std::numeric_limits<int32_t>::max()) {
       count_cache_flush(slot);
     }
   }
@@ -456,6 +490,12 @@ class counting_set
       m_count_cache[i].second = -1;
     }
     m_cache_empty = true;
+  }
+
+  void load_prologue([[maybe_unused]] const std::filesystem::path &save_path,
+                     [[maybe_unused]] detail::base_save_load<
+                         self_type, for_all_args>::manifest_t &manifest_obj) {
+    m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
 
   ygm::comm                           &m_comm;

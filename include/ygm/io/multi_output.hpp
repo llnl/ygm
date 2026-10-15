@@ -16,6 +16,7 @@
 #include <string>
 
 #include <ygm/container/detail/hash_partitioner.hpp>
+#include <ygm/utility/filesystem.hpp>
 
 namespace ygm::io {
 
@@ -65,7 +66,7 @@ class multi_output {
       // Make sure prefix isn't an already existing filename
       check_prefix(m_prefix_path);
 
-      make_directories(m_prefix_path);
+      ygm::utility::fs::make_directories(m_prefix_path);
     }
   }
 
@@ -193,34 +194,13 @@ class multi_output {
   }
 
   /**
-   * @brief Create all directories necessary to contain input path
-   *
-   * @param p Path to file
-   */
-  void make_directories(const fs::path &p) {
-    std::vector<fs::path> directory_stack;
-    fs::path              curr_path = p.parent_path();
-
-    while (!fs::exists(curr_path) && !curr_path.empty()) {
-      directory_stack.push_back(curr_path);
-      curr_path = curr_path.parent_path();
-    }
-
-    while (directory_stack.size() > 0) {
-      fs::path &p = directory_stack.back();
-      fs::create_directory(p);
-      directory_stack.pop_back();
-    }
-  }
-
-  /**
    * @brief Create a buffer for given filename
    *
    * @param p Path to file that is being buffered
    * @return Buffer to use with file
    */
   buffered_ofstream make_buffered_ofstream(const fs::path &p) {
-    make_directories(p);
+    ygm::utility::fs::make_directories(p);
 
     std::ios_base::openmode mode = std::ios::binary;
     if (m_append_flag) {

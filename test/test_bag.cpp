@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
         bbag.async_insert(i);
       }
     }
-    int                          seed = 100;
+    int                                  seed = 100;
     ygm::random::default_random_engine<> rng1 =
         ygm::random::default_random_engine<>(world, seed);
     bbag.local_shuffle(rng1);
@@ -394,6 +394,51 @@ int main(int argc, char** argv) {
     for (int bag_index = 0; bag_index < num_bags; ++bag_index) {
       YGM_ASSERT_RELEASE(vec_bags[bag_index].size() ==
                          size_t(world.size() * 2));
+    }
+  }
+
+  {
+    std::string   saving_path = "/tmp/saved_bag";
+    constexpr int size        = 987;
+
+    //
+    // Test saving
+    {
+      ygm::container::bag<std::string> sbag(world);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          sbag.async_insert(std::to_string(i));
+        }
+      }
+      world.barrier();
+
+      sbag.save(saving_path);
+    }
+
+    //
+    // Test loading
+    {
+      ygm::container::bag<std::string> sbag(ygm::container::from_saved_tag,
+                                            world, saving_path);
+
+      YGM_ASSERT_RELEASE(sbag.size() == size);
+
+      for (const auto& s : sbag) {
+        YGM_ASSERT_RELEASE(std::stoi(s) >= 0);
+        YGM_ASSERT_RELEASE(std::stoi(s) < size);
+      }
+    }
+    {
+      auto sbag = ygm::container::from_saved<ygm::container::bag<std::string>>(
+          world, saving_path);
+
+      YGM_ASSERT_RELEASE(sbag.size() == size);
+
+      for (const auto& s : sbag) {
+        YGM_ASSERT_RELEASE(std::stoi(s) >= 0);
+        YGM_ASSERT_RELEASE(std::stoi(s) < size);
+      }
     }
   }
 }

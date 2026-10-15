@@ -785,5 +785,51 @@ int main(int argc, char **argv) {
     }
   }
 
+  {
+    std::string   saving_path = "/tmp/saved_array";
+    constexpr int size        = 1073;
+
+    //
+    // Test saving
+    {
+      ygm::container::array<std::pair<int, double>> arr(world, size);
+
+      if (world.rank0()) {
+        for (int i = 0; i < size; ++i) {
+          arr.async_insert(i, std::make_pair(2 * i, 3.14));
+        }
+      }
+
+      world.barrier();
+
+      arr.save(saving_path);
+    }
+
+    //
+    // Test loading
+    {
+      ygm::container::array<std::pair<int, double>> arr(
+          ygm::container::from_saved_tag, world, saving_path);
+
+      YGM_ASSERT_RELEASE(arr.size() == size);
+
+      for (const auto &[key, val_pair] : arr) {
+        YGM_ASSERT_RELEASE((uint32_t)val_pair.first == 2 * key);
+        YGM_ASSERT_RELEASE(val_pair.second == 3.14);
+      }
+    }
+    {
+      auto arr = ygm::container::from_saved<
+          ygm::container::array<std::pair<int, double>>>(world, saving_path);
+
+      YGM_ASSERT_RELEASE(arr.size() == size);
+
+      for (const auto &[key, val_pair] : arr) {
+        YGM_ASSERT_RELEASE((uint32_t)val_pair.first == 2 * key);
+        YGM_ASSERT_RELEASE(val_pair.second == 3.14);
+      }
+    }
+  }
+
   return 0;
 }

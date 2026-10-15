@@ -37,6 +37,11 @@ concept HasAsyncReduceWithReductionOp = requires(T v) {
 };
 
 template <typename T>
+concept HasSize = requires(T v) {
+  { std::declval<T>().size() } -> std::same_as<typename T::size_type>;
+};
+
+template <typename T>
 concept HasAsyncReduceWithoutReductionOp = requires(T v) {
   {
     std::declval<T>().async_reduce(std::declval<typename T::key_type>(),
