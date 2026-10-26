@@ -238,7 +238,17 @@ class counting_set
    * @details Inserts item into local cache before sending count to remote
    * location
    */
-  void async_insert(const key_type &key) { cache_insert(key); }
+  void async_insert(const key_type &key) { cache_insert(key, 1); }
+
+  /**
+   * @brief Asynchronously insert an item for counting. Increases items count by value. 
+   *
+   * @param key Item to count
+   * @param amount Amount to increase key's count by.
+   * @details Inserts item into local cache before sending count to remote
+   * location
+   */
+  void async_insert(const key_type &key, mapped_type amount) { cache_insert(key, amount); }
 
   /**
    * @brief Execute a functor on every locally-held item and count
@@ -383,11 +393,11 @@ class counting_set
   }
 
   /**
-   * @brief Insert key into local cache. If key already exists, increment count
+   * @brief Insert key into local cache. If key already exists, increment count by amount argument
    * in local cache. If other key exists in desired cache slot, flush cached
    * value by sending to count to distributed `ygm::container::map`.
    */
-  void cache_insert(const key_type &key) {
+  void cache_insert(const key_type &key, mapped_type amount) {
     if (m_cache_empty) {
       m_cache_empty = false;
       m_map.comm().register_pre_barrier_callback(
@@ -396,17 +406,17 @@ class counting_set
     size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second == -1) {
       m_count_cache[slot].first  = key;
-      m_count_cache[slot].second = 1;
+      m_count_cache[slot].second = amount;
     } else {
       // flush slot, fill with key
       YGM_ASSERT_DEBUG(m_count_cache[slot].second > 0);
       if (m_count_cache[slot].first == key) {
-        m_count_cache[slot].second++;
+        m_count_cache[slot].second += amount;
       } else {
         count_cache_flush(slot);
         YGM_ASSERT_DEBUG(m_count_cache[slot].second == -1);
         m_count_cache[slot].first  = key;
-        m_count_cache[slot].second = 1;
+        m_count_cache[slot].second = amount;
       }
     }
     if (m_count_cache[slot].second == std::numeric_limits<int32_t>::max()) {
