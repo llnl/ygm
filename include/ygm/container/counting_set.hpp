@@ -398,29 +398,31 @@ class counting_set
    * value by sending to count to distributed `ygm::container::map`.
    */
   void cache_insert(const key_type &key, mapped_type amount) {
-    if (m_cache_empty) {
-      m_cache_empty = false;
-      m_map.comm().register_pre_barrier_callback(
-          [this]() { this->count_cache_flush_all(); });
-    }
-    size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
-    if (m_count_cache[slot].second == -1) {
-      m_count_cache[slot].first  = key;
-      m_count_cache[slot].second = amount;
-    } else {
-      // flush slot, fill with key
-      YGM_ASSERT_DEBUG(m_count_cache[slot].second > 0);
-      if (m_count_cache[slot].first == key) {
-        m_count_cache[slot].second += amount;
-      } else {
-        count_cache_flush(slot);
-        YGM_ASSERT_DEBUG(m_count_cache[slot].second == -1);
+    if (amount > 0) {
+      if (m_cache_empty) {
+        m_cache_empty = false;
+        m_map.comm().register_pre_barrier_callback(
+            [this]() { this->count_cache_flush_all(); });
+      }
+      size_t slot = detail::hash<key_type>{}(key) % count_cache_size;
+      if (m_count_cache[slot].second == -1) {
         m_count_cache[slot].first  = key;
         m_count_cache[slot].second = amount;
+      } else {
+        // flush slot, fill with key
+        YGM_ASSERT_DEBUG(m_count_cache[slot].second > 0);
+        if (m_count_cache[slot].first == key) {
+          m_count_cache[slot].second += amount;
+        } else {
+          count_cache_flush(slot);
+          YGM_ASSERT_DEBUG(m_count_cache[slot].second == -1);
+          m_count_cache[slot].first  = key;
+          m_count_cache[slot].second = amount;
+        }
       }
-    }
-    if (m_count_cache[slot].second == std::numeric_limits<int32_t>::max()) {
-      count_cache_flush(slot);
+      if (m_count_cache[slot].second == std::numeric_limits<int32_t>::max()) {
+        count_cache_flush(slot);
+      }
     }
   }
 
