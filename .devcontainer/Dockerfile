@@ -4,7 +4,7 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt -y install clangd
 RUN update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-19 100
 RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
 
-RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt -y install python3-sphinx python3-breathe doxygen python3-sphinx-rtd-theme
+RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt -y install python3-sphinx python3-breathe doxygen python3-sphinx-rtd-theme python3-pip python3-venv
 
 # Always build YGM tests in devcontainer
 ENV YGM_BUILD_TESTS=ON
