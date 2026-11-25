@@ -81,6 +81,34 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_insert incrementation with amount argument
+  {
+    ygm::container::counting_set<std::string> cset(world);
+
+    cset.async_insert("dog", 1);
+    cset.async_insert("apple", 2);
+    cset.async_insert("red", 3);
+
+    YGM_ASSERT_RELEASE(cset.count("dog") == (size_t)world.size() * 1);
+    YGM_ASSERT_RELEASE(cset.count("apple") == (size_t)world.size() * 2);
+    YGM_ASSERT_RELEASE(cset.count("red") == (size_t)world.size() * 3);
+    YGM_ASSERT_RELEASE(cset.size() == 3);
+
+    auto count_map = cset.gather_keys({"dog", "cat", "apple"});
+    YGM_ASSERT_RELEASE(count_map["dog"] == (size_t)world.size() * 1);
+    YGM_ASSERT_RELEASE(count_map["apple"] == (size_t)world.size() * 2);
+    YGM_ASSERT_RELEASE(cset.count("cat") == 0);
+
+    YGM_ASSERT_RELEASE(cset.count_all() == 6 * (size_t)world.size());
+
+    // test contains
+    YGM_ASSERT_RELEASE(cset.contains("dog"));
+    YGM_ASSERT_RELEASE(cset.contains("apple"));
+    YGM_ASSERT_RELEASE(cset.contains("red"));
+    YGM_ASSERT_RELEASE(!cset.contains("blue"));
+  } 
+
+  //
   // Test counting_sets YGM pointer
   {
     ygm::container::counting_set<std::string> cset(world);
